@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/**)",
+      "Bash(python -c ' *)",
+      "Bash(python3)",
+      "Bash(ls ppt/media/)",
+      "Bash(ls ppt/embeddings/)",
+      "Bash(cat ppt/slides/_rels/slide4.xml.rels)",
+      "Bash(python3 *)",
+      "Bash(pip install *)"
+    ]
+  }
+}

@@ -1,0 +1,146 @@
+# 개발 인수인계서 (Handover Document)
+
+- **작성자**: 김기철
+- **문서 버전**: 1.2 (ADR 형식 + Action Item 통합)
+- **관련 문서**: [SRS](../02_requirements/SRS.md), [UML](../03_design/UML.md), [ADR 인덱스](../04_decisions/README.md)
+
+---
+
+## 1. 프로젝트 개요: 왜 이 시스템을 만들었는가?
+
+본 프로젝트는 고연차의 **"버려지는 연차"**와 저연차의 **"부족한 연차"** 문제를 해결하기 위해 시작되었습니다. 하지만 단순히 연차를 사고파는 기능을 넘어, **근로기준법을 준수하면서도 회사의 재무적 리스크를 0%로 통제하는 "B2E 에스크로 모델"**을 고안하여 적용한 시스템입니다.
+
+> **단순한 CRUD 게시판이 아니며, 사내 복지 예산과 HR 정산이 직결된 "사내 금융 플랫폼"에 준하는 무결성이 요구됩니다.**
+
+---
+
+## 2. 3대 철학 (절대 훼손 금지)
+
+| 원칙 | 의미 |
+|---|---|
+| **회사 예산 선투입 원천 차단** | 회사는 연차 매입에 돈을 쓰지 않으며, 오직 낙찰자들이 지불한 에스크로 수익금 내에서만 배당을 실행합니다. |
+| **합법성 (P2P 금지)** | 근로기준법상 휴식권 매매를 방지하기 위해 개인 간 직접 거래는 시스템적으로 영구 차단되어야 합니다. |
+| **인사(HR) 정산 사고 방지** | 경매로 낙찰받거나 이벤트로 받은 연차는 연말 "연차수당 지급 대상"에서 완벽하게 분리되어야 합니다. |
+
+---
+
+## 3. 핵심 설계 결정사항 (ADR 요약)
+
+각 결정의 상세 근거·리스크·트레이드오프는 [ADR 문서](../04_decisions/README.md)를 반드시 정독할 것.
+
+### 3.1 [ADR-001] Escrow 후 배당 모델
+- ❌ "연차 반납자(판매자)에게 회사가 즉시 포인트 지급"
+- ✅ "판매자에게 지분만 기록 → 구매자의 낙찰 수익을 에스크로에 적립 → 연말 지분율대로 N빵"
+- 💣 회피: 회사 예산 손실 리스크
+
+### 3.2 [ADR-002] 휴가 속성 3-flag 분리
+- ❌ "낙찰받은 연차를 일반 연차와 동일하게 취급"
+- ✅ `REGULAR`(수당 O) / `AUCTION`(수당 X) / `EVENT`(수당 X) 완벽 분리
+- 💣 회피: **이중 보상 사고 (Double Dipping)**
+
+### 3.3 [ADR-003] 백엔드 강제 차감 우선순위
+- ❌ "사용자가 어떤 속성의 연차를 쓸지 선택"
+- ✅ `AUCTION → EVENT → REGULAR` 자동 차감
+- 💣 회피: 경매 연차 소멸 클레임
+
+### 3.4 [ADR-004] Year 기준 파티셔닝
+- ❌ "매 연차마다 expired_at 컬럼 + 매일 배치"
+- ✅ `year` 컬럼 파티셔닝 + 12/31 일괄 Soft Delete
+- 💣 회피: 불필요한 리소스 낭비 + 복잡도
+
+### 3.5 [ADR-005] HR API 호출 시점 🔴 **미결**
+- ⚠️ 현재 UML은 "DB COMMIT 전 HR API 호출" 구조 → 외부 시스템 롤백 불가
+- ✅ 권장: **Outbox Pattern** — DB 원자성 보장 후 비동기 Worker가 HR API 호출
+- 💣 회피: HR 200 OK + DB 롤백 시 에스크로 정합성 붕괴
+
+### 3.6 [ADR-006~009]
+- ADR-006: Redis 분산 락 (NFR-1 구현)
+- ADR-007: 경매 단위 "1일권" 고정
+- ADR-008: 연말 일괄 배당 (즉시 분배 불가)
+- ADR-009: 기존 복지 포인트 재활용 (신규 화폐 미발행)
+
+---
+
+## 4. 백엔드 개발 필수 준수 사항 (Technical Safeguards)
+
+### 4.1 원장 불변의 법칙 (Insert-Only Ledger)
+
+- `POINT_TRANSACTION_LOG` 테이블은 **절대 UPDATE, DELETE 쿼리를 사용하지 않음**
+- 관리자라도 잔액 수정이 필요하면 **사유를 적은 INSERT(REFUND/환불) 트랜잭션**을 새로 발생시킴
+- DB 레벨 트리거로 UPDATE/DELETE 차단 (db-schema.sql 참조)
+
+### 4.2 동시성 제어 (Concurrency Control)
+
+- 경매 마감 직전 트래픽 몰림 → 메인 DB 락만으로는 **데드락/입찰가 꼬임** 발생
+- **Redis 분산 락** 필수 ([ADR-006](../04_decisions/ADR-006-redis-lock.md))
+- 락 키: `auction:lock:{id}`, TTL 5초, Lua 스크립트로 atomic 해제
+
+### 4.3 API 트랜잭션 무결성 보장
+
+- 에스크로 정산과 HR API 연차 부여는 **단일 트랜잭션 원칙**
+- **⚠️ 중요**: [ADR-005](../04_decisions/ADR-005-hr-api-timing.md) 결정 이후 실제 구현 방식 확정 (Outbox or Saga)
+- HR API 호출은 반드시 **Idempotency Key**(`auction-{id}-winner-{userId}`) 동반
+
+### 4.4 감사 로그 기록
+
+- 모든 포인트 변동은 `POINT_TRANSACTION_LOG`에 `escrow_balance_snapshot` 포함 INSERT
+- 정합성 검증 공식: `Σ(log.amount WHERE action_type IN (BID, WIN)) = ESCROW.balance`
+
+---
+
+## 5. 인수인계자 Action Item (향후 마일스톤)
+
+### 🔥 Week 1 — 블로커 해결
+
+- [ ] **[ADR-005] HR API 타이밍 결정** (Outbox vs Saga 중 선택 → ADR Accepted 상태로)
+- [ ] **[tech-stack.md] 기술 스택 확정** (백엔드 프레임워크 / DB 버전 / Redis 버전 / MQ 선택)
+- [ ] **[db-schema.sql] DDL 리뷰 + Insert-Only 트리거 구현·테스트**
+
+### Week 2 — 설계 문서 마감
+
+- [ ] RESTful API 명세서 정식화 — [api-spec.md](../03_design/api-spec.md) → OpenAPI 3.0 YAML
+- [ ] 배치 스케줄러 설계 — 12/31 연말 정산·배당 배치의 재진입성(idempotent) 설계
+- [ ] 프론트엔드 UI/UX 와이어프레임 (최소 5개 화면)
+
+### Week 3~4 — 개발 착수
+
+- [ ] 도메인 모델 구현 (User / Auction / LeaveBalance / PointTransactionLog)
+- [ ] SSO 인증 연동 + JWT 발급
+- [ ] 입찰 API 구현 + Redis 분산 락 통합 테스트
+- [ ] WebSocket 실시간 브로드캐스트 채널
+
+### 이후 Sprint
+
+- [ ] HR API 연동 모듈 (Outbox Worker 포함)
+- [ ] 연말 배치 스케줄러 구현
+- [ ] 관리자 API (유찰 재고 수동 지급)
+- [ ] 모니터링 대시보드 (에스크로 잔고 실시간)
+
+---
+
+## 6. 인수인계 시 "반드시 읽어야 할 문서" 순서
+
+1. [proposal.md](../01_planning/proposal.md) — 왜 이 시스템이 존재하는가
+2. [SRS.md](../02_requirements/SRS.md) — 정식 요구사항 (특히 3.4 DB-RULE)
+3. [glossary.md](../02_requirements/glossary.md) — 용어 정의 (특히 Leave Type 3종)
+4. [ADR 인덱스](../04_decisions/README.md) + **001~005까지는 필수 정독**
+5. [UML.md](../03_design/UML.md) — 정적/동적 설계 시각화
+6. [erd.md](../03_design/erd.md) — DB 관계도
+7. [api-spec.md](../03_design/api-spec.md) — API 스펙 초안
+8. 본 문서 — 통합 철학 및 Action Item
+
+---
+
+## 7. 맺음말
+
+이 시스템은 기획 단계부터 **"어떻게 하면 편하게 휴가를 나눌까"**보다 **"어떻게 하면 회사 시스템의 허점을 이용한 어뷰징과 재무 사고를 완벽히 막아낼까"**에 80% 이상의 리소스를 쏟아부은 깐깐한 아키텍처입니다.
+
+새로운 기능을 추가하거나 플로우를 변경할 때, 이 문서 및 ADR에 적힌 **"회피하고자 했던 리스크"**들이 다시 부활하지 않는지 반드시 크로스체크해 주시기 바랍니다.
+
+### 🚨 절대 건드리지 말아야 할 것
+
+1. `POINT_TRANSACTION_LOG`의 Insert-Only 제약 (트리거 포함)
+2. 3-flag 분리 (`REGULAR`/`AUCTION`/`EVENT`)
+3. 차감 우선순위 (`AUCTION → EVENT → REGULAR`)
+4. 에스크로 잔액 초과 배당 금지
+5. P2P 직거래 경로 (API든 UI든) 신설 금지
