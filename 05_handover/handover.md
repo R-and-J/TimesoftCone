@@ -48,10 +48,11 @@
 - ✅ `year` 컬럼 파티셔닝 + 12/31 일괄 Soft Delete
 - 💣 회피: 불필요한 리소스 낭비 + 복잡도
 
-### 3.5 [ADR-005] HR API 호출 시점 🔴 **미결**
-- ⚠️ 현재 UML은 "DB COMMIT 전 HR API 호출" 구조 → 외부 시스템 롤백 불가
-- ✅ 권장: **Outbox Pattern** — DB 원자성 보장 후 비동기 Worker가 HR API 호출
-- 💣 회피: HR 200 OK + DB 롤백 시 에스크로 정합성 붕괴
+### 3.5 [ADR-005] HR API 호출 시점 ✅ **확정**
+- ✅ **Outbox Pattern을 구조적 답으로 채택**. 단, 휴가 부여를 *내부화*([ADR-016](../04_decisions/ADR-016-internal-leave-system.md))하여 분산 트랜잭션 문제 자체를 회피
+- `InternalLeaveAdapter`가 `leave_balance`에 직접 INSERT → 낙찰 정산이 단일 DB 트랜잭션
+- Outbox 기계는 *배당 출금* 및 *미래 그룹웨어 연동*용으로 dormant 상태로 존재
+- 💣 회피: HR 200 OK + DB 롤백 시 에스크로 정합성 붕괴 → 내부화로 원천 차단
 
 ### 3.6 [ADR-006~009]
 - ADR-006: Redis 분산 락 (NFR-1 구현)
@@ -65,8 +66,8 @@
 
 ### 4.1 원장 불변의 법칙 (Insert-Only Ledger)
 
-- `POINT_TRANSACTION_LOG` 테이블은 **절대 UPDATE, DELETE 쿼리를 사용하지 않음**
-- 관리자라도 잔액 수정이 필요하면 **사유를 적은 INSERT(REFUND/환불) 트랜잭션**을 새로 발생시킴
+- `LEDGER_ENTRY` 테이블(구 `POINT_TRANSACTION_LOG`)은 **절대 UPDATE, DELETE 쿼리를 사용하지 않음**
+- 관리자라도 잔액 수정이 필요하면 **사유를 적은 INSERT(REFUND/환불 또는 CREDIT_ADMIN) 트랜잭션**을 새로 발생시킴
 - DB 레벨 트리거로 UPDATE/DELETE 차단 (db-schema.sql 참조)
 
 ### 4.2 동시성 제어 (Concurrency Control)
@@ -83,8 +84,9 @@
 
 ### 4.4 감사 로그 기록
 
-- 모든 포인트 변동은 `POINT_TRANSACTION_LOG`에 `escrow_balance_snapshot` 포함 INSERT
-- 정합성 검증 공식: `Σ(log.amount WHERE action_type IN (BID, WIN)) = ESCROW.balance`
+- 모든 포인트 변동은 `LEDGER_ENTRY`에 `escrow_balance_snapshot` 포함 INSERT
+- 정합성 검증 공식 (currency별): `Σ(BID + WIN) − Σ(REFUND + DIVIDEND) = ESCROW.balance`
+- `CREDIT_ADMIN`(관리자 적립)은 외부 적립이므로 위 등식과 **분리** 집계
 
 ---
 
@@ -92,9 +94,10 @@
 
 ### 🔥 Week 1 — 블로커 해결
 
-- [ ] **[ADR-005] HR API 타이밍 결정** (Outbox vs Saga 중 선택 → ADR Accepted 상태로)
+- [x] ~~**[ADR-005] HR API 타이밍 결정**~~ ✅ 확정 — Outbox + InternalLeaveAdapter ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md), [ADR-016](../04_decisions/ADR-016-internal-leave-system.md))
 - [ ] **[tech-stack.md] 기술 스택 확정** (백엔드 프레임워크 / DB 버전 / Redis 버전 / MQ 선택)
 - [ ] **[db-schema.sql] DDL 리뷰 + Insert-Only 트리거 구현·테스트**
+- [ ] **도메인 계산식 명세** — 패자 환불 플로우 / Stake 산정식·반올림 / 배당 나머지 처리 (무지성 개발의 전제)
 
 ### Week 2 — 설계 문서 마감
 
@@ -139,8 +142,23 @@
 
 ### 🚨 절대 건드리지 말아야 할 것
 
-1. `POINT_TRANSACTION_LOG`의 Insert-Only 제약 (트리거 포함)
+1. `LEDGER_ENTRY`의 Insert-Only 제약 (트리거 포함)
 2. 3-flag 분리 (`REGULAR`/`AUCTION`/`EVENT`)
 3. 차감 우선순위 (`AUCTION → EVENT → REGULAR`)
 4. 에스크로 잔액 초과 배당 금지
 5. P2P 직거래 경로 (API든 UI든) 신설 금지
+
+### 🧱 구조 ADR 요약 (2026-05-14 추가)
+
+정책 ADR과 별개로, *구조* 측면에서 다음이 확정됨 (상세는 [ADR 인덱스](../04_decisions/README.md)):
+
+- **[ADR-012] Hexagonal Architecture** — `domain/`은 외부 라이브러리 의존 0. `ports/` 인터페이스 → `adapters/` 구현.
+- **[ADR-010] 통화 추상화** — 화폐는 `BiddingCurrency`/`PayoutChannel` 인터페이스 뒤로. `WelfarePointProvider`가 현재 유일 구현체.
+- **[ADR-011] wallet 자체 보유** — 복지 포인트 잔액 마스터는 본 시스템. 입찰 결제 경로에서 외부 호출 0.
+- **[ADR-013] Domain Event** — 횡단 관심사(알림·메트릭·감사)는 이벤트 핸들러로 분리. Use Case는 부수효과를 직접 알지 못함.
+- **[ADR-014] Auction State 패턴** — 6개 상태 객체. 도메인 메서드에 `if (status === ...)` 금지.
+- **[ADR-015] Value Object** — `UserId`/`Point`/`LeaveDays` 등은 원시 타입 대신 VO. 생성 시점 불변식 강제.
+- **[ADR-016] 자체 휴가 관리 보유** — `leave_balance` 마스터도 본 시스템. `LeaveGrantPort` → `InternalLeaveAdapter`(기본). 휴가 기안/승인 워크플로는 스코프 외.
+- **[ADR-017] 휴가 풀 분리 컨텍스트** — 연말 풀 수집(FR-1.1)은 별도 Bounded Context `LeavePool`. 일상 휴가 관리와 분리.
+
+> **3대 외부 자원의 일관된 처리**: 화폐(ADR-010/011) · 휴가(ADR-016) · HR 타이밍(ADR-005)은 전부 동일 패턴 — "포트 뒤로 추상화, 내부 어댑터를 기본 구현체로, 실 외부 연동은 추후 어댑터 교체". 새 기능 추가 시 이 패턴을 깨지 않도록 주의.

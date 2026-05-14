@@ -100,8 +100,8 @@ stateDiagram-v2
 
     %% ---------- 5. 최상위 전이 ----------
     [*] --> CREATED : 연말 배치 / 매물 생성
-    CREATED --> OPEN : 1월 1일 자정 / 경매 오픈
-    OPEN --> CLOSED : end_time 경과 / 스케줄러 마감
+    CREATED --> OPEN : 분산 오픈 배치 / 주차별 경매 오픈
+    OPEN --> CLOSED : end_time 경과 (오픈+3일) / 스케줄러 마감
     CLOSED --> 낙찰여부
     낙찰여부 --> AWARDED : [낙찰자 있음]
     낙찰여부 --> UNSOLD : [낙찰자 없음]
@@ -115,6 +115,7 @@ stateDiagram-v2
 ![State Diagram](state.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `state.png`로 덮어쓰기.
+> ⚠️ **재렌더링 필요** (2026-05-14): `CREATED → OPEN` 전이가 "1월 1일 자정 전량 오픈" → "분산 오픈 배치(주차별)"로 변경됨 ([business-rules.md](../../02_requirements/business-rules.md) OP-4). PNG는 아직 구버전.
 
 ---
 
@@ -136,9 +137,9 @@ stateDiagram-v2
 | From | To | Trigger | Guard (정밀 수식) | 다이어그램 표기 | Action |
 |---|---|---|---|---|---|
 | `[*]` | CREATED | 연말 배치 실행 | `REGULAR 미사용 > 0` | `[REGULAR 미사용 보유]` | 매물 생성 |
-| CREATED | OPEN | 1월 1일 자정 | `year == currentYear` | — (조건 충족 시 자동) | 경매 오픈 |
-| 입찰대기중 | 최고가갱신중 | 입찰접수 | `current_point ≥ amount AND highest_bid < amount` | `[잔액 충분]` | 락+차감+로그 |
-| 입찰대기중 | 입찰대기중 | 입찰접수 | `current_point < amount` | `[잔액 부족]` | 400 반환 (self-transition) |
+| CREATED | OPEN | 분산 오픈 배치 (매주) | `year == currentYear AND 주차별 오픈 쿼터 미소진` | `[오픈 차례 도달]` | 경매 오픈 (start_time 확정) |
+| 입찰대기중 | 최고가갱신중 | 입찰접수 | `wallet.balance ≥ amount AND amount ≥ highest_bid + 최소증분` | `[잔액 충분]` | 락+차감+직전자 환불+로그 |
+| 입찰대기중 | 입찰대기중 | 입찰접수 | `wallet.balance < amount` | `[잔액 부족]` | 400 반환 (self-transition) |
 | OPEN | CLOSED | end_time 경과 | — | — | 마감 처리 |
 | CLOSED | AWARDED | choice | `winner_id != null AND highest_bid > 0` | `[낙찰자 있음]` | — |
 | CLOSED | UNSOLD | choice | `winner_id == null` | `[낙찰자 없음]` | — |
@@ -164,6 +165,9 @@ AWARDED 복합 상태 내부에서 사용된 메시지 큐 관련 용어 (상세
 - **`<<choice>>` 의사상태** → CLOSED 이후 낙찰/유찰 분기를 UML 표준으로 명시
 - **AWARDED 내부의 MQ재시도/DLQ** → [ADR-005](../../04_decisions/ADR-005-hr-api-timing.md) Outbox Pattern의 실패 시나리오 반영
 - **12/31 배치 단일 수렴** → [ADR-004](../../04_decisions/ADR-004-year-partitioning.md) year 기준 파티셔닝의 귀결
+- **6개 상태의 코드 구현** → [ADR-014](../../04_decisions/ADR-014-auction-state-pattern.md) GoF State 패턴 — 각 상태를 객체로, `auction.status` enum은 어댑터 경계에서 매핑
+- **분산 오픈 (CREATED → OPEN 주차별)** → [business-rules.md](../../02_requirements/business-rules.md) OP-4. 1/1 전량 동시 오픈 아님
+- **입찰 전이의 직전자 즉시 환불** → [ADR-018](../../04_decisions/ADR-018-auction-settlement-rules.md) 패자 즉시 환불
 
 ---
 

@@ -2,8 +2,8 @@
 
 **프로젝트**: 연차 경매 시스템
 **팀**: 타임소프트콘 (김기철, 오지석)
-**제출일**: 2026-04-10
-**문서 버전**: 1.0
+**제출일**: 2026-04-10 (초안) → 2026-05-14 (v1.3 개정)
+**문서 버전**: 1.3 (ADR-005 확정 + ADR-010~018, business-rules·edge-cases 분리)
 
 ---
 
@@ -57,11 +57,18 @@
 
 ### 2.1. 제품 관점
 
-본 시스템은 사내 그룹웨어와 **독립적인 MSA(Microservices Architecture)** 환경에서 동작하되, 다음 3가지 트랜잭션 단계에서만 외부 HR 시스템의 REST API와 연동된다.
+본 시스템은 사내 그룹웨어와 **독립적인 MSA(Microservices Architecture)** 환경에서 동작하며, **핵심 자원(포인트 잔액·휴가 잔액)을 자체적으로 소유**한다.
 
-1. 사용자 인증 (SSO)
-2. 연차 개수 부여
-3. 복지카드 한도 증액
+| 자원 | 마스터 | 외부 결합 | 근거 |
+|---|---|---|---|
+| 복지 포인트 잔액 (`wallet`) | **본 시스템** | 없음 (입찰 결제 시 외부 호출 0) | [[ADR-011]] |
+| 휴가 잔액 (`leave_balance`) | **본 시스템** | 없음 (낙찰 시 휴가 부여는 내부 INSERT) | [[ADR-016]] |
+| 사용자 인증 (SSO) | 외부 IdP | IdP 위임 | — |
+| 복지카드 한도 증액 (배당 출금) | 외부 HR | HR `/api/hr/welfare` (Outbox 경유) | [[ADR-005]], [[ADR-010]] |
+
+**입찰·낙찰 경로 전체에서 외부 시스템 호출이 없다.** 휴가 부여(`LeaveGrantPort`)와 포인트 차감(`BiddingCurrency`)은 모두 본 시스템 DB 내부의 단일 트랜잭션으로 처리된다. 외부 자원(화폐·휴가·HR)은 모두 포트 인터페이스 뒤로 추상화되어 있어, **실 그룹웨어 연동은 추후 어댑터 교체만으로 가능**하다 (코어 도메인 무수정 — [[ADR-012]]).
+
+> 실 사내 도입 시: `InternalLeaveAdapter` → `GroupwareLeaveAdapter`로 교체하면 휴가 부여가 외부 호출이 되며, 이때 [[ADR-005]]의 Outbox 경로가 활성화된다. 학교 프로젝트 범위는 내부 어댑터까지.
 
 회사의 자본 선투입 없이 시스템 내의 포인트 순환만으로 작동하는 **"무자본 중개 플랫폼"**이다.
 
@@ -120,10 +127,12 @@ Content-Type: application/json
 | **FR-1.1** | 연말 정산 및 공용 풀 생성 | 매년 12월 31일 23:59 스케줄러가 `REGULAR` 미사용 연차를 취합하여 익년도 "연차 1일권" 매물 생성, 기여자 지분(Stake)을 대장에 기록 | 정산 대상 연차 0개 사용자 스킵 / 연차 반납 시 포인트 선지급 **절대 불가** |
 | **FR-2.1** | 실시간 입찰 진행 | 잔여 포인트 내 입찰, 상위 입찰 발생 시 기존 최고가 입찰자에게 WebSocket 알림 발송 | 포인트 부족 시 입찰 버튼 비활성화 / **[제약]** Redis 분산 락으로 동시성 제어 필수 |
 | **FR-2.2** | 낙찰 및 에스크로 적립 | 경매 마감 시 최종 낙찰자 포인트 차감, 시스템 에스크로 중앙 대장에 (+) 누적 적립 | 트랜잭션 실패 시 전체 롤백 / 관리자 채널(Slack 등) Critical 알림 발송 |
-| **FR-2.3** | HR 휴가 권한 부여 | 낙찰 확정 즉시 HR API POST 호출하여 낙찰자 잔여 연차를 `AUCTION` 속성으로 +1 증가 | FR-2.2와 동일 DB 트랜잭션 내 처리 / API 장애 시 Message Queue 적재 후 재시도 |
+| **FR-2.3** | 휴가 권한 부여 | 낙찰 확정 시 낙찰자 잔여 연차를 `AUCTION` 속성으로 +1 증가. `LeaveGrantPort.grant()` 경유 — 현재 `InternalLeaveAdapter`가 `leave_balance`에 직접 INSERT | **FR-2.2와 동일 DB 트랜잭션 내 처리** (내부 어댑터) / 실 그룹웨어 연동 시 Outbox 경유 ([[ADR-005]], [[ADR-016]]) |
 | **FR-3.1** | 휴가 차감 우선순위 제어 | 휴가 사용 승인 시 `AUCTION → EVENT → REGULAR` 순으로 최우선 차감 | 1순위 잔고 0일 경우 다음 순위 폴백 / 일반 연차(`REGULAR`)는 최후 차감 |
 | **FR-4.1** | 연말 배당금 정산 | 매년 12월 31일, 에스크로 총수익금을 기여자 지분율(Stake)에 따라 분할 산정하여 복지카드 한도 증액 API 호출 | **[제약]** 에스크로 잔액 초과 배당 절대 불가 / 산정액 불일치 시 배치 중단 및 수동 감사 대기 |
 | **FR-4.2** | 잔여 재고 활용 및 청산 | 유찰된 1일권 재고는 사내 포상(`EVENT`)으로 수동 지급 지원, 당해 연도 종료 시 남은 재고 영구 삭제 | 수동 지급 시 에스크로 금액 변동 없음 / **[제약]** 재고의 익년 이월 회계상 원천 차단 |
+| **FR-5.1** | 관리자 포인트 적립 | 관리자(`role=ADMIN`)가 직원의 `wallet` 잔액에 포인트를 적립. `LEDGER_ENTRY`에 `action_type='CREDIT_ADMIN'`으로 INSERT. `reason` 필드 필수. ([[ADR-011]]) | **[제약]** 일반 직원(`EMPLOYEE`) 호출 시 403 / 사유 누락 시 400 / 적립은 본 시스템 에스크로와 무관 |
+| **FR-5.2** | 잔액 조회 | 직원은 자기 wallet 잔액과 거래 내역(`LEDGER_ENTRY` 필터)을 조회. 관리자는 모든 직원 조회 가능. | 인증 토큰 없으면 401 / 권한 없으면 403 |
 
 ### 3.3. 비기능적 요구사항 (Non-Functional Requirements)
 
@@ -133,11 +142,12 @@ Content-Type: application/json
 
 #### [NFR-2] 재무 정합성 및 감사 추적성 (Auditability)
 
-시스템은 다음 공식을 보장해야 한다:
+시스템은 다음 공식을 보장해야 한다 (통화별로 분리 검증):
 
 > **[연말 총 배당금 지급액] = [1년간 에스크로에 모인 포인트 총합]**
+> 즉: `Σ(BID + WIN) − Σ(REFUND + DIVIDEND) = ESCROW.balance` (currency별)
 
-포인트 및 연차의 모든 변동은 **포인트 거래 대장(Transaction Log) 테이블에 Insert-Only 방식으로 영구 기록**되어야 한다 (수정/삭제 불가).
+포인트 및 연차의 모든 변동은 **원장(LEDGER_ENTRY) 테이블에 Insert-Only 방식으로 영구 기록**되어야 한다 (수정/삭제 불가). `CREDIT_ADMIN`은 외부 적립이므로 에스크로 등식과 *분리* 집계된다.
 
 ### 3.4. 논리적 데이터베이스 요구사항
 
@@ -149,9 +159,10 @@ Content-Type: application/json
 
 #### 3.4.2 데이터 무결성 제약조건
 
-- **[DB-RULE-1] 대장 불변의 법칙**: `POINT_TRANSACTION_LOG` 테이블은 추적을 위해 오직 INSERT만 허용되며 UPDATE, DELETE는 시스템적으로 차단된다.
+- **[DB-RULE-1] 대장 불변의 법칙**: `LEDGER_ENTRY` 테이블은 추적을 위해 오직 INSERT만 허용되며 UPDATE, DELETE는 시스템적으로 차단된다 (DB 트리거 강제).
 - **[DB-RULE-2] 연도별 정산 파티셔닝**: `LEAVE_BALANCE`는 `year` 기준으로 관리되며, 12월 31일 배치 시 `AUCTION`, `EVENT` 속성의 이전 연도 데이터는 자동 소멸(Soft Delete) 처리된다.
-- **[DB-RULE-3] 외래키 및 잔액 제약**: 낙찰 확정 시 `AUCTION.winner_id`의 `USER.current_point`는 반드시 `highest_bid` 이상이어야만 트랜잭션이 Commit 된다.
+- **[DB-RULE-3] 외래키 및 잔액 제약**: 낙찰 확정 시 `AUCTION.winner_id`의 `wallet(user_id, currency='WELFARE_POINT').balance`는 반드시 `highest_bid` 이상이어야만 트랜잭션이 Commit 된다. ([[ADR-010]] 추상화 뒤에서 `BiddingCurrency.debit()` 호출로 강제)
+- **[DB-RULE-4] 화폐 단위 분리**: `LEDGER_ENTRY`·`ESCROW`·`WALLET`은 모두 `currency` 컬럼을 가지며, 에스크로 정합성 등식은 *통화별로* 분리 검증된다.
 
 ### 3.5. 사용자 인터페이스 요구사항
 
@@ -163,6 +174,17 @@ Content-Type: application/json
 ## 관련 문서
 
 - [용어집 (Glossary)](glossary.md)
+- [비즈니스 규칙·운영 파라미터·계산식](business-rules.md) — FR/NFR을 실행 가능한 수치·수식으로 구체화
+- [엣지 케이스 카탈로그](edge-cases.md) — 경계 상황의 기획 결정
 - [UML 다이어그램](../03_design/UML.md)
 - [ERD](../03_design/erd.md)
 - [ADR 인덱스](../04_decisions/README.md)
+
+## 개정 이력
+
+| 버전 | 일자 | 변경 사항 |
+|---|---|---|
+| 1.0 | 2026-04-10 | 최초 작성 (제출본) |
+| 1.1 | 2026-05-14 | ADR-010 통화 추상화, ADR-011 wallet 자체 보유, ADR-012~015 반영. FR-5.x 신설. DB-RULE-3/4 갱신. §2.1 외부 인터페이스 표현 개정. |
+| 1.2 | 2026-05-14 | ADR-005 확정(Outbox+내부화), ADR-016 자체 휴가 관리, ADR-017 휴가 풀 분리. §2.1 자원 소유 표 도입. FR-2.3 휴가 부여 내부화. |
+| 1.3 | 2026-05-14 | business-rules.md(운영 파라미터·계산식·KPI) 및 edge-cases.md(엣지 케이스 카탈로그) 분리 작성, ADR-018(경매 정산 규칙) 반영. |

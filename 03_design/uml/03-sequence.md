@@ -74,9 +74,9 @@ sequenceDiagram
         %% --------- 5. DB 단일 트랜잭션 ---------
         AS ->> DB: BEGIN TRANSACTION
         activate DB
-        AS ->> DB: UPDATE users SET current_point -= amount
+        AS ->> DB: UPDATE wallet SET balance -= amount (BiddingCurrency.debit)
         AS ->> DB: UPDATE auctions SET highest_bid = amount
-        AS ->> DB: INSERT point_transaction_log (BID)
+        AS ->> DB: INSERT ledger_entry (BID, currency)
 
         %% --------- 6. Outbox 기록 (ADR-005) ---------
         AS ->> OB: INSERT outbox (idempotency_key, payload)
@@ -128,6 +128,7 @@ sequenceDiagram
 ![Sequence Diagram](sequence.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `sequence.png`로 덮어쓰기.
+> ⚠️ **재렌더링 필요** (2026-05-14): `users.current_point` → `wallet.balance`(BiddingCurrency.debit), `point_transaction_log` → `ledger_entry` 반영됨. PNG는 아직 구버전.
 
 ---
 
@@ -156,6 +157,8 @@ sequenceDiagram
 | 메시지 | ADR |
 |---|---|
 | Redis 분산 락 (②) | [ADR-006](../../04_decisions/ADR-006-redis-lock.md) |
+| `wallet` 차감 (⑤ — BiddingCurrency.debit) | [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md) · [ADR-011](../../04_decisions/ADR-011-welfare-point-ownership.md) |
+| `ledger_entry` INSERT (⑤) | [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md) |
 | Outbox INSERT (⑥) | [**ADR-005**](../../04_decisions/ADR-005-hr-api-timing.md) |
 | Outbox Worker 폴링 (⑨) | [ADR-005](../../04_decisions/ADR-005-hr-api-timing.md) |
 | Idempotency Key | [ADR-005](../../04_decisions/ADR-005-hr-api-timing.md) |

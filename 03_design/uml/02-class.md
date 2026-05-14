@@ -15,7 +15,7 @@
 - ✅ **일반화** (Generalization, `<|--`): AbstractUser → Employee/Admin, LeaveBalance → 3종(Regular/Auction/Event)
 - ✅ **실체화** (Realization, `<|..`): HRApiClient → HRApiClientImpl
 - ✅ **컴포지션** (Composition, `*--`): Employee ◆— LeaveBalance
-- ✅ **집합** (Aggregation, `o--`): Employee ◇— PointTransactionLog
+- ✅ **집합** (Aggregation, `o--`): Employee ◇— LedgerEntry
 - ✅ **연관** (Association, `-->`): Auction → Winner
 - ✅ **의존** (Dependency, `..>`): Auction ⤏ Escrow, HRApiClient
 - ✅ **스테레오타입**: `<<abstract>>`, `<<interface>>`, `<<enumeration>>`, `<<service>>`, `<<Insert-Only>>`
@@ -36,7 +36,7 @@
 | `AuctionLeave` | 경매 연차 | class |
 | `EventLeave` | 이벤트 연차 | class |
 | `Auction` | 경매 | class |
-| `PointTransactionLog` | 포인트 거래 대장 | class (Insert-Only) |
+| `LedgerEntry` | 포인트 거래 대장 | class (Insert-Only) |
 | `Stake` | 지분 | class |
 | `Escrow` | 에스크로 (중앙 수익금 대장) | service |
 | `HRApiClient` | HR 연동 인터페이스 | interface |
@@ -71,16 +71,23 @@ classDiagram
     }
 
     class Employee["Employee · 직원"] {
-        -current_point: int
-        +getBidableBalance() int
-        +deductPoints(amt: int) void
-        +refundPoints(amt: int) void
+        +getWallet(currency: Currency) Wallet
+        +getBidableBalance(currency: Currency) Point
+    }
+
+    class Wallet["Wallet · 지갑(잔액 마스터)"] {
+        -user_id: bigint
+        -currency: Currency
+        -balance: bigint
+        +debit(amt: Point) void
+        +credit(amt: Point) void
+        +getBalance() Point
     }
 
     class Admin["Admin · 관리자"] {
         -permissionLevel: int
         +grantEventLeave(empId: String) void
-        +viewAuditLog(filter: LogFilter) List~PointTransactionLog~
+        +viewAuditLog(filter: LogFilter) List~LedgerEntry~
         +triggerManualBatch() void
     }
 
@@ -137,14 +144,16 @@ classDiagram
         +isAwarded() bool
     }
 
-    class PointTransactionLog["PointTransactionLog · 포인트 거래 대장"] {
+    class LedgerEntry["LedgerEntry · 통합 거래 원장"] {
         <<Insert-Only>>
         -id: bigint
         -user_id: bigint
         -auction_id: bigint
+        -currency: Currency
         -action_type: ActionType
-        -amount: int
-        -escrow_balance_snapshot: int
+        -amount: bigint
+        -escrow_balance_snapshot: bigint
+        -reason: String
         -created_at: datetime
         +record()$ void
     }
@@ -161,11 +170,12 @@ classDiagram
     %% ---------- Service ----------
     class Escrow["Escrow · 에스크로(중앙 수익금 대장)"] {
         <<service>>
-        -balance: int
         -year: int
-        +accumulate(amt: int) void
+        -currency: Currency
+        -balance: bigint
+        +accumulate(amt: Point) void
         +distribute(stakes: List~Stake~) Map
-        +getBalance() int
+        +getBalance() Point
         +verifyIntegrity() bool
     }
 
@@ -197,8 +207,11 @@ classDiagram
 
     class AuctionStatus["AuctionStatus · 경매 상태"] {
         <<enumeration>>
+        CREATED
         OPEN
         CLOSED
+        AWARDED
+        UNSOLD
         EXPIRED
     }
 
@@ -208,6 +221,8 @@ classDiagram
         REFUND
         WIN
         DIVIDEND
+        CREDIT_ADMIN
+        EXPIRE
     }
 
     class UserRole["UserRole · 사용자 역할"] {
@@ -216,19 +231,28 @@ classDiagram
         ADMIN
     }
 
+    class Currency["Currency · 화폐 코드"] {
+        <<enumeration>>
+        WELFARE_POINT
+    }
+
     %% ---------- Relationships ----------
+    Employee "1" *-- "N" Wallet : owns ◆
     Employee "1" *-- "N" LeaveBalance : owns ◆
-    Employee "1" o-- "N" PointTransactionLog : records ◇
+    Employee "1" o-- "N" LedgerEntry : records ◇
     Employee "1" o-- "N" Stake : contributes ◇
     Employee "0..1" <-- "N" Auction : winner
 
-    Auction "1" -- "N" PointTransactionLog : logs
+    Auction "1" -- "N" LedgerEntry : logs
     Auction "N" ..> "1" Escrow : accumulates
     Auction "N" ..> "1" HRApiClient : uses
 
     LeaveBalance ..> LeaveType : uses
     Auction ..> AuctionStatus : uses
-    PointTransactionLog ..> ActionType : uses
+    LedgerEntry ..> ActionType : uses
+    LedgerEntry ..> Currency : uses
+    Wallet ..> Currency : uses
+    Escrow ..> Currency : uses
     AbstractUser ..> UserRole : uses
 
     Stake ..> Escrow : calculates share of
@@ -239,6 +263,7 @@ classDiagram
 ![Class Diagram](class.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `class.png`로 덮어쓰기.
+> ⚠️ **재렌더링 필요** (2026-05-14): `current_point` → `Wallet` 분리, `PointTransactionLog` → `LedgerEntry`, `AuctionStatus` 6상태, `Currency` enum 추가 반영됨. PNG는 아직 구버전.
 
 ---
 
@@ -248,10 +273,10 @@ classDiagram
 |---|---|---|---|
 | 일반화 (Generalization) | `<\|--` ▷ | **5** | AbstractUser ← Employee/Admin, LeaveBalance ← 3종 |
 | 실체화 (Realization) | `<\|..` ▷(점선) | **1** | HRApiClient ← HRApiClientImpl |
-| 컴포지션 (Composition) | `*--` ◆ | **1** | Employee ◆— LeaveBalance (생명주기 종속) |
-| 집합 (Aggregation) | `o--` ◇ | **2** | Employee ◇— PointTransactionLog, Stake |
+| 컴포지션 (Composition) | `*--` ◆ | **2** | Employee ◆— Wallet, Employee ◆— LeaveBalance (생명주기 종속) |
+| 집합 (Aggregation) | `o--` ◇ | **2** | Employee ◇— LedgerEntry, Stake |
 | 연관 (Association) | `--` 또는 `-->` | **2** | Auction → Winner, Auction — Log |
-| 의존 (Dependency) | `..>` | **7** | Auction→Escrow, Auction→HRApiClient, Stake→Escrow, 4개 enum uses |
+| 의존 (Dependency) | `..>` | **10** | Auction→Escrow, Auction→HRApiClient, Stake→Escrow, LeaveBalance→LeaveType, Auction→AuctionStatus, LedgerEntry→ActionType/Currency, Wallet→Currency, Escrow→Currency, AbstractUser→UserRole |
 
 ## 🏷️ 스테레오타입 사용
 
@@ -260,8 +285,8 @@ classDiagram
 | `<<abstract>>` | AbstractUser, LeaveBalance | 인스턴스화 불가, 하위 클래스 강제 |
 | `<<interface>>` | HRApiClient | 구현체 교체 가능 (Mock/실제) |
 | `<<service>>` | Escrow | 도메인 서비스 (상태는 집계만) |
-| `<<enumeration>>` | LeaveType, AuctionStatus, ActionType, UserRole | 열거형 |
-| `<<Insert-Only>>` | PointTransactionLog | UPDATE/DELETE 금지 (DB-RULE-1) |
+| `<<enumeration>>` | LeaveType, AuctionStatus, ActionType, UserRole, Currency | 열거형 |
+| `<<Insert-Only>>` | LedgerEntry | UPDATE/DELETE 금지 (DB-RULE-1) |
 
 ## 🔑 주요 설계 근거
 
@@ -269,6 +294,9 @@ classDiagram
 - **LeaveBalance 3종 일반화** → [ADR-002](../../04_decisions/ADR-002-leave-type-flag.md) 이중 보상 방지, 각 서브타입의 `expireAtYearEnd()` 다형성
 - **HRApiClient 인터페이스** → [ADR-005](../../04_decisions/ADR-005-hr-api-timing.md) 구현체 교체 가능 (테스트용 Mock / Outbox Worker)
 - **Escrow `<<service>>`** → [ADR-001](../../04_decisions/ADR-001-escrow-model.md) 상태 없는 도메인 서비스
+- **Wallet 분리 + Currency enum** → [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md) 통화 추상화, [ADR-011](../../04_decisions/ADR-011-welfare-point-ownership.md) 잔액 마스터 본 시스템 보유
+- **LedgerEntry 통합 원장** → [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md)·[ADR-011](../../04_decisions/ADR-011-welfare-point-ownership.md) `currency`/`reason` 컬럼 추가, `CREDIT_ADMIN` 액션
+- **AuctionStatus 6상태** → [ADR-014](../../04_decisions/ADR-014-auction-state-pattern.md) State 패턴
 
 ---
 

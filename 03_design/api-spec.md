@@ -1,7 +1,7 @@
 # API 명세서 (OpenAPI 초안)
 
-**상태**: 🟡 초안 — 팀 리뷰 후 OpenAPI YAML로 정식화 필요
-**관련 문서**: [SRS 3.1](../02_requirements/SRS.md#31-외부-인터페이스-요구사항) / [UML 순차](UML.md#-순차-다이어그램-sequence-diagram)
+**상태**: 🟡 v2 초안 — wallet 분리·FR-5.x 반영. OpenAPI YAML 정식화 필요
+**관련 문서**: [SRS 3.1](../02_requirements/SRS.md#31-외부-인터페이스-요구사항) / [UML 순차](UML.md#-순차-다이어그램-sequence-diagram) / [ADR-010](../04_decisions/ADR-010-currency-abstraction.md) / [ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md)
 
 ---
 
@@ -52,11 +52,13 @@ https://auction.company.internal/api/v1
 | `UNAUTHORIZED` | 401 | 토큰 없음/만료 |
 | `FORBIDDEN` | 403 | 권한 부족 (관리자 API 등) |
 | `NOT_FOUND` | 404 | 리소스 없음 |
-| `POINT_INSUFFICIENT` | 400 | 포인트 부족 |
+| `POINT_INSUFFICIENT` | 400 | 포인트 부족 (wallet 잔액 < 입찰액) |
 | `BID_TOO_LOW` | 400 | 현재 최고가보다 낮거나 같음 |
+| `INVALID_STATE_TRANSITION` | 409 | 허용되지 않는 경매 상태 전이 (ADR-014) |
 | `AUCTION_CLOSED` | 409 | 마감된 경매에 입찰 시도 |
 | `LOCK_CONFLICT` | 409 | Redis 락 획득 실패 (재시도 권장) |
-| `HR_API_TIMEOUT` | 502 | HR API 응답 지연 (MQ 재시도 처리 중) |
+| `REASON_REQUIRED` | 400 | 관리자 적립 시 사유 누락 (FR-5.1) |
+| `HR_API_TIMEOUT` | 502 | HR API 응답 지연 (Outbox 재시도 처리 중) |
 | `ESCROW_MISMATCH` | 500 | 에스크로 정합성 오류 (Critical) |
 
 ---
@@ -89,21 +91,42 @@ Body: { "refreshToken": "..." }
 
 ---
 
-## 3. 사용자 / 포인트 API
+## 3. 사용자 / 지갑 API
 
-### 3.1 내 포인트 잔액 조회 (FR 없음 - 기본 조회)
+### 3.1 내 지갑 잔액 조회 (FR-5.2)
 
 ```
-GET /users/me/points
+GET /users/me/wallet?currency=WELFARE_POINT
 ```
 
 **Response**
 ```json
 {
   "data": {
-    "currentPoint": 50000,
-    "bidableBalance": 45000,
-    "heldInBids": 5000
+    "currency": "WELFARE_POINT",
+    "balance": 50000
+  }
+}
+```
+
+> 입찰 시 포인트는 **홀드 없이 즉시 차감**되므로([ADR-009](../04_decisions/ADR-009-point-reuse.md) §6), 별도의 `heldInBids` 개념은 없다. `balance`가 곧 입찰 가능 잔액.
+
+### 3.1a 내 거래 내역 조회 (FR-5.2)
+
+```
+GET /users/me/ledger?currency=WELFARE_POINT&actionType=&from=&to=&page=1
+```
+
+**Response**
+```json
+{
+  "data": {
+    "items": [
+      { "actionType": "BID",          "amount": -9000,  "auctionId": 101, "createdAt": "..." },
+      { "actionType": "REFUND",       "amount":  9000,  "auctionId": 101, "createdAt": "..." },
+      { "actionType": "CREDIT_ADMIN", "amount":  50000, "reason": "2026 Q2 분기 지급", "createdAt": "..." }
+    ],
+    "total": 12, "page": 1
   }
 }
 ```
@@ -192,12 +215,12 @@ Body:
 }
 ```
 
-**흐름**:
-1. Redis 분산 락 획득 (`LOCK auction:{id}`, TTL 5s)
-2. 현재 최고가 비교
-3. 포인트 잔액 검증 (`current_point >= amount`)
-4. DB 트랜잭션: 포인트 차감 + 최고가 갱신 + 로그 INSERT
-5. WebSocket 브로드캐스트
+**흐름** (Hexagonal — ADR-012 / State 패턴 — ADR-014):
+1. `LockProvider.withLock(auction:{id})` — Redis 분산 락 TTL 5s
+2. `auction.placeBid(...)` — State 객체가 `OpenState`일 때만 허용, 최고가 비교
+3. `BiddingCurrency.debit(...)` — wallet 잔액 검증 + 즉시 차감 (외부 호출 없음)
+4. DB 트랜잭션: wallet 차감 + 최고가 갱신 + `LEDGER_ENTRY` INSERT
+5. COMMIT 후 `EventBus.publish(BidPlacedEvent)` → WebSocket·메트릭 핸들러
 6. 락 해제
 
 **Response (성공)**
@@ -276,10 +299,49 @@ Body:
 }
 ```
 
-### 6.2 에스크로 현황 조회
+### 6.2 직원 포인트 적립 (FR-5.1) ✨ 신규
+
+분기·이벤트 복지 포인트를 직원 wallet에 적립. `LEDGER_ENTRY`에 `CREDIT_ADMIN`으로 기록.
 
 ```
-GET /admin/escrow?year=2026
+POST /admin/wallet/credit
+Body:
+{
+  "userId": 42,
+  "currency": "WELFARE_POINT",
+  "amount": 50000,
+  "reason": "2026 Q2 분기 복지 포인트 지급"
+}
+```
+
+**Response (성공)**
+```json
+{
+  "data": {
+    "userId": 42,
+    "currency": "WELFARE_POINT",
+    "creditedAmount": 50000,
+    "newBalance": 100000,
+    "ledgerEntryId": 8821
+  }
+}
+```
+
+**제약**:
+- `role != ADMIN` 호출 시 `403 FORBIDDEN`
+- `reason` 누락·공백 시 `400 REASON_REQUIRED`
+- 본 적립은 **에스크로와 무관** — `escrow_audit_view` 집계에서 제외 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md))
+
+### 6.3 직원 지갑 조회 (FR-5.2 — 관리자용)
+
+```
+GET /admin/wallet?userId=42&currency=WELFARE_POINT
+```
+
+### 6.4 에스크로 현황 조회
+
+```
+GET /admin/escrow?year=2026&currency=WELFARE_POINT
 ```
 
 **Response**
@@ -287,23 +349,29 @@ GET /admin/escrow?year=2026
 {
   "data": {
     "year": 2026,
+    "currency": "WELFARE_POINT",
     "balance": 4250000,
+    "computedBalance": 4250000,
+    "isConsistent": true,
     "totalBidCount": 487,
-    "totalWinnerCount": 245,
-    "auditHash": "sha256:abc123..."
+    "totalWinnerCount": 245
   }
 }
 ```
 
-### 6.3 감사 로그 조회
+> `balance`(캐시 테이블)와 `computedBalance`(`escrow_audit_view` 재계산)를 함께 반환하여 정합성을 항상 노출. 불일치 시 `isConsistent: false` + Slack Critical.
+
+### 6.5 감사 로그 조회
 
 ```
-GET /admin/logs?userId=&auctionId=&from=&to=
+GET /admin/ledger?userId=&auctionId=&currency=&actionType=&from=&to=
 ```
 
 ---
 
 ## 7. HR 시스템 연동 (Outbound — 본 시스템이 호출)
+
+> 본 절의 호출은 모두 **Outbox 경유 비동기** ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md)). 코어 도메인은 `HrClient` / `PayoutChannel` 포트에만 의존하며, 실제 호출은 어댑터(`RealHrClient` / `MockHrClient`)가 수행 ([ADR-012](../04_decisions/ADR-012-hexagonal-architecture.md)).
 
 ### 7.1 연차 권한 부여
 
@@ -331,6 +399,8 @@ Body:
   "reason": "2026년 연차 경매 배당금"
 }
 ```
+
+> **입찰 결제와 무관**: 본 API는 *연말 배당 출금* 경로(`PayoutChannel`)에만 사용된다. 입찰 시 wallet 차감은 외부 호출 0건 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md)).
 
 ---
 
@@ -363,6 +433,17 @@ POST /internal/batch/dividend-distribution
 
 ## 관련 문서
 
-- [SRS 3.1 외부 인터페이스](../02_requirements/SRS.md#31-외부-인터페이스-요구사항)
+- [SRS 3.1 외부 인터페이스](../02_requirements/SRS.md#31-외부-인터페이스-요구사항) · [SRS FR-5.x](../02_requirements/SRS.md#32-기능적-요구사항-명세표)
 - [UML 순차 다이어그램](UML.md#-순차-다이어그램-sequence-diagram)
 - [ADR-005 HR API 타이밍](../04_decisions/ADR-005-hr-api-timing.md)
+- [ADR-010 통화 추상화](../04_decisions/ADR-010-currency-abstraction.md)
+- [ADR-011 복지 포인트 시스템 자체 보유](../04_decisions/ADR-011-welfare-point-ownership.md)
+- [ADR-012 Hexagonal Architecture](../04_decisions/ADR-012-hexagonal-architecture.md)
+- [ADR-014 Auction State 패턴](../04_decisions/ADR-014-auction-state-pattern.md)
+
+## 개정 이력
+
+| 버전 | 일자 | 변경 사항 |
+|---|---|---|
+| v1 | 2026-04-23 | 최초 초안 |
+| v2 | 2026-05-14 | wallet 분리(§3), FR-5.1 관리자 적립·FR-5.2 잔액 조회 추가(§6), 입찰 흐름 Hexagonal/State 반영, 에러 코드 3종 추가 |

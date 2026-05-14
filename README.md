@@ -14,8 +14,10 @@
 - [프로젝트 기획안](01_planning/proposal.md) — 배경, 문제, 해결 방안(Escrow 모델)
 
 ### 02. 요구사항 (Requirements)
-- [소프트웨어 요구사항 명세서 (SRS)](02_requirements/SRS.md) — FR 7건 / NFR 2건 / DB-RULE 3건
+- [소프트웨어 요구사항 명세서 (SRS)](02_requirements/SRS.md) — FR / NFR / DB-RULE
 - [용어집 (Glossary)](02_requirements/glossary.md) — B2E, Stake, Leave Type, Escrow 등
+- [비즈니스 규칙·운영 파라미터·계산식](02_requirements/business-rules.md) — 경매 기간·증분·Stake/배당 수식·KPI
+- [엣지 케이스 카탈로그](02_requirements/edge-cases.md) — 퇴사자·연중 입사자·유찰·동점 등 경계 상황
 
 ### 03. 설계 (Design)
 - [UML 다이어그램 인덱스](03_design/UML.md) — 4종 네비게이션 + 렌더링 이미지 갤러리 🖼️
@@ -29,15 +31,26 @@
 
 ### 04. 아키텍처 결정 기록 (ADR)
 - [ADR 인덱스](04_decisions/README.md)
-- [ADR-001 Escrow 후 배당 모델](04_decisions/ADR-001-escrow-model.md)
-- [ADR-002 휴가 속성 플래그 분리](04_decisions/ADR-002-leave-type-flag.md)
-- [ADR-003 백엔드 강제 차감 우선순위](04_decisions/ADR-003-forced-priority.md)
-- [ADR-004 Year 기준 파티셔닝](04_decisions/ADR-004-year-partitioning.md)
-- [ADR-005 HR API 호출 시점 🔥](04_decisions/ADR-005-hr-api-timing.md) **(최우선 미결)**
-- [ADR-006 Redis 분산 락 선택](04_decisions/ADR-006-redis-lock.md)
-- [ADR-007 경매 단위 "1일권" 고정](04_decisions/ADR-007-one-day-unit.md)
-- [ADR-008 연말 일괄 배당](04_decisions/ADR-008-year-end-dividend.md)
-- [ADR-009 복지 포인트 재활용](04_decisions/ADR-009-point-reuse.md)
+- **정책 결정**
+  - [ADR-001 Escrow 후 배당 모델](04_decisions/ADR-001-escrow-model.md)
+  - [ADR-002 휴가 속성 플래그 분리](04_decisions/ADR-002-leave-type-flag.md)
+  - [ADR-003 백엔드 강제 차감 우선순위](04_decisions/ADR-003-forced-priority.md)
+  - [ADR-004 Year 기준 파티셔닝](04_decisions/ADR-004-year-partitioning.md)
+  - [ADR-005 HR API 호출 시점](04_decisions/ADR-005-hr-api-timing.md) ✅ (Outbox + 내부화)
+  - [ADR-006 Redis 분산 락 선택](04_decisions/ADR-006-redis-lock.md)
+  - [ADR-007 경매 단위 "1일권" 고정](04_decisions/ADR-007-one-day-unit.md)
+  - [ADR-008 연말 일괄 배당](04_decisions/ADR-008-year-end-dividend.md)
+  - [ADR-009 복지 포인트 재활용 (v2)](04_decisions/ADR-009-point-reuse.md)
+  - [ADR-011 복지 포인트 시스템 자체 보유](04_decisions/ADR-011-welfare-point-ownership.md)
+  - [ADR-016 자체 휴가 관리 시스템 보유](04_decisions/ADR-016-internal-leave-system.md)
+  - [ADR-017 휴가 풀/경매 인벤토리 분리 컨텍스트](04_decisions/ADR-017-leave-pool-context.md)
+  - [ADR-018 경매 정산 규칙 (패자 환불·입찰 취소)](04_decisions/ADR-018-auction-settlement-rules.md)
+- **구조 결정 (정책에 직교)**
+  - [ADR-012 Hexagonal Architecture](04_decisions/ADR-012-hexagonal-architecture.md)
+  - [ADR-010 통화 추상화 (CurrencyProvider)](04_decisions/ADR-010-currency-abstraction.md)
+  - [ADR-013 Domain Event 기반 처리](04_decisions/ADR-013-domain-event.md)
+  - [ADR-014 Auction State 패턴](04_decisions/ADR-014-auction-state-pattern.md)
+  - [ADR-015 Value Object 도입 정책](04_decisions/ADR-015-value-object.md)
 
 ### 05. 인수인계 (Handover)
 - [개발 인수인계서](05_handover/handover.md) — 철학 + ADR 요약 + Action Item
@@ -62,38 +75,51 @@
 | 카테고리 | 문서 | 상태 |
 |---|---|---|
 | 기획 | proposal.md | ✅ 완성 |
-| 요구사항 | SRS.md | ✅ 완성 |
+| 요구사항 | SRS.md | ✅ v1.2 (ADR-005·010~018 반영) |
 | 요구사항 | glossary.md | ✅ 완성 |
+| 요구사항 | business-rules.md | ✅ v1 (운영 파라미터·계산식·KPI) |
+| 요구사항 | edge-cases.md | ✅ v1 (엣지 케이스 카탈로그) |
 | 설계 | UML.md | ✅ 완성 |
-| 설계 | architecture.md | 🟡 스켈레톤 (기술스택 확정 후) |
-| 설계 | erd.md | ✅ 완성 |
-| 설계 | api-spec.md | 🟡 스켈레톤 (기본 엔드포인트) |
-| ADR | 001~004 | ✅ 확정 |
-| ADR | 005 | 🔴 **미결 — 구현 전 반드시 결정** |
-| ADR | 006~009 | 🟡 Proposed |
+| 설계 | architecture.md | ✅ v2 (Hexagonal·구조 ADR 반영) |
+| 설계 | erd.md | ✅ v2 (wallet 분리·LEDGER_ENTRY 반영) |
+| 설계 | api-spec.md | ✅ v2 (FR-5.x·Hexagonal 반영) |
+| ADR | 001~005 | ✅ 확정 (005 = Outbox + 내부화) |
+| ADR | 006~008 | 🟡 Proposed |
+| ADR | 009 | ✅ Accepted (v2 개정) |
+| ADR | 010~018 | ✅ Accepted (구조·휴가 내부화·정산 규칙) |
 | 인수인계 | handover.md | ✅ v1.1 베이스 + Action 복원 |
 | 기술 | tech-stack.md | 🟡 선택지 제시, 미결정 |
-| 기술 | db-schema.sql | 🟡 초안 (팀 리뷰 필요) |
+| 기술 | db-schema.sql | ✅ v2 (wallet/ledger_entry 분리) |
 | 기술 | git-workflow.md | 🟡 제안 |
 | 기술 | dev-setup.md | ⚪ TODO |
-| 계획 | wbs.md | ⚪ TODO |
+| 계획 | wbs.md | 🟡 v3 (비즈니스 리스크 대장·롤아웃 전략 추가) |
 | 계획 | roles.md | ⚪ TODO |
 
 **범례**: ✅ 완성 | 🟡 초안/부분 완성 | 🔴 중요 미결 | ⚪ TODO (팀 협의 필요)
 
 ---
 
-## 🚨 프로젝트 시작 전 반드시 해결할 3가지
+## 🚨 프로젝트 시작 전 반드시 해결할 것
 
-1. **[ADR-005] HR API 호출 시점 재설계** — Outbox 패턴 또는 Saga 보상 결정 필요
-2. **[tech-stack.md] 백엔드 프레임워크·DB·MQ 확정** — 나머지 모든 개발의 전제
-3. **[db-schema.sql] Insert-Only 트리거 검증** — NFR-2 재무 정합성의 최종 방어선
+1. ~~**[ADR-005] HR API 호출 시점 재설계**~~ — ✅ 해결 (Outbox + InternalLeaveAdapter)
+2. ~~**도메인 계산식 명세**~~ — ✅ 해결 (business-rules.md + ADR-018: 패자 환불·Stake·배당 나머지)
+3. **[tech-stack.md] 백엔드 프레임워크·DB·MQ 확정** — 나머지 모든 개발의 전제 (미결)
+4. **[db-schema.sql] Insert-Only 트리거 검증** — NFR-2 재무 정합성의 최종 방어선
+5. **운영 파라미터 구체 수치 확정** — 최소 증분 금액, 분산 오픈 주당 개수, 첫 해 시작가 (business-rules.md §5)
 
 ## 📐 핵심 설계 원칙 (요약)
 
+### 정책 원칙
 1. **회사 예산 0원 선투입** — 에스크로 잔액 내에서만 배당
 2. **P2P 직거래 영구 차단** — 근로기준법 준수
 3. **휴가 속성 3-flag 분리** — REGULAR / AUCTION / EVENT
 4. **차감 우선순위 강제** — AUCTION → EVENT → REGULAR
-5. **원장 불변(Insert-Only)** — POINT_TRANSACTION_LOG UPDATE/DELETE 금지
-6. **단일 트랜잭션** — 낙찰·에스크로·HR API를 All-or-Nothing 처리
+5. **원장 불변(Insert-Only)** — LEDGER_ENTRY UPDATE/DELETE 금지
+6. **단일 트랜잭션** — 낙찰·에스크로·HR Outbox를 All-or-Nothing 처리
+
+### 구조 원칙 (ADR-010~015)
+7. **Hexagonal Architecture** — 도메인 코어와 외부 의존(인프라·외부 API) 격리
+8. **통화 추상화 (OCP)** — 화폐 종류는 `CurrencyProvider` 인터페이스 뒤로 격리
+9. **Wallet 마스터 본 시스템 보유** — 입찰 결제 경로에서 외부 호출 0
+10. **Domain Event 기반 횡단 관심사 처리** — Use Case가 부수효과를 직접 알지 못함
+11. **State 패턴 + Value Object** — 도메인 표현력과 컴파일 타임 안전성 동시 확보
