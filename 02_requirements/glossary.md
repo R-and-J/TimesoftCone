@@ -62,6 +62,8 @@
 | **지수 백오프** (Exponential Backoff) | 재시도 간격을 2배씩 늘리는 기법(예: 5s → 10s → 20s → 40s). 외부 시스템 과부하 방지 + 일시적 장애 회복 시간 확보가 목적. |
 | **DLQ** (Dead Letter Queue) | "죽은 편지 보관함". 최대 재시도 횟수를 초과해도 실패한 메시지를 격리하는 별도 큐. **관리자 수동 개입 필요 신호**. 본 시스템에서는 HR API 장기 장애·영구 오류(잘못된 사번 등) 시 사용 — Slack Critical 알림 동반. |
 | **Idempotency Key** | 멱등성 키. 동일 요청이 여러 번 도달해도 결과가 한 번만 적용되도록 보장하는 고유 식별자. 본 시스템은 `auction-{id}-winner-{userId}` 형식 사용 ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md)). |
+| **RBAC** (Role-Based Access Control) | **역할 기반 권한**. 사용자의 *역할(role)* 컬럼 값으로 허용·거부 결정. 예: "ADMIN만 wallet 적립 가능" ([permission-matrix.md](permission-matrix.md)). |
+| **ABAC** (Attribute-Based Access Control) | **속성 기반 권한**. 리소스의 *속성*(소유자·상태 등)으로 허용·거부 결정. 본 시스템에선 주로 "자기 vs 타인" 소유자 검증에 사용. 예: "본인 wallet만 조회 가능" ([permission-matrix.md](permission-matrix.md)). |
 
 ## E. 요구사항 ID 체계
 

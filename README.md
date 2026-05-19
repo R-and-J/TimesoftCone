@@ -18,6 +18,8 @@
 - [용어집 (Glossary)](02_requirements/glossary.md) — B2E, Stake, Leave Type, Escrow 등
 - [비즈니스 규칙·운영 파라미터·계산식](02_requirements/business-rules.md) — 경매 기간·증분·Stake/배당 수식·KPI
 - [엣지 케이스 카탈로그](02_requirements/edge-cases.md) — 퇴사자·연중 입사자·유찰·동점 등 경계 상황
+- [권한 매트릭스 (RBAC + ABAC)](02_requirements/permission-matrix.md) — 기능별 EMPLOYEE/ADMIN 권한, 관리자 COI 감사 분리
+- [FR별 인수 조건 (Acceptance Criteria)](02_requirements/acceptance-criteria.md) — FR-1.1 ~ FR-5.2 Given/When/Then
 
 ### 03. 설계 (Design)
 - [UML 다이어그램 인덱스](03_design/UML.md) — 4종 네비게이션 + 렌더링 이미지 갤러리 🖼️
@@ -27,7 +29,8 @@
   - [④ 상태](03_design/uml/04-state.md) · [PNG](03_design/uml/state.png)
 - [시스템 아키텍처](03_design/architecture.md) — 컴포넌트/배포 구성
 - [ERD (논리·물리)](03_design/erd.md) — 핵심 엔티티 관계도
-- [API 명세서 (OpenAPI)](03_design/api-spec.md) — REST 엔드포인트 스펙
+- [API 명세서 (Narrative)](03_design/api-spec.md) — 사람이 읽기 쉬운 요약
+- [openapi.yaml (정식 spec)](03_design/openapi.yaml) — OpenAPI 3.0.3, codegen·Swagger UI 기준
 
 ### 04. 아키텍처 결정 기록 (ADR)
 - [ADR 인덱스](04_decisions/README.md)
@@ -79,10 +82,13 @@
 | 요구사항 | glossary.md | ✅ 완성 |
 | 요구사항 | business-rules.md | ✅ v1 (운영 파라미터·계산식·KPI) |
 | 요구사항 | edge-cases.md | ✅ v1 (엣지 케이스 카탈로그) |
+| 요구사항 | permission-matrix.md | ✅ v1 (RBAC + ABAC) |
+| 요구사항 | acceptance-criteria.md | ✅ v1 (FR별 인수 조건) |
 | 설계 | UML.md | ✅ 완성 |
 | 설계 | architecture.md | ✅ v2 (Hexagonal·구조 ADR 반영) |
 | 설계 | erd.md | ✅ v2 (wallet 분리·LEDGER_ENTRY 반영) |
-| 설계 | api-spec.md | ✅ v2 (FR-5.x·Hexagonal 반영) |
+| 설계 | api-spec.md | ✅ v3 (narrative summary) |
+| 설계 | openapi.yaml | ✅ v0.1 (OpenAPI 3.0 정식 spec) |
 | ADR | 001~005 | ✅ 확정 (005 = Outbox + 내부화) |
 | ADR | 006~008 | 🟡 Proposed |
 | ADR | 009 | ✅ Accepted (v2 개정) |

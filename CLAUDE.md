@@ -47,7 +47,7 @@ This is the same pattern as ADR-011 (wallet) applied to leave — see ADR-016. T
 
 - **tech-stack.md** — NestJS vs Spring not voted, ORM (Prisma/TypeORM) undecided
 - **Operational parameter values** — the *structure* is set in `business-rules.md` but the concrete numbers (min bid increment amount, weekly open quota, first-year starting price) are still ⚙️ knobs to be set by the team
-- **No UI wireframes**, api-spec still draft-level, dev-setup is ⚪ TODO
+- **No UI wireframes**, dev-setup is ⚪ TODO (api-spec is now formal — see `03_design/openapi.yaml`)
 - **KPI measurement** — both KPIs (leave-utilization improvement, satisfaction survey) need out-of-system measurement setup (baseline data, survey instrument)
 
 Domain formulas are now resolved: `02_requirements/business-rules.md` (Stake formula, dividend remainder, operational params) and ADR-018 (loser-refund flow, bid cancellation).
@@ -67,6 +67,9 @@ Top-level folders are numbered `01_` through `07_` (plus `99_archive/`) and repr
 3. `02_requirements/glossary.md` — the three Leave Types
 4. `02_requirements/business-rules.md` — operational parameters, Stake/dividend formulas, KPIs
 5. `02_requirements/edge-cases.md` — boundary-case decisions (leavers, mid-year hires, unsold items, etc.)
+5b. `02_requirements/permission-matrix.md` — per-feature RBAC + ABAC matrix (EMPLOYEE/ADMIN), with admin COI audit separation
+5c. `02_requirements/acceptance-criteria.md` — testable Given/When/Then for each FR; this is the integration-test source-of-truth
+5d. `03_design/openapi.yaml` — canonical OpenAPI 3.0 spec; `api-spec.md` is now narrative-only and defers to the YAML on conflict
 6. **Policy ADRs**: 001 (escrow), 002 (3-flag), 005 (HR timing — resolved), 009 v2 (currency policy), 011 (wallet ownership), 016 (leave ownership), 017 (leave pool context), 018 (auction settlement rules)
 7. **Structural ADRs**: 012 (hexagonal), 010 (currency abstraction), 013 (domain events), 014 (state pattern), 015 (value objects)
 8. `05_handover/handover.md` — integrated philosophy + Action Items

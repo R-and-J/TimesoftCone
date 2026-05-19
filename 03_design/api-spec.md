@@ -1,7 +1,9 @@
-# API 명세서 (OpenAPI 초안)
+# API 명세서 (Narrative Summary)
 
-**상태**: 🟡 v2 초안 — wallet 분리·FR-5.x 반영. OpenAPI YAML 정식화 필요
-**관련 문서**: [SRS 3.1](../02_requirements/SRS.md#31-외부-인터페이스-요구사항) / [UML 순차](UML.md#-순차-다이어그램-sequence-diagram) / [ADR-010](../04_decisions/ADR-010-currency-abstraction.md) / [ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md)
+**상태**: ✅ v3 — narrative 요약. **정식 spec은 [openapi.yaml](openapi.yaml)** (OpenAPI 3.0.3)
+**관련 문서**: [openapi.yaml](openapi.yaml) · [acceptance-criteria.md](../02_requirements/acceptance-criteria.md) · [permission-matrix.md](../02_requirements/permission-matrix.md) · [SRS 3.1](../02_requirements/SRS.md#31-외부-인터페이스-요구사항) · [UML 순차](UML.md#-순차-다이어그램-sequence-diagram)
+
+> 본 문서는 *사람이 읽기 쉬운 요약*이다. 실제 구현·codegen·테스트의 기준은 [openapi.yaml](openapi.yaml). 둘 사이 충돌 시 openapi.yaml이 우선한다.
 
 ---
 
@@ -423,10 +425,12 @@ POST /internal/batch/dividend-distribution
 
 ## TODO
 
-- [ ] OpenAPI 3.0 YAML로 정식화 (Swagger UI 생성)
-- [ ] 페이지네이션 규약 통일 (cursor vs offset)
+- [x] ~~OpenAPI 3.0 YAML로 정식화~~ ✅ `openapi.yaml` v0.1 완료
+- [ ] Swagger UI 호스팅 설정 (dev-setup.md에서)
+- [ ] 페이지네이션 규약 통일 (현재 offset+page, cursor 전환 검토)
 - [ ] Rate Limiting 정책 (입찰 API 특히)
 - [ ] API 버저닝 전략 (`/v1` 이후)
+- [ ] WebSocket 채널 별도 명세 문서화 (`/ws/auctions/{id}`)
 - [ ] HR API 실패 시 재시도 정책 문서화
 
 ---
@@ -447,3 +451,4 @@ POST /internal/batch/dividend-distribution
 |---|---|---|
 | v1 | 2026-04-23 | 최초 초안 |
 | v2 | 2026-05-14 | wallet 분리(§3), FR-5.1 관리자 적립·FR-5.2 잔액 조회 추가(§6), 입찰 흐름 Hexagonal/State 반영, 에러 코드 3종 추가 |
+| v3 | 2026-05-14 | OpenAPI 3.0.3 정식 spec(`openapi.yaml`) 분리, 본 문서는 narrative summary로 전환 |

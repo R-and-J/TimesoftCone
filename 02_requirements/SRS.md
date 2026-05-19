@@ -176,6 +176,9 @@ Content-Type: application/json
 - [용어집 (Glossary)](glossary.md)
 - [비즈니스 규칙·운영 파라미터·계산식](business-rules.md) — FR/NFR을 실행 가능한 수치·수식으로 구체화
 - [엣지 케이스 카탈로그](edge-cases.md) — 경계 상황의 기획 결정
+- [권한 매트릭스](permission-matrix.md) — 기능별 RBAC + ABAC 명세
+- [FR별 인수 조건](acceptance-criteria.md) — Given/When/Then 인수 기준
+- [openapi.yaml](../03_design/openapi.yaml) — REST API 정식 spec
 - [UML 다이어그램](../03_design/UML.md)
 - [ERD](../03_design/erd.md)
 - [ADR 인덱스](../04_decisions/README.md)
