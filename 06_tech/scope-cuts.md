@@ -1,0 +1,226 @@
+# Scope Cuts — 학교 프로젝트 일정에 맞춘 단순화 결정
+
+**상태**: 🟡 살아있는 문서 — 컷을 추가/번복할 때마다 갱신
+**최초 작성**: 2026-05-20
+**팀**: 타임소프트콘 (2인, 9주)
+
+---
+
+## 왜 이 문서가 있는가
+
+설계 단계의 ADR들은 "운영 환경에서 견딘다"는 가정 아래 작성되었습니다. 하지만 실제 산출물은 **2인 9주 학교 프로젝트**입니다. 모든 ADR을 그대로 구현하면 학기 안에 못 끝납니다.
+
+이 문서는 **무엇을 잘랐고, 왜 잘랐고, 어떤 ADR/요구사항을 어떻게 대체했는지** 추적합니다. 발표나 회고에서 "왜 ADR-XXX대로 안 만들었나요?"라는 질문이 나오면 여기를 가리키세요.
+
+원칙:
+- **인바리언트 (CLAUDE.md §"Hard invariants")는 자르지 않는다** — 정합성과 직결.
+- **구조 (Hexagonal, Value Object, 통화 추상화)는 자르지 않는다** — 잘라봐야 코드 더 늘어남.
+- **운영/스케일/성능 최적화는 자른다** — 학교 프로젝트 부하에서 의미 없음.
+- **자른 것은 *어떻게* 대체했는지 명시한다** — "그냥 안 함"이 아니라 "더 단순한 X로 대체".
+
+---
+
+## ✂️ 자른 것들
+
+### CUT-1. Redis 분산 락 ([ADR-006](../04_decisions/ADR-006-redis-lock.md))
+
+**원안**: 입찰 처리 시 Redlock 알고리즘으로 Redis 기반 분산 락 (TTL 5s).
+
+**자른 이유**:
+- 본 시스템은 단일 deployable. 분산 락은 *복수 인스턴스* 환경의 답인데 우리는 인스턴스 1대.
+- 학교 프로젝트의 동시성은 부하 테스트로 의도적으로 만들지 않으면 발생 안 함.
+- Redis 추가 = 인프라 1개 더, 컨테이너 1개 더, 장애 지점 1개 더.
+
+**대체**:
+- **Postgres advisory lock** (`pg_advisory_xact_lock(auction_id)`) — 같은 트랜잭션 동안 같은 경매에 대한 입찰을 직렬화.
+- 자동 해제 (트랜잭션 종료 시), 무료, 같은 DB라 일관성 보장.
+- 코드는 [`PrismaUnitOfWork.lockAuction()`](../backend/src/adapters/persistence/prisma-unit-of-work.ts) 한 줄.
+
+**되돌리는 비용**: 낮음. `BIDDING_CURRENCY` 인터페이스 영향 없음. `UnitOfWork` 어댑터에서 `pg_advisory_xact_lock` 호출을 `redlock.acquire`로 바꾸면 됨.
+
+**docker-compose에 redis는 남겨둠** — 후속 PR에서 부활시킬 수도 있고, 캐싱 용도로 쓸 수도 있어서.
+
+---
+
+### CUT-2. 도메인 이벤트 in-process 버스 ([ADR-013](../04_decisions/ADR-013-domain-event.md))
+
+**원안**: Use Case가 `BidPlacedEvent` / `AuctionWonEvent` 등을 in-process EventBus에 publish → 구독자(브로드캐스팅·메트릭·감사 로그)가 비동기 처리.
+
+**자른 이유**:
+- 우리는 *지금* 브로드캐스팅 안 함 (WebSocket 없음), 메트릭 수집 안 함, 별도 감사 로그 시스템 없음.
+- 구독자가 0개인 이벤트 버스는 추상화 비용만 발생.
+- 미래에 필요하면 use case 안의 "이벤트 발행" 자리에 NestJS `EventEmitter2`를 끼우는 데 1시간이면 됨.
+
+**대체**:
+- Use Case가 후속 동작을 *직접* 호출.
+- 예: `PlaceBidUseCase`가 입찰 성공 후 BidEvent 로그를 직접 INSERT (LedgerRepository가 받아 처리).
+- "이벤트가 발생했다"는 사실은 `ledger_entry` + `bid_event` 테이블에 INSERT되므로 *암묵적 이벤트 소싱*.
+
+**되돌리는 비용**: 낮음. Use Case 끝에 `await this.events.publish(new BidPlacedEvent(...))` 한 줄 추가.
+
+---
+
+### CUT-3. 경매 State Pattern ([ADR-014](../04_decisions/ADR-014-auction-state-pattern.md))
+
+**원안**: `OpenState` / `ClosedState` / `AwardedState` / `UnsoldState` / `ExpiredState` / `CreatedState` 클래스 객체화. 각 상태 객체가 자기 책임의 메서드만 노출.
+
+**자른 이유**:
+- 상태 6개 × 메서드 N개 = 클래스 폭발. 학교 프로젝트 코드 리뷰 비용 ↑.
+- 본 도메인 상태는 *단순 선형 전이* (CREATED → OPEN → AWARDED/UNSOLD/EXPIRED). State 패턴이 빛나는 경우(상태 간 메서드 셋이 크게 다름)는 아님.
+
+**대체**:
+- `AuctionStatus` enum + `Auction` 엔티티의 메서드 안에서 가드 절 (`if (this.status !== 'OPEN') throw ...`).
+- 가드는 *도메인 메서드 안에만* 존재 — 어플리케이션/어댑터 계층에서는 `if (status === ...)` 분기 금지 (CLAUDE.md 구조 인바리언트).
+
+**예외**: 만약 상태별 메서드 셋이 크게 달라지면 (예: AWARDED 상태에서만 `cancelAward()`, OPEN 상태에서만 `extendDeadline()`) 그때 State 패턴으로 회귀.
+
+**되돌리는 비용**: 중간. 도메인 메서드 시그니처 자체는 안 바뀌어서 use case는 무영향. `Auction` 클래스를 추상 + 상태별 서브클래스로 분리하는 리팩터링.
+
+---
+
+### CUT-4. Outbox 패턴 ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md))
+
+**원안**: 외부 시스템 호출 (HR API, 알림 등)은 Outbox 테이블 + relay 워커.
+
+**상태**: **이미 ADR-005에서 "Outbox 골격은 두되 dormant"로 결정됨.** 본 PR에서도 그대로.
+
+**자른 부분**: Outbox 테이블/워커 자체. 외부 시스템 호출이 *없으니까* 만들 게 없음.
+
+**대체**: 없음. 필요할 때 만든다.
+
+**되돌리는 비용**: 중간. 외부 어댑터를 도입하는 시점에 Outbox 테이블 + relay 워커 추가.
+
+---
+
+### CUT-5. Anti-snipe (마감 5분 내 입찰 시 자동 연장)
+
+**원안 (README/SRS)**: "마감 5분 이내 입찰 발생 → 마감 시각 자동 연장".
+
+**자른 이유**:
+- 정책 변수 (몇 분 이내? 몇 분 연장?) 미확정.
+- 핵심 UX는 *입찰 자체가 동작하는 것*. anti-snipe는 "있으면 좋은" 기능.
+
+**대체**: 없음. 마감 시각 도달 시 즉시 종료.
+
+**되돌리는 비용**: 낮음. `PlaceBidUseCase`에 "if (now ≥ endsAt − 5min) auction.extendBy(5min)" 추가 + 도메인 메서드 1개.
+
+**문서**: 발표 시 "scope 외" 명시.
+
+---
+
+### CUT-6. 실시간 입찰 알림 (WebSocket/SSE)
+
+**원안**: 클라이언트가 다른 사용자의 입찰을 실시간 수신.
+
+**자른 이유**:
+- WebSocket 게이트웨이 도입 = 인프라 복잡도 ↑, 인증 흐름 분기.
+- 학교 프로젝트 부하에서는 *2초 폴링*과 사용자 체감 차이 거의 없음.
+
+**대체**: 클라이언트가 경매 상세 페이지에서 N초 폴링 (`GET /api/auctions/:id` 반복 호출).
+
+**되돌리는 비용**: 큼. NestJS `@WebSocketGateway`, 인증 미들웨어 재사용, 프론트 Socket.io 클라이언트 도입. 별도 PR.
+
+---
+
+### CUT-7. 도메인 이벤트 → Outbox 연결 ([ADR-013](../04_decisions/ADR-013-domain-event.md) + [ADR-005](../04_decisions/ADR-005-hr-api-timing.md))
+
+CUT-2 + CUT-4 결합. *외부 시스템 트리거*는 결국 없으므로 둘 다 자르고 후속 PR에서 같이 부활.
+
+---
+
+### CUT-8. 인증 / 인가 (RBAC)
+
+**원안**: 사번/SSO 로그인, EMPLOYEE/ADMIN 권한 분기, JWT 또는 세션.
+
+**자른 이유**: 본 PR에 끼면 PR 크기가 폭발. 분리해서 별도 PR.
+
+**대체 (현재)**:
+- 모든 사용자가 ADMIN이라고 가정. `/api/admin/*` 라우트가 무방비 — *데모 환경 전용*.
+- `userId`는 요청 본문/쿼리/path에서 받음 (인증된 사용자 ID로 자동 주입되지 않음).
+
+**되돌리는 비용**: 별도 PR (PR-Auth). 미들웨어 + Guard + JWT.
+
+**부분 부활 (2026-05-20)**: `POST /api/auth/login`이 사번 조회로 현재 사용자를 결정. 비밀번호 검증·세션·Guard는 여전히 없음. 프론트는 응답의 `userId`를 localStorage에 저장.
+
+---
+
+### CUT-9. LeavePool bounded context ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md))
+
+**원안**: 별도의 LeavePool 컨텍스트가 연차 기여를 집계하고 연말에 stake 분포를 산정. 기여 이벤트 / 풀 잔량 / 만료 정책이 모두 자체 도메인.
+
+**자른 이유**:
+- 본 PR의 Dividend 화면은 *데모용 가시화*가 우선. ADR-017은 6개 추가 컴포넌트를 요구.
+- 9주 일정에서 새 bounded context 1개 추가 = 1주 이상.
+
+**대체**:
+- `users.contributed_days` 컬럼 1개 + 비례 계산: `stake = days / Σ days`, `배당금 = floor(escrow × stake)`.
+- 시드의 9명에 contributed_days를 박아두고, `GET /api/dividend/me/:userId`가 즉시 계산.
+
+**되돌리는 비용**: 큼. LeavePool aggregate + 기여 이벤트 + 만료 잡 + 별도 테이블.
+
+**부분 부활 (2026-05-20)**: `users.regular_leave_days` / `auction_leave_days` / `event_leave_days` 컬럼 3개 추가 + `GET /api/users/:id/leave` 읽기 전용 엔드포인트. Dashboard와 MyActivity의 휴가 카드가 실제 사용자별 값으로 표시됨. **입찰 낙찰 시 `auction_leave_days` 자동 가산은 아직 미구현** — 후속 PR (LeaveGrantPort + InternalLeaveAdapter).
+
+---
+
+## 🛡 자르지 *않은* 것들 (왜 유지하는지)
+
+여기는 "잘랐다고 생각했지만 안 자른" 항목을 명시합니다. 발표 시 "왜 이건 그대로 뒀나"를 답하기 위함.
+
+### KEEP-1. Insert-Only ledger 트리거 ([CLAUDE.md DB-RULE-1](../CLAUDE.md))
+
+**왜 유지**: 트리거 SQL 20줄. 자르는 비용 > 유지 비용. 그리고 **재무 정합성의 핵심 인바리언트**라 자르면 안 됨.
+
+### KEEP-2. Value Objects (Point, UserId, Currency) ([ADR-015](../04_decisions/ADR-015-value-object.md))
+
+**왜 유지**: 클래스 3개, 100줄 정도. Primitive obsession 방지 + 음수 차감 같은 *재무 사고* 예방. ROI 매우 높음.
+
+### KEEP-3. Hexagonal 의존 방향 ([ADR-012](../04_decisions/ADR-012-hexagonal-architecture.md))
+
+**왜 유지**: 잘라봐야 결과적으로 모든 레이어가 Nest 데코레이터 + Prisma client를 import하게 되어 *테스트 어려움 + 화폐 추상화 깨짐*. ESLint boundaries 규칙 30줄이 미래의 리팩터링을 막아줌.
+
+### KEEP-4. Currency Abstraction ([ADR-010](../04_decisions/ADR-010-currency-abstraction.md))
+
+**왜 유지**: 어차피 `WelfarePointProvider` 하나만 구현해도 인터페이스 비용은 작음. 미래에 화폐 정책 바뀌어도 도메인 무수정.
+
+### KEEP-5. 3-flag leave separation ([ADR-002](../04_decisions/ADR-002-leave-type-flag.md))
+
+**왜 유지**: DB 컬럼 1개. 자르면 *근로기준법* 인바리언트 깨짐.
+
+---
+
+## 🗺 적용 우선순위 (자른 것을 *되살리는* 순서)
+
+미래에 시간이 남으면 다음 순서로 되살림. 위가 ROI 높음.
+
+1. **CUT-8 (Auth)** — 데모를 누군가에게 보여줘야 할 때 가장 먼저 필요.
+2. **CUT-5 (Anti-snipe)** — 입찰 UX 완성도. 비용 낮음.
+3. **CUT-6 (실시간)** — 데모 임팩트 큰데 비용 큼. 발표 직전에 결정.
+4. **CUT-1 (Redis 분산 락)** — 실 배포 직전.
+5. **CUT-2/3/4/7 (이벤트/Outbox/State)** — 시스템이 *진짜* 커질 때.
+
+---
+
+## 🪙 부활시킨 항목
+
+### REVIVED-A. 자동 정산 (마감 시각 도달 후)
+
+**상태**: ✅ 부활 — `SettleDueAuctionsScheduler` (backend/src/adapters/scheduling/).
+
+**왜**: 마감된 OPEN 경매가 영원히 OPEN으로 남아있으면 시연/데모가 죽은 시스템처럼 보임.
+
+**구현 방식**:
+- `setInterval` 기반 (기본 60초). `SETTLE_INTERVAL_MS` 환경변수로 조절.
+- `@nestjs/schedule` 미도입 — 단순 인터벌이면 충분 (학교 프로젝트 scope).
+- 동시 실행 가드 (한 tick 진행 중이면 다음 tick skip).
+- 각 경매를 독립 트랜잭션에서 정산 — advisory lock으로 cron tick끼리 race 방지.
+
+**관련 ADR**: 새 ADR 안 만듦. `setInterval` 선택은 가벼운 결정이라 scope-cuts.md에 메모로 충분.
+
+---
+
+## 변경 로그
+
+- 2026-05-20 — 초안 작성. CUT-1~8 식별, KEEP-1~5 명시.
+- 2026-05-20 — REVIVED-A 자동 정산 스케줄러 추가 (setInterval, @nestjs/schedule 안 씀).
+- 2026-05-20 — CUT-8 부분 부활 (auth/login만), CUT-9 LeavePool 신규 컷.
+- 2026-05-20 — CUT-9 부분 부활 (휴가 잔여 read-only 표시. auction 일수 자동 가산은 후속 PR).
