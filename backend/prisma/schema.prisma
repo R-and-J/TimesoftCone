@@ -1,0 +1,149 @@
+// TimesoftCone — schema (after follow-up PR: Auction + Bid)
+// Encodes invariants from CLAUDE.md, ADR-011, ADR-014 (with scope-cuts.md CUT-3).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// USERS — minimal stub. Full HR sync is out of scope.
+// ─────────────────────────────────────────────────────────────
+model User {
+  id              BigInt   @id @default(autoincrement())
+  empId           String   @unique @map("emp_id")
+  name            String
+  team            String?
+  role            UserRole @default(EMPLOYEE)
+  /// Annual leave days the user has contributed to the public pool this year.
+  /// Drives year-end dividend stake (see GET /api/dividend/me/:userId).
+  /// School-project simplification — production would derive this from a
+  /// LeavePool aggregate (ADR-017).
+  contributedDays  Int      @default(0)  @map("contributed_days")
+  /// ADR-002 three-flag leave separation (REGULAR / AUCTION / EVENT).
+  /// Read-only here — bid settlement does NOT yet credit auctionLeaveDays.
+  /// See scope-cuts.md CUT-9 (Leave context partial revival).
+  regularLeaveDays Int      @default(12) @map("regular_leave_days")
+  auctionLeaveDays Int      @default(0)  @map("auction_leave_days")
+  eventLeaveDays   Int      @default(0)  @map("event_leave_days")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  wallets   Wallet[]
+  ledger    LedgerEntry[]
+  bids      BidEvent[]
+  wonAuctions Auction[] @relation("AuctionWinner")
+
+  @@map("users")
+}
+
+enum UserRole {
+  EMPLOYEE
+  ADMIN
+}
+
+// ─────────────────────────────────────────────────────────────
+// WALLET (ADR-011 master).
+// ─────────────────────────────────────────────────────────────
+model Wallet {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  currency  Currency
+  balance   BigInt   @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, currency], name: "uq_wallet_user_currency")
+  @@map("wallet")
+}
+
+enum Currency {
+  WELFARE_POINT
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEDGER_ENTRY — Insert-Only (CLAUDE.md DB-RULE-1).
+// ─────────────────────────────────────────────────────────────
+model LedgerEntry {
+  id           BigInt          @id @default(autoincrement())
+  occurredAt   DateTime        @default(now()) @map("occurred_at")
+  userId       BigInt          @map("user_id")
+  currency     Currency
+  actionType   LedgerActionType @map("action_type")
+  amount       BigInt
+  balanceAfter BigInt          @map("balance_after")
+  auctionId    String?         @map("auction_id")
+  refNote      String?         @map("ref_note")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, occurredAt])
+  @@index([actionType, occurredAt])
+  @@map("ledger_entry")
+}
+
+enum LedgerActionType {
+  BID
+  REFUND
+  WIN
+  DIVIDEND
+  CREDIT_ADMIN
+  EXPIRE
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUCTION — see scope-cuts.md CUT-3 for why this uses a status
+// enum instead of the ADR-014 State Pattern.
+// ─────────────────────────────────────────────────────────────
+model Auction {
+  // Human-readable ID ("A-2026-106"). String, not autoinc, so the design
+  // canvas mockup data (which uses these IDs) maps 1:1 to the seed.
+  id              String         @id
+  status          AuctionStatus  @default(CREATED)
+  startPrice      BigInt         @map("start_price")
+  highest         BigInt
+  highestBidder   BigInt?        @map("highest_bidder_id")
+  bidCount        Int            @default(0) @map("bid_count")
+  minIncrement    BigInt         @default(100) @map("min_increment")
+  startedAt       DateTime       @map("started_at")
+  endsAt          DateTime       @map("ends_at")
+  settledAt       DateTime?      @map("settled_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  winner User?      @relation("AuctionWinner", fields: [highestBidder], references: [id])
+  bids   BidEvent[]
+
+  @@index([status, endsAt])
+  @@map("auction")
+}
+
+enum AuctionStatus {
+  CREATED
+  OPEN
+  AWARDED
+  UNSOLD
+}
+
+// ─────────────────────────────────────────────────────────────
+// BID_EVENT — append-only log of accepted bids.
+// Separate from ledger_entry: ledger tracks money, bid_event tracks the
+// auction action. The ledger has a matching BID row for each accepted bid.
+// ─────────────────────────────────────────────────────────────
+model BidEvent {
+  id        BigInt   @id @default(autoincrement())
+  auctionId String   @map("auction_id")
+  userId    BigInt   @map("user_id")
+  amount    BigInt
+  placedAt  DateTime @default(now()) @map("placed_at")
+
+  auction Auction @relation(fields: [auctionId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([auctionId, placedAt(sort: Desc)])
+  @@map("bid_event")
+}
