@@ -32,11 +32,11 @@
 - Redis 추가 = 인프라 1개 더, 컨테이너 1개 더, 장애 지점 1개 더.
 
 **대체**:
-- **Postgres advisory lock** (`pg_advisory_xact_lock(auction_id)`) — 같은 트랜잭션 동안 같은 경매에 대한 입찰을 직렬화.
-- 자동 해제 (트랜잭션 종료 시), 무료, 같은 DB라 일관성 보장.
+- **MySQL InnoDB 행 잠금** (`SELECT id FROM auction WHERE id = ? FOR UPDATE`) — 같은 트랜잭션 동안 같은 경매에 대한 입찰을 직렬화.
+- 자동 해제 (트랜잭션 커밋/롤백 시), 무료, 같은 DB라 일관성 보장.
 - 코드는 [`PrismaUnitOfWork.lockAuction()`](../backend/src/adapters/persistence/prisma-unit-of-work.ts) 한 줄.
 
-**되돌리는 비용**: 낮음. `BIDDING_CURRENCY` 인터페이스 영향 없음. `UnitOfWork` 어댑터에서 `pg_advisory_xact_lock` 호출을 `redlock.acquire`로 바꾸면 됨.
+**되돌리는 비용**: 낮음. `BIDDING_CURRENCY` 인터페이스 영향 없음. `UnitOfWork` 어댑터에서 `FOR UPDATE` 호출을 `redlock.acquire`로 바꾸면 됨.
 
 **docker-compose에 redis는 남겨둠** — 후속 PR에서 부활시킬 수도 있고, 캐싱 용도로 쓸 수도 있어서.
 
