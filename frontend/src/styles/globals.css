@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 212 100% 94%;
+    --foreground: 213 60% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 213 60% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 60% 10%;
+
+    --primary: 216 78% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 41% 91%;
+    --secondary-foreground: 213 23% 30%;
+
+    --muted: 212 100% 94%;
+    --muted-foreground: 213 16% 58%;
+
+    --accent: 218 100% 97%;
+    --accent-foreground: 216 78% 48%;
+
+    --destructive: 355 69% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 41% 91%;
+    --input: 214 41% 91%;
+    --ring: 216 78% 48%;
+
+    --radius: 0.75rem;
+
+    --bg-deep: 213 100% 90%;
+    --ink: 213 60% 10%;
+    --ink-soft: 213 23% 30%;
+    --ink-muted: 213 16% 58%;
+    --accent-deep: 216 85% 37%;
+    --accent-soft: 218 100% 97%;
+    --success: 165 76% 36%;
+    --warn: 34 79% 49%;
+    --danger: 355 69% 55%;
+  }
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100vh;
+  }
+  html {
+    font-family: "Pretendard Variable", Pretendard, -apple-system,
+      BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    /* Matches the cobalt page bg so the area outside the 1440-wide content
+       column blends seamlessly on wide monitors. */
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .mono,
+  .font-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: hsl(var(--primary));
+    color: #fff;
+  }
+  button {
+    font-family: inherit;
+  }
+}
