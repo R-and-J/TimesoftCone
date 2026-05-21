@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>Export · 타임소프트콘</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+    background: #e8e6e0;
+    color: #0B1929;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Toolbar */
+  .toolbar {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: #0B1929; color: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 32px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.08);
+  }
+  .toolbar .label { font-size: 12px; opacity: .65; padding: 0 8px 0 4px; }
+  .toolbar button {
+    border: none; cursor: pointer;
+    background: #1B64DA; color: #fff;
+    font: 600 13px/1 'Pretendard Variable', system-ui;
+    padding: 9px 14px; border-radius: 9px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .toolbar button:hover { background: #2575ee; }
+  .toolbar button.ghost { background: rgba(255,255,255,.08); }
+  .toolbar button.ghost:hover { background: rgba(255,255,255,.16); }
+  .toolbar button[disabled] { opacity: .5; cursor: wait; }
+  .toolbar .progress { font: 500 11px/1 'JetBrains Mono', monospace; opacity: .7; min-width: 60px; }
+
+  /* Stack */
+  .stack { padding: 96px 40px 60px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
+  .frame { background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 12px 32px rgba(11,25,41,.08); border-radius: 6px; overflow: hidden; }
+  .frame-label {
+    width: 1440px; display: flex; justify-content: space-between; align-items: baseline;
+    font: 500 12px/1.4 'JetBrains Mono', monospace;
+    color: #5d5750; padding: 0 2px;
+  }
+  .frame-label .num { color: #c96442; font-weight: 700; }
+  .frame-label .size { opacity: .55; }
+  .screen-host { background: #f0eee9; }
+
+  /* Print: one screen per page */
+  @page { size: 1440px 900px; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none !important; }
+    .stack { padding: 0; gap: 0; }
+    .frame-label { display: none; }
+    .frame { box-shadow: none; border-radius: 0; page-break-after: always; break-after: page; }
+    .frame:last-child { page-break-after: auto; }
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="label">📦 Export</span>
+  <button id="btn-png">⬇ PNG 모두 다운로드 (ZIP)</button>
+  <button id="btn-pdf" class="ghost">🖨 PDF로 저장 (인쇄)</button>
+  <span class="progress mono" id="progress"></span>
+</div>
+
+<div class="stack" id="stack"></div>
+
+<script type="text/babel" src="../src/tokens.jsx"></script>
+<script type="text/babel" src="../src/atoms.jsx"></script>
+<script type="text/babel" src="../src/data.jsx"></script>
+<script type="text/babel" src="../src/Login.jsx"></script>
+<script type="text/babel" src="../src/Dashboard.jsx"></script>
+<script type="text/babel" src="../src/AuctionListGrid.jsx"></script>
+<script type="text/babel" src="../src/AuctionListRow.jsx"></script>
+<script type="text/babel" src="../src/AuctionListTimeline.jsx"></script>
+<script type="text/babel" src="../src/AuctionDetail.jsx"></script>
+<script type="text/babel" src="../src/BidInteractions.jsx"></script>
+<script type="text/babel" src="../src/MyActivity.jsx"></script>
+<script type="text/babel" src="../src/Dividend.jsx"></script>
+<script type="text/babel" src="../src/AdminOps.jsx"></script>
+<script type="text/babel" src="../src/AdminLedger.jsx"></script>
+
+<script type="text/babel">
+  const SCREENS = [
+    { id: '01-login',             title: '01 · 로그인 (브랜드 임팩트형)',         w: 1440, h: 900,  el: () => <Login p={PALETTES.cobalt} /> },
+    { id: '02-login-standard',    title: '01 · 로그인 (표준 사내 시스템형)',       w: 1440, h: 900,  el: () => <LoginStandard p={PALETTES.cobalt} /> },
+    { id: '03-dashboard',         title: '01 · 대시보드',                          w: 1440, h: 900,  el: () => <Dashboard p={PALETTES.cobalt} /> },
+    { id: '04-auction-grid',      title: '02 · 경매장 — 그리드',                  w: 1440, h: 900,  el: () => <AuctionListGrid p={PALETTES.cobalt} /> },
+    { id: '05-auction-row',       title: '02 · 경매장 — 리스트',                  w: 1440, h: 900,  el: () => <AuctionListRow p={PALETTES.cobalt} /> },
+    { id: '06-auction-timeline',  title: '02 · 경매장 — 타임라인',                w: 1440, h: 900,  el: () => <AuctionListTimeline p={PALETTES.cobalt} /> },
+    { id: '07-auction-detail',    title: '03 · 입찰 상세',                        w: 1440, h: 900,  el: () => <AuctionDetail p={PALETTES.cobalt} /> },
+    { id: '08-bid-interactions',  title: '03 · 입찰 인터랙션 변주 3종',           w: 1440, h: 1180, el: () => <BidInteractions p={PALETTES.cobalt} /> },
+    { id: '09-activity',          title: '04 · 내 활동',                          w: 1440, h: 900,  el: () => <MyActivity p={PALETTES.cobalt} /> },
+    { id: '10-dividend',          title: '04 · 연말 배당',                        w: 1440, h: 900,  el: () => <Dividend p={PALETTES.cobalt} /> },
+    { id: '11-admin-ops',         title: '05 · 관리자 · 운영',                    w: 1440, h: 900,  el: () => <AdminOps p={PALETTES.cobalt} /> },
+    { id: '12-admin-ledger',      title: '05 · 관리자 · 원장',                    w: 1440, h: 900,  el: () => <AdminLedger p={PALETTES.cobalt} /> },
+  ];
+
+  // Render every screen into the stack at its native size
+  function Stack() {
+    return (
+      <>
+        {SCREENS.map((s) => (
+          <div key={s.id}>
+            <div className="frame-label" style={{ marginBottom: 8 }}>
+              <span><span className="num">{s.id.split('-')[0]}</span>&nbsp;&nbsp;{s.title.replace(/^\d+\s·\s/, '')}</span>
+              <span className="size">{s.w} × {s.h}</span>
+            </div>
+            <div className="frame" data-screen-id={s.id} style={{ width: s.w, height: s.h }}>
+              <div className="screen-host" style={{ width: s.w, height: s.h }}>
+                {s.el()}
+              </div>
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('stack')).render(<Stack />);
+
+  // ── PNG export (html2canvas → ZIP) ──────────────────────────────
+  const progressEl = document.getElementById('progress');
+  const btnPng = document.getElementById('btn-png');
+  const btnPdf = document.getElementById('btn-pdf');
+
+  async function exportAllPNGs() {
+    btnPng.disabled = true;
+    btnPdf.disabled = true;
+    const zip = new JSZip();
+    const folder = zip.folder('timesoftcone-screens');
+
+    // Let fonts settle
+    if (document.fonts && document.fonts.ready) {
+      progressEl.textContent = '폰트 로딩…';
+      await document.fonts.ready;
+    }
+    await new Promise(r => setTimeout(r, 300));
+
+    for (let i = 0; i < SCREENS.length; i++) {
+      const s = SCREENS[i];
+      progressEl.textContent = `${i + 1}/${SCREENS.length}  ${s.id}`;
+      const node = document.querySelector(`[data-screen-id="${s.id}"]`);
+      if (!node) continue;
+      const canvas = await html2canvas(node, {
+        width: s.w, height: s.h,
+        windowWidth: s.w, windowHeight: s.h,
+        scale: 2,
+        backgroundColor: '#f0eee9',
+        useCORS: true,
+        logging: false,
+      });
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      folder.file(`${s.id}.png`, blob);
+    }
+
+    progressEl.textContent = 'ZIP 생성 중…';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'timesoftcone-screens.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+
+    progressEl.textContent = '✓ 완료';
+    btnPng.disabled = false;
+    btnPdf.disabled = false;
+    setTimeout(() => { progressEl.textContent = ''; }, 4000);
+  }
+
+  btnPng.addEventListener('click', exportAllPNGs);
+  btnPdf.addEventListener('click', () => window.print());
+</script>
+</body>
+</html>

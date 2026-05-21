@@ -1,0 +1,85 @@
+/* ─────────────────────────────────────────────────────────────
+ * TimesoftCone · 디자인 토큰 (shadcn / Tailwind 호환)
+ *
+ * 이 파일을 그대로 `app/globals.css` 또는 `src/styles/globals.css`
+ * 의 :root 블록으로 복사해서 쓰세요.
+ *
+ * 베이스 팔레트: cobalt (토스 블루) — 디자인 캔버스의 기본 팔레트입니다.
+ * indigo / navy / sky 팔레트는 README 참고.
+ * ───────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* ── shadcn 표준 변수 (HSL, no `hsl()` wrapper) ─────────── */
+    --background:            212 100% 94%;   /* #e3f0ff */
+    --foreground:            213 60% 10%;    /* #0B1929 */
+
+    --card:                  0 0% 100%;      /* #ffffff */
+    --card-foreground:       213 60% 10%;    /* #0B1929 */
+
+    --popover:               0 0% 100%;
+    --popover-foreground:    213 60% 10%;
+
+    --primary:               216 78% 48%;    /* #1B64DA */
+    --primary-foreground:    0 0% 100%;
+
+    --secondary:             214 41% 91%;    /* #dde6f3 (= line) */
+    --secondary-foreground:  213 23% 30%;    /* #3b4a5e (= ink-soft) */
+
+    --muted:                 212 100% 94%;   /* #e3f0ff */
+    --muted-foreground:      213 16% 58%;    /* #8392a7 */
+
+    --accent:                218 100% 97%;   /* #eef4ff (= accent-soft) */
+    --accent-foreground:     216 78% 48%;    /* #1B64DA */
+
+    --destructive:           355 69% 55%;    /* #DC3F4A */
+    --destructive-foreground:0 0% 100%;
+
+    --border:                214 41% 91%;    /* #dde6f3 */
+    --input:                 214 41% 91%;
+    --ring:                  216 78% 48%;    /* #1B64DA */
+
+    --radius: 0.75rem;       /* 12px — RADIUS.md */
+
+    /* ── 도메인 추가 변수 ──────────────────────────────────── */
+    --bg-deep:               213 100% 90%;   /* #cfe2ff */
+    --ink:                   213 60% 10%;    /* #0B1929 */
+    --ink-soft:              213 23% 30%;    /* #3b4a5e */
+    --ink-muted:             213 16% 58%;    /* #8392a7 */
+    --accent-deep:           216 85% 37%;    /* #0E4BB0 */
+    --accent-soft:           218 100% 97%;   /* #eef4ff */
+    --success:               165 76% 36%;   /* #16A07A */
+    --warn:                  34 79% 49%;    /* #E08B19 */
+    --danger:                355 69% 55%;   /* #DC3F4A */
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 폰트
+ * package.json: pretendard 패키지 또는 CDN 링크로 로드
+ * mono 폰트는 코드/숫자 표시에만 사용 (.font-mono / .mono)
+ * ───────────────────────────────────────────────────────────── */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+@layer base {
+  html {
+    font-family: "Pretendard Variable", Pretendard, -apple-system,
+      BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .mono,
+  .font-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: hsl(var(--primary));
+    color: #fff;
+  }
+}
