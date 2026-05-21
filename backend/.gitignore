@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# NestJS
+.nest/
+
+# TypeScript
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Env (루트 .gitignore와 중복이나, 폴더 단독 사용 대비)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Lint cache
+.eslintcache
+
+# Prisma 로컬 SQLite (개발용)
+prisma/migrations/dev.db*
+prisma/*.db
+prisma/*.db-journal
+
+# Docker 로컬 볼륨
+docker-data/
+pgdata/

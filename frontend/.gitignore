@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Vite
+.vite/
+.vite-cache/
+*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Env (루트 .gitignore와 중복이나, 폴더 단독 사용 대비)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Lint cache
+.eslintcache
+.stylelintcache
