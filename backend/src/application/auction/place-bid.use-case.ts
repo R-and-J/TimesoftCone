@@ -1,9 +1,9 @@
 // PlaceBid — the most critical use case in this system.
 //
-// All of the following happen in ONE Postgres transaction, guarded by a
-// pg_advisory_xact_lock on the auction ID (scope-cuts.md CUT-1):
+// All of the following happen in ONE MySQL transaction, guarded by a
+// `SELECT ... FOR UPDATE` row lock on the auction (scope-cuts.md CUT-1):
 //
-//   1. Acquire advisory lock for this auction
+//   1. Acquire row lock for this auction
 //   2. Read auction
 //   3. Apply Auction.placeBid() — domain validates status, time, amount,
 //      and returns the previous leader (if any)

@@ -1,9 +1,10 @@
 // PrismaUnitOfWork — runs a callback inside a single Prisma $transaction,
 // providing repository wrappers that all share the same tx client.
 //
-// scope-cuts.md CUT-1: lockAuction() acquires a Postgres advisory lock keyed
-// on hashtext(auction_id). Released automatically when the tx commits or
-// rolls back. No Redis needed at this scale.
+// scope-cuts.md CUT-1: lockAuction() takes a MySQL InnoDB row lock on the
+// auction row (`SELECT id FROM auction WHERE id = ? FOR UPDATE`). Held until
+// the tx commits or rolls back, so concurrent bids on the same auction are
+// serialized. No Redis needed at this scale.
 
 import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma, Currency as PrismaCurrency, AuctionStatus as PrismaAuctionStatus } from "@prisma/client";
@@ -131,8 +132,10 @@ export class PrismaUnitOfWork implements UnitOfWork {
         });
       },
       lockAuction: async (auctionId: AuctionId) => {
-        // hashtext(text) -> int4. Cast to bigint for pg_advisory_xact_lock.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${auctionId.toString()})::bigint)`;
+        // MySQL InnoDB row lock on the auction row — serializes concurrent bids
+        // on the same auction for the duration of this transaction. Auto-released
+        // on commit/rollback. scope-cuts.md CUT-1.
+        await tx.$queryRaw`SELECT id FROM auction WHERE id = ${auctionId.toString()} FOR UPDATE`;
       },
     };
   }

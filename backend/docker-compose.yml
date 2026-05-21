@@ -1,21 +1,22 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: timesoftcone-postgres
+  mysql:
+    image: mysql:8
+    container_name: timesoftcone-mysql
     restart: unless-stopped
     environment:
-      POSTGRES_USER: timesoftcone
-      POSTGRES_PASSWORD: timesoftcone
-      POSTGRES_DB: timesoftcone
+      MYSQL_ROOT_PASSWORD: timesoftcone
+      MYSQL_DATABASE: timesoftcone
+      MYSQL_USER: timesoftcone
+      MYSQL_PASSWORD: timesoftcone
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysqldata:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U timesoftcone"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -32,5 +33,5 @@ services:
       retries: 5
 
 volumes:
-  pgdata:
+  mysqldata:
   redisdata:
