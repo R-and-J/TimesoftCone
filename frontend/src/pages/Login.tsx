@@ -232,27 +232,29 @@ function LoginImpact() {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Btn p={p} variant="dark" size="xl" full>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-              <Icon.shield size={20} /> 사내 통합 계정으로 로그인
-            </span>
-          </Btn>
-        </div>
+        {/*
+          [미래 SSO 진입점 — 현재 비활성(주석 보존)]
+          의도: 지금 인증은 진짜 SSO 리다이렉트가 아니라, 우리 폼에서 이메일+비번을 받아
+          사내 ezpass에 검증을 위임하는 '중앙 인증 위임' 방식이다(ADR-019, "SSO 아님").
+          그래서 로그인은 아래 이메일+비번 폼 하나로 충분하고, 이 'SSO 진입' 버튼은
+          동작도 없고 오해만 주므로 비활성화한다. 추후 실제 사내 SSO(OIDC 등)가 도입되면
+          아래 블록('사내 통합 계정' 버튼 + '또는 사번으로' 구분선)을 되살려 리다이렉트
+          진입점으로 사용한다.
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            color: p.inkMuted,
-            fontSize: 12,
-          }}
-        >
-          <div style={{ flex: 1, height: 1, background: p.line }} />
-          또는 사번으로
-          <div style={{ flex: 1, height: 1, background: p.line }} />
-        </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Btn p={p} variant="dark" size="xl" full>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                <Icon.shield size={20} /> 사내 통합 계정으로 로그인
+              </span>
+            </Btn>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, color: p.inkMuted, fontSize: 12 }}>
+            <div style={{ flex: 1, height: 1, background: p.line }} />
+            또는 사번으로
+            <div style={{ flex: 1, height: 1, background: p.line }} />
+          </div>
+        */}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
