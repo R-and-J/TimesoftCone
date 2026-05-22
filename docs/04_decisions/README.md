@@ -43,6 +43,7 @@
 | [016](ADR-016-internal-leave-system.md) | 자체 휴가 관리 시스템 보유 | ✅ Accepted | leave_balance 마스터 본 시스템 보유 (011의 휴가 버전) |
 | [017](ADR-017-leave-pool-context.md) | 휴가 풀/경매 인벤토리 분리 컨텍스트 | ✅ Accepted | 연말 풀 수집을 별도 Bounded Context로 |
 | [018](ADR-018-auction-settlement-rules.md) | 경매 정산 규칙 (패자 환불·입찰 취소) | ✅ Accepted | 밀리는 즉시 환불 + 입찰 취소 불가 |
+| [019](ADR-019-central-auth-delegation.md) | 사내 중앙 인증 위임 (ezpass) | ✅ Accepted | 로그인을 ezpass에 위임 (SSO 아님), 검증 완료 |
 
 ## 의존 관계
 
