@@ -11,6 +11,15 @@ import MyActivityPage from "@/pages/MyActivity";
 import DividendPage from "@/pages/Dividend";
 import AdminOpsPage from "@/pages/AdminOps";
 import AdminLedgerPage from "@/pages/AdminLedger";
+import { useAuth } from "@/lib/current-user";
+
+// 로그인 안 된 상태로 보호된 페이지 접근 시 /login으로. 보호된 페이지는
+// 이 가드 안에서만 렌더되므로 useCurrentUser()가 항상 사용자 보장.
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
 
 export default function App() {
   return (
@@ -20,20 +29,19 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/auction" element={<AuctionListGridPage />} />
-        <Route path="/auction/row" element={<AuctionListRowPage />} />
-        <Route path="/auction/timeline" element={<AuctionListTimelinePage />} />
-        <Route path="/auction/detail" element={<AuctionDetailPage />} />
-        <Route path="/auction/detail/:id" element={<AuctionDetailPage />} />
-        <Route path="/auction/bid-variants" element={<BidInteractionsPage />} />
-        <Route path="/activity" element={<MyActivityPage />} />
-        <Route path="/dividend" element={<DividendPage />} />
-        <Route path="/admin/ops" element={<AdminOpsPage />} />
-        <Route path="/admin/ledger" element={<AdminLedgerPage />} />
+        <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+        <Route path="/auction" element={<RequireAuth><AuctionListGridPage /></RequireAuth>} />
+        <Route path="/auction/row" element={<RequireAuth><AuctionListRowPage /></RequireAuth>} />
+        <Route path="/auction/timeline" element={<RequireAuth><AuctionListTimelinePage /></RequireAuth>} />
+        <Route path="/auction/detail" element={<RequireAuth><AuctionDetailPage /></RequireAuth>} />
+        <Route path="/auction/detail/:id" element={<RequireAuth><AuctionDetailPage /></RequireAuth>} />
+        <Route path="/auction/bid-variants" element={<RequireAuth><BidInteractionsPage /></RequireAuth>} />
+        <Route path="/activity" element={<RequireAuth><MyActivityPage /></RequireAuth>} />
+        <Route path="/dividend" element={<RequireAuth><DividendPage /></RequireAuth>} />
+        <Route path="/admin/ops" element={<RequireAuth><AdminOpsPage /></RequireAuth>} />
+        <Route path="/admin/ledger" element={<RequireAuth><AdminLedgerPage /></RequireAuth>} />
 
-        {/* Developer escape hatch — full 12-screen catalog. Not linked from
-            normal user flow; reach via /_screens or the link in Login footer. */}
+        {/* Developer escape hatch — full 12-screen catalog. */}
         <Route path="/_screens" element={<IndexPage />} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />

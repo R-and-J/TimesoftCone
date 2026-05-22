@@ -98,16 +98,20 @@ export function getLeave(userId: string | number) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────
+// 중앙 인증 위임(ADR-019): 이메일(id)+비밀번호를 우리 백엔드로 보내면,
+// 백엔드가 사내 ezpass 로그인 API에 검증을 위임한다.
 export type LoginResponse = {
   userId: string;
   empId: string;
   name: string;
   role: "EMPLOYEE" | "ADMIN";
   team: string | null;
+  email: string | null;
+  provisioned: boolean;
 };
 
-export function login(empId: string) {
-  return apiPost<LoginResponse>("/auth/login", { empId });
+export function login(id: string, password: string, cmpnyNo?: string) {
+  return apiPost<LoginResponse>("/auth/login", { id, password, cmpnyNo });
 }
 
 // ── Dividend ──────────────────────────────────────────────────────

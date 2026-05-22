@@ -5,7 +5,7 @@ import { Brand, BrandGlyph, Btn } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { login } from "@/lib/queries";
 import { ApiError } from "@/lib/api";
-import { DEMO_USERS, useCurrentUser } from "@/lib/current-user";
+import { useAuth } from "@/lib/current-user";
 import { useToast } from "@/lib/toast";
 
 export default function LoginPage() {
@@ -59,18 +59,27 @@ export default function LoginPage() {
 }
 
 function useLoginForm() {
-  const [empId, setEmpId] = useState<string>(DEMO_USERS[0].empId);
+  // 중앙 인증 위임(ADR-019): 이메일+비밀번호 → 사내 ezpass 검증.
+  const [email, setEmail] = useState<string>("admin@timesoftcon.co.kr");
+  const [password, setPassword] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { setUserId } = useCurrentUser();
+  const { setUser } = useAuth();
   const toast = useToast();
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     setSubmitting(true);
     try {
-      const r = await login(empId);
-      setUserId(Number(r.userId));
+      const r = await login(email, password);
+      setUser({
+        id: Number(r.userId),
+        name: r.name,
+        empId: r.empId,
+        role: r.role,
+        team: r.team,
+        email: r.email,
+      });
       toast.push("success", `${r.name}님으로 로그인했습니다`);
       navigate("/dashboard");
     } catch (err) {
@@ -81,7 +90,7 @@ function useLoginForm() {
     }
   };
 
-  return { empId, setEmpId, submit, submitting };
+  return { email, setEmail, password, setPassword, submit, submitting };
 }
 
 function LoginImpact() {
@@ -169,7 +178,7 @@ function LoginImpact() {
           {[
             { k: "재무 리스크", v: "0%", sub: "회사 예산 선투입 없음" },
             { k: "재무 정합성", v: "100%", sub: "Insert-Only 원장" },
-            { k: "동시성 제어", v: "PG", sub: "advisory_xact_lock" },
+            { k: "동시성 제어", v: "MySQL", sub: "FOR UPDATE 행 잠금" },
           ].map((s) => (
             <div
               key={s.k}
@@ -225,7 +234,7 @@ function LoginImpact() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <Btn p={p} variant="dark" size="xl" full>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-              <Icon.shield size={20} /> SSO로 로그인 (데모: 사번 사용)
+              <Icon.shield size={20} /> 사내 통합 계정으로 로그인
             </span>
           </Btn>
         </div>
@@ -247,12 +256,14 @@ function LoginImpact() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 6, fontWeight: 600 }}>
-              사번
+              이메일
             </div>
             <input
-              value={form.empId}
-              onChange={(e) => form.setEmpId(e.target.value)}
-              placeholder="TS-2024-001"
+              type="email"
+              value={form.email}
+              onChange={(e) => form.setEmail(e.target.value)}
+              placeholder="you@timesoftcon.co.kr"
+              autoComplete="username"
               style={{
                 height: 52,
                 padding: "0 16px",
@@ -260,6 +271,30 @@ function LoginImpact() {
                 border: `1.5px solid ${p.line}`,
                 width: "100%",
                 fontFamily: FONT.mono,
+                fontSize: 16,
+                color: p.ink,
+                background: p.surface,
+                outline: "none",
+              }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 6, fontWeight: 600 }}>
+              비밀번호
+            </div>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => form.setPassword(e.target.value)}
+              placeholder="비밀번호"
+              autoComplete="current-password"
+              onKeyDown={(e) => e.key === "Enter" && form.submit()}
+              style={{
+                height: 52,
+                padding: "0 16px",
+                borderRadius: 12,
+                border: `1.5px solid ${p.line}`,
+                width: "100%",
                 fontSize: 16,
                 color: p.ink,
                 background: p.surface,
@@ -392,12 +427,14 @@ function LoginStandard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <div style={{ fontSize: 12, color: p.inkSoft, marginBottom: 6, fontWeight: 600 }}>
-                사번 (Employee ID)
+                이메일 (Email)
               </div>
               <input
-                value={form.empId}
-                onChange={(e) => form.setEmpId(e.target.value)}
-                placeholder="TS-2024-001"
+                type="email"
+                value={form.email}
+                onChange={(e) => form.setEmail(e.target.value)}
+                placeholder="you@timesoftcon.co.kr"
+                autoComplete="username"
                 style={{
                   height: 48,
                   padding: "0 14px",
@@ -405,6 +442,31 @@ function LoginStandard() {
                   border: `1.5px solid ${p.accent}`,
                   width: "100%",
                   fontFamily: FONT.mono,
+                  fontSize: 15,
+                  color: p.ink,
+                  background: p.surface,
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, color: p.inkSoft, marginBottom: 6, fontWeight: 600 }}>
+                비밀번호 (Password)
+              </div>
+              <input
+                type="password"
+                value={form.password}
+                onChange={(e) => form.setPassword(e.target.value)}
+                placeholder="비밀번호"
+                autoComplete="current-password"
+                onKeyDown={(e) => e.key === "Enter" && form.submit()}
+                style={{
+                  height: 48,
+                  padding: "0 14px",
+                  borderRadius: 10,
+                  border: `1.5px solid ${p.line}`,
+                  width: "100%",
                   fontSize: 15,
                   color: p.ink,
                   background: p.surface,
@@ -488,11 +550,11 @@ function DemoUserHint() {
         lineHeight: 1.5,
       }}
     >
-      <strong style={{ color: p.inkSoft }}>데모 사번</strong>
+      <strong style={{ color: p.inkSoft }}>사내 계정으로 로그인</strong>
       <br />
-      {DEMO_USERS.slice(0, 4).map((u) => u.empId).join(" · ")}
+      테스트 계정: admin@timesoftcon.co.kr
       <br />
-      {DEMO_USERS.slice(4).map((u) => u.empId).join(" · ")}
+      비밀번호는 사내 ezpass 계정과 동일합니다.
     </div>
   );
 }

@@ -4,7 +4,7 @@ import type { Palette } from "@/lib/tokens";
 import { Brand } from "./Brand";
 import { Avatar } from "./Avatar";
 import { Icon } from "../icons";
-import { DEMO_USERS, useCurrentUser } from "@/lib/current-user";
+import { useCurrentUser } from "@/lib/current-user";
 
 type Props = {
   p: Palette;
@@ -24,7 +24,7 @@ const NAV_ROUTES: Record<NonNullable<Props["active"]>, string> = {
 
 export function TopNav({ p, active = "dashboard", user, role }: Props) {
   const navigate = useNavigate();
-  const { user: current, setUserId } = useCurrentUser();
+  const { user: current, logout } = useCurrentUser();
   const [open, setOpen] = useState(false);
 
   const displayName = user ?? current.name;
@@ -121,47 +121,36 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
                 zIndex: 100,
               }}
             >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px" }}>
+                <Avatar p={p} name={current.name} size={28} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>{current.name}</div>
+                  <div className="mono" style={{ fontSize: 10, color: p.inkMuted }}>
+                    {current.email ?? current.empId} · {current.role}
+                  </div>
+                </div>
+              </div>
+              <div style={{ height: 1, background: p.line, margin: "4px 0" }} />
               <div
+                onClick={() => {
+                  logout();
+                  setOpen(false);
+                  navigate("/login");
+                }}
                 style={{
-                  fontSize: 10,
-                  color: p.inkMuted,
-                  fontWeight: 700,
-                  letterSpacing: 0.6,
-                  padding: "8px 10px 4px",
-                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  color: p.danger,
+                  fontWeight: 600,
                 }}
               >
-                데모 사용자 전환
+                로그아웃
               </div>
-              {DEMO_USERS.map((u) => (
-                <div
-                  key={u.id}
-                  onClick={() => {
-                    setUserId(u.id);
-                    setOpen(false);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    background: u.id === current.id ? p.bg : "transparent",
-                  }}
-                >
-                  <Avatar p={p} name={u.name} size={24} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>{u.name}</div>
-                    <div className="mono" style={{ fontSize: 10, color: p.inkMuted }}>
-                      {u.empId} · {u.role}
-                    </div>
-                  </div>
-                  {u.id === current.id && (
-                    <span style={{ color: p.accent, fontSize: 11, fontWeight: 700 }}>현재</span>
-                  )}
-                </div>
-              ))}
             </div>
           )}
         </div>

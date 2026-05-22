@@ -1,58 +1,72 @@
-// "현재 사용자" 추상화. 인증이 붙기 전까지 localStorage에 저장한 userId를
-// 사용합니다. seed.ts의 4명을 그대로 사용 (id 1~4).
+// "현재 사용자" — 로그인 응답으로 받은 실제 프로필을 localStorage에 저장한다.
+// (이전: id 1~9 하드코딩 DEMO_USERS. 중앙 인증(ADR-019)으로 ezpass 임의 계정도
+//  로그인되므로, 프로필을 API 응답에서 받아 그대로 사용한다.)
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type DemoUser = {
+export type CurrentUser = {
   id: number;
   name: string;
   empId: string;
   role: "EMPLOYEE" | "ADMIN";
+  team: string | null;
+  email: string | null;
 };
 
-export const DEMO_USERS: DemoUser[] = [
-  { id: 1, name: "김기철", empId: "TS-2024-001", role: "EMPLOYEE" },
-  { id: 2, name: "오지석", empId: "TS-2024-002", role: "EMPLOYEE" },
-  { id: 3, name: "이도현", empId: "TS-2024-003", role: "EMPLOYEE" },
-  { id: 4, name: "박서연", empId: "TS-2024-004", role: "EMPLOYEE" },
-  { id: 5, name: "정민우", empId: "TS-2024-005", role: "EMPLOYEE" },
-  { id: 6, name: "한지윤", empId: "TS-2024-006", role: "EMPLOYEE" },
-  { id: 7, name: "최예나", empId: "TS-2024-007", role: "EMPLOYEE" },
-  { id: 8, name: "강태오", empId: "TS-2024-008", role: "EMPLOYEE" },
-  { id: 9, name: "박부장", empId: "TS-2024-099", role: "ADMIN" },
-];
+const STORAGE_KEY = "timesoftcone.currentUser";
 
-const STORAGE_KEY = "timesoftcone.currentUserId";
-
-function loadUserId(): number {
-  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-  const n = raw ? Number(raw) : 1;
-  return Number.isFinite(n) && DEMO_USERS.some((u) => u.id === n) ? n : 1;
+function loadUser(): CurrentUser | null {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    if (!raw) return null;
+    const u = JSON.parse(raw) as CurrentUser;
+    return u && typeof u.id === "number" ? u : null;
+  } catch {
+    return null;
+  }
 }
 
-type Ctx = {
-  user: DemoUser;
-  setUserId: (id: number) => void;
+type AuthCtx = {
+  user: CurrentUser | null;
+  setUser: (u: CurrentUser) => void;
+  logout: () => void;
 };
 
-const CurrentUserContext = createContext<Ctx | null>(null);
+const CurrentUserContext = createContext<AuthCtx | null>(null);
 
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserIdState] = useState<number>(loadUserId);
-  const user = DEMO_USERS.find((u) => u.id === userId) ?? DEMO_USERS[0];
-  const setUserId = (id: number) => {
-    localStorage.setItem(STORAGE_KEY, String(id));
-    setUserIdState(id);
+  const [user, setUserState] = useState<CurrentUser | null>(loadUser);
+
+  const setUser = (u: CurrentUser) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+    setUserState(u);
   };
+  const logout = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setUserState(null);
+  };
+
   return (
-    <CurrentUserContext.Provider value={{ user, setUserId }}>
+    <CurrentUserContext.Provider value={{ user, setUser, logout }}>
       {children}
     </CurrentUserContext.Provider>
   );
 }
 
-export function useCurrentUser(): Ctx {
+/** 인증 여부와 무관하게 접근 (로그인 페이지·라우트 가드용). */
+export function useAuth(): AuthCtx {
   const ctx = useContext(CurrentUserContext);
-  if (!ctx) throw new Error("useCurrentUser must be used inside CurrentUserProvider");
+  if (!ctx) throw new Error("useAuth must be used inside CurrentUserProvider");
   return ctx;
+}
+
+/** 보호된 페이지용 — 로그인된 사용자를 보장(없으면 throw, 라우트 가드가 선행). */
+export function useCurrentUser(): {
+  user: CurrentUser;
+  setUser: (u: CurrentUser) => void;
+  logout: () => void;
+} {
+  const ctx = useAuth();
+  if (!ctx.user) throw new Error("not authenticated");
+  return { user: ctx.user, setUser: ctx.setUser, logout: ctx.logout };
 }
