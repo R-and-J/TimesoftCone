@@ -18,6 +18,9 @@ model User {
   empId           String   @unique @map("emp_id")
   name            String
   team            String?
+  /// 사내 ezpass 로그인 계정(이메일)과 매핑하기 위한 키. 중앙 인증 위임 시
+  /// ezpass의 user_id(이메일)로 이 사용자를 찾는다. (ADR-019)
+  email           String?  @unique @map("email")
   role            UserRole @default(EMPLOYEE)
   /// Annual leave days the user has contributed to the public pool this year.
   /// Drives year-end dividend stake (see GET /api/dividend/me/:userId).

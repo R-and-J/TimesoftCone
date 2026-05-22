@@ -10,6 +10,7 @@ import { PrismaLedgerRepository } from "./adapters/persistence/prisma-ledger.rep
 import { PrismaAuctionRepository } from "./adapters/persistence/prisma-auction.repository";
 import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
+import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 
 // Use cases
@@ -23,7 +24,7 @@ import { SettleAuctionUseCase } from "./application/auction/settle-auction.use-c
 import { SettleDueAuctionsUseCase } from "./application/auction/settle-due-auctions.use-case";
 import { ListMyActivityUseCase } from "./application/user/list-my-activity.use-case";
 import { GetUserLeaveUseCase } from "./application/user/get-user-leave.use-case";
-import { LoginByEmpIdUseCase } from "./application/auth/login-by-emp-id.use-case";
+import { LoginUseCase } from "./application/auth/login.use-case";
 import { GetAdminStatsUseCase } from "./application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "./application/admin/list-ledger.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
@@ -44,6 +45,7 @@ import { WALLET_REPOSITORY } from "./ports/wallet-repository";
 import { LEDGER_REPOSITORY } from "./ports/ledger-repository";
 import { AUCTION_REPOSITORY } from "./ports/auction-repository";
 import { UNIT_OF_WORK } from "./ports/unit-of-work";
+import { AUTH_PROVIDER } from "./ports/auth-provider";
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true })],
@@ -65,12 +67,14 @@ import { UNIT_OF_WORK } from "./ports/unit-of-work";
     PrismaAuctionRepository,
     PrismaUnitOfWork,
     WelfarePointProvider,
+    EzpassAuthProvider,
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
     { provide: LEDGER_REPOSITORY, useExisting: PrismaLedgerRepository },
     { provide: AUCTION_REPOSITORY, useExisting: PrismaAuctionRepository },
     { provide: UNIT_OF_WORK, useExisting: PrismaUnitOfWork },
     { provide: BIDDING_CURRENCY, useExisting: WelfarePointProvider },
+    { provide: AUTH_PROVIDER, useExisting: EzpassAuthProvider },
 
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
@@ -82,7 +86,7 @@ import { UNIT_OF_WORK } from "./ports/unit-of-work";
     SettleDueAuctionsUseCase,
     ListMyActivityUseCase,
     GetUserLeaveUseCase,
-    LoginByEmpIdUseCase,
+    LoginUseCase,
     GetAdminStatsUseCase,
     ListLedgerUseCase,
     GetMyDividendUseCase,
