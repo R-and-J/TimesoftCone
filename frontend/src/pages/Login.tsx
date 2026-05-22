@@ -61,7 +61,8 @@ export default function LoginPage() {
 function useLoginForm() {
   // 중앙 인증 위임(ADR-019): 이메일+비밀번호 → 사내 ezpass 검증.
   const [email, setEmail] = useState<string>("admin@timesoftcon.co.kr");
-  const [password, setPassword] = useState<string>("");
+  // 데모 편의: 테스트 계정 비번 프리필 → 바로 로그인 가능
+  const [password, setPassword] = useState<string>("!12345qwertY");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -550,11 +551,15 @@ function DemoUserHint() {
         lineHeight: 1.5,
       }}
     >
-      <strong style={{ color: p.inkSoft }}>사내 계정으로 로그인</strong>
-      <br />
-      테스트 계정: admin@timesoftcon.co.kr
-      <br />
-      비밀번호는 사내 ezpass 계정과 동일합니다.
+      <strong style={{ color: p.inkSoft }}>테스트 계정 (복붙용)</strong>
+      <div style={{ marginTop: 4 }}>
+        <span style={{ color: p.inkMuted }}>ID&nbsp;&nbsp;</span>
+        <span className="mono" style={{ color: p.ink, userSelect: "all" }}>admin@timesoftcon.co.kr</span>
+      </div>
+      <div>
+        <span style={{ color: p.inkMuted }}>PW&nbsp;&nbsp;</span>
+        <span className="mono" style={{ color: p.ink, userSelect: "all" }}>!12345qwertY</span>
+      </div>
     </div>
   );
 }
