@@ -506,9 +506,17 @@ function LoginStandard() {
               lineHeight: 1.6,
             }}
           >
-            <strong style={{ color: p.ink }}>📢 데모 안내</strong>
+            <strong style={{ color: p.ink }}>📢 데모 로그인 안내</strong>
             <br />
-            비밀번호 검증은 구현되지 않았습니다. 시드된 9명 사번 중 하나로 로그인하세요.
+            직원: <span className="mono" style={{ color: p.ink, userSelect: "all" }}>user001@exam.com</span>
+            {" ~ "}
+            <span className="mono" style={{ color: p.ink, userSelect: "all" }}>user038@exam.com</span>
+            {" (뒤 3자리는 순번) · 비번 "}
+            <span className="mono" style={{ color: p.ink, userSelect: "all" }}>1234</span>
+            <br />
+            관리자: <span className="mono" style={{ color: p.ink, userSelect: "all" }}>admin@timesoftcon.co.kr</span>
+            {" · 비번 "}
+            <span className="mono" style={{ color: p.ink, userSelect: "all" }}>!12345qwertY</span>
           </div>
         </form>
       </div>
