@@ -1,7 +1,7 @@
 // Composition root. Only file allowed to wire across all layers.
 
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 
 // Adapters
 import { PrismaService } from "./adapters/persistence/prisma.service";
@@ -11,6 +11,7 @@ import { PrismaAuctionRepository } from "./adapters/persistence/prisma-auction.r
 import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
+import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 
@@ -31,6 +32,7 @@ import { ListLedgerUseCase } from "./application/admin/list-ledger.use-case";
 import { ExportSettlementUseCase } from "./application/admin/export-settlement.use-case";
 import { ListMembersUseCase } from "./application/admin/list-members.use-case";
 import { SyncMembersUseCase } from "./application/admin/sync-members.use-case";
+import { ManageMembersUseCase } from "./application/admin/manage-members.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 
 // HTTP
@@ -77,6 +79,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     PrismaUnitOfWork,
     WelfarePointProvider,
     EzpassAuthProvider,
+    LocalAuthProvider,
     MsaportalMemberDirectoryAdapter,
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
@@ -84,7 +87,13 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     { provide: AUCTION_REPOSITORY, useExisting: PrismaAuctionRepository },
     { provide: UNIT_OF_WORK, useExisting: PrismaUnitOfWork },
     { provide: BIDDING_CURRENCY, useExisting: WelfarePointProvider },
-    { provide: AUTH_PROVIDER, useExisting: EzpassAuthProvider },
+    // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 자체 비번, 그 외 → ezpass 위임.
+    {
+      provide: AUTH_PROVIDER,
+      useFactory: (config: ConfigService, ezpass: EzpassAuthProvider, local: LocalAuthProvider) =>
+        config.get<string>("AUTH_MODE") === "local" ? local : ezpass,
+      inject: [ConfigService, EzpassAuthProvider, LocalAuthProvider],
+    },
     { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
 
     GetWalletBalanceUseCase,
@@ -103,6 +112,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     ExportSettlementUseCase,
     ListMembersUseCase,
     SyncMembersUseCase,
+    ManageMembersUseCase,
     GetMyDividendUseCase,
 
     SettleDueAuctionsScheduler,

@@ -45,3 +45,11 @@ export function apiPost<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   }).then(handle<T>);
 }
+
+export function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return fetch(`${API_BASE}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then(handle<T>);
+}

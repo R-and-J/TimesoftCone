@@ -44,6 +44,9 @@
 | [017](ADR-017-leave-pool-context.md) | 휴가 풀/경매 인벤토리 분리 컨텍스트 | ✅ Accepted | 연말 풀 수집을 별도 Bounded Context로 |
 | [018](ADR-018-auction-settlement-rules.md) | 경매 정산 규칙 (패자 환불·입찰 취소) | ✅ Accepted | 밀리는 즉시 환불 + 입찰 취소 불가 |
 | [019](ADR-019-central-auth-delegation.md) | 사내 중앙 인증 위임 (ezpass) | ✅ Accepted | 로그인을 ezpass에 위임 (SSO 아님), 검증 완료 |
+| [020](ADR-020-member-identity-ezpass-leave-internal.md) | 신원=ezpass / 연차·경매금=우리 DB | ✅ Accepted | 회원 신원·조직·role은 ezpass, 연차·지갑은 우리 마스터 |
+| [021](ADR-021-portable-handoff-export.md) | 이식형 핸드오프 export | ✅ Accepted | 정산 데이터를 CSV/MD/JSON/xlsx로 내보내 각 사 HR가 반영 |
+| [022](ADR-022-identity-adapter-deployment-modes.md) | 신원 어댑터화 & 배포 모드 (위임형/자립형) | ✅ Accepted | AUTH_MODE로 ezpass 위임↔LocalAuthProvider 자립 전환, 회원관리 탭 모드별 |
 
 ## 의존 관계
 

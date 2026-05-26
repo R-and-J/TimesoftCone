@@ -43,6 +43,11 @@ model User {
   email           String?  @unique @map("email")
   /// EMPLOYEE/ADMIN — ezpass 관리자권한(mngrAuthorAt)으로 매 로그인 재동기화 (ADR-020).
   role            String   @default("EMPLOYEE")
+  /// 자립형(AUTH_MODE=local) 배포 전용 bcrypt 비밀번호 해시. 위임형(ezpass)에선 null
+  /// (비번 검증은 ezpass가 함). (ADR-022)
+  passwordHash    String?  @map("password_hash")
+  /// 활성 여부. 자립형에서 관리자가 회원을 비활성화하면 false → 로그인 거부. (ADR-022)
+  active          Boolean  @default(true)
   /// Annual leave days the user has contributed to the public pool this year.
   /// Drives year-end dividend stake (see GET /api/dividend/me/:userId).
   /// School-project simplification — production would derive this from a

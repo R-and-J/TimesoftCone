@@ -76,6 +76,7 @@ ezpass dev는 사내 자체서명 CA → Node가 신뢰 거부. `EZPASS_TLS_INSE
 - 운영 전환 시 `EZPASS_TLS_INSECURE=false` + CA 신뢰 필수
 
 ## 관련 문서
+- [[ADR-022]] 신원 어댑터화 & 배포 모드 — 본 ADR(위임형)을 모드 A로 일반화. 위 "초기 아이디어 2(자체 비밀번호 저장)"는 모드 B(자립형, LocalAuthProvider)로 실현됨
 - [[ADR-012]] Hexagonal — AuthProvider 포트 / EzpassAuthProvider 어댑터
 - [[ADR-011]] wallet 자체 보유 — 인증과 별개로 잔액은 우리 마스터
 - scope-cuts.md CUT-8 — 본 ADR이 부활시킨 항목

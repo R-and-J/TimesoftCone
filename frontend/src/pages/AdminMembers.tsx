@@ -1,14 +1,42 @@
-import { useState } from "react";
-import { PALETTES, FONT } from "@/lib/tokens";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { PALETTES, FONT, type Palette } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
-import { listMembers, syncMembers } from "@/lib/queries";
+import {
+  listMembers,
+  syncMembers,
+  createMember,
+  updateMember,
+  type MemberRow,
+} from "@/lib/queries";
 
-const COLS = "120px 1fr 220px 1.2fr 160px 90px";
+type FormState = {
+  userId: string | null; // null = 신규
+  email: string;
+  name: string;
+  team: string;
+  jobRank: string;
+  jobTitle: string;
+  role: "EMPLOYEE" | "ADMIN";
+  active: boolean;
+  password: string;
+};
+
+const EMPTY_FORM: FormState = {
+  userId: null,
+  email: "",
+  name: "",
+  team: "",
+  jobRank: "",
+  jobTitle: "",
+  role: "EMPLOYEE",
+  active: true,
+  password: "",
+};
 
 export default function AdminMembersPage() {
   const p = PALETTES.cobalt;
@@ -16,6 +44,14 @@ export default function AdminMembersPage() {
   const membersQ = useQuery(() => listMembers(), []);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const data = membersQ.data;
+  const isLocal = data?.mode === "local";
+  const cols = isLocal
+    ? "110px 1fr 200px 1fr 150px 80px 150px"
+    : "120px 1fr 220px 1.2fr 160px 90px";
 
   const doSync = async () => {
     setSyncing(true);
@@ -35,7 +71,70 @@ export default function AdminMembersPage() {
     }
   };
 
-  const data = membersQ.data;
+  const openCreate = () => setForm({ ...EMPTY_FORM });
+  const openEdit = (m: MemberRow) =>
+    setForm({
+      userId: m.userId,
+      email: m.email ?? "",
+      name: m.name,
+      team: m.team ?? "",
+      jobRank: m.jobRank ?? "",
+      jobTitle: m.jobTitle ?? "",
+      role: m.role,
+      active: m.active,
+      password: "",
+    });
+
+  const doSave = async () => {
+    if (!form) return;
+    const isNew = form.userId === null;
+    if (isNew && (!form.email || !form.name || !form.password)) {
+      toast.push("error", "이메일·이름·비밀번호는 필수입니다");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (isNew) {
+        await createMember({
+          email: form.email,
+          name: form.name,
+          password: form.password,
+          role: form.role,
+          team: form.team || null,
+          jobRank: form.jobRank || null,
+          jobTitle: form.jobTitle || null,
+        });
+        toast.push("success", `회원 추가 — ${form.name}`);
+      } else {
+        await updateMember(form.userId!, {
+          name: form.name,
+          role: form.role,
+          team: form.team || null,
+          jobRank: form.jobRank || null,
+          jobTitle: form.jobTitle || null,
+          active: form.active,
+          password: form.password || undefined,
+        });
+        toast.push("success", `회원 수정 — ${form.name}`);
+      }
+      setForm(null);
+      await membersQ.refetch();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (m: MemberRow) => {
+    try {
+      await updateMember(m.userId, { active: !m.active });
+      toast.push("success", `${m.name} ${m.active ? "비활성화" : "활성화"}`);
+      await membersQ.refetch();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    }
+  };
 
   return (
     <ScreenFrame>
@@ -72,7 +171,7 @@ export default function AdminMembersPage() {
                   gap: 6,
                 }}
               >
-                <Icon.shield size={14} /> 회원관리 · ezpass 미러
+                <Icon.shield size={14} /> 회원관리 · {isLocal ? "자립형 (자체 관리)" : "위임형 (ezpass 미러)"}
               </div>
               <div
                 style={{
@@ -86,7 +185,8 @@ export default function AdminMembersPage() {
                 회원 ({data?.total ?? "—"})
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                신원 정본은 ezpass(ADR-020) · 관리자 {data?.admins ?? "—"}명
+                {isLocal ? "신원 정본은 이 시스템" : "신원 정본은 ezpass(ADR-020)"} · 관리자{" "}
+                {data?.admins ?? "—"}명
                 {lastSync ? ` · 마지막 동기화 ${lastSync}` : ""}
               </div>
             </div>
@@ -94,38 +194,58 @@ export default function AdminMembersPage() {
               <Btn p={p} variant="ghost" size="md" onClick={() => membersQ.refetch()}>
                 새로고침
               </Btn>
-              <Btn p={p} variant="dark" size="md" disabled={syncing} onClick={doSync}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Icon.bolt size={14} />
-                  {syncing ? "동기화 중…" : "지금 동기화"}
-                </span>
-              </Btn>
+              {isLocal ? (
+                <Btn p={p} variant="dark" size="md" onClick={openCreate}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Icon.bolt size={14} /> 회원 추가
+                  </span>
+                </Btn>
+              ) : (
+                <Btn p={p} variant="dark" size="md" disabled={syncing} onClick={doSync}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Icon.bolt size={14} />
+                    {syncing ? "동기화 중…" : "지금 동기화"}
+                  </span>
+                </Btn>
+              )}
             </div>
           </div>
 
           <div
             style={{
               padding: 12,
-              background: "#FFF4E0",
+              background: isLocal ? "#EEF2F7" : "#FFF4E0",
               borderRadius: 10,
               fontSize: 12,
-              color: p.warn,
+              color: isLocal ? p.inkSoft : p.warn,
               lineHeight: 1.5,
               marginBottom: 16,
             }}
           >
-            <strong>⚠ 읽기 전용 (위임형)</strong>{" "}
-            <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-              회원 추가·수정은 ezpass(그룹웨어)에서 합니다. 여기서는 미러된 명단을 보고
-              「지금 동기화」로 최신 상태를 당겨옵니다. 연차·경매금은 우리 시스템이 소유합니다.
-            </span>
+            {isLocal ? (
+              <>
+                <strong>자립형 모드</strong>{" "}
+                <span style={{ color: p.inkSoft, fontWeight: 500 }}>
+                  외부 그룹웨어 없이 이 시스템이 회원·인증을 직접 관리합니다(ADR-022). 회원 추가 시
+                  비밀번호로 로그인됩니다. 연차·경매금도 우리 시스템 소유입니다.
+                </span>
+              </>
+            ) : (
+              <>
+                <strong>⚠ 읽기 전용 (위임형)</strong>{" "}
+                <span style={{ color: p.inkSoft, fontWeight: 500 }}>
+                  회원 추가·수정은 ezpass(그룹웨어)에서 합니다. 여기서는 미러된 명단을 보고
+                  「지금 동기화」로 최신 상태를 당겨옵니다. 연차·경매금은 우리 시스템이 소유합니다.
+                </span>
+              </>
+            )}
           </div>
 
           <Card p={p} padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: COLS,
+                gridTemplateColumns: cols,
                 padding: "12px 20px",
                 fontSize: 11,
                 color: p.inkMuted,
@@ -140,7 +260,8 @@ export default function AdminMembersPage() {
               <div>이메일</div>
               <div>부서</div>
               <div>직급 / 직책</div>
-              <div style={{ textAlign: "right" }}>권한</div>
+              <div style={{ textAlign: isLocal ? "left" : "right" }}>권한</div>
+              {isLocal && <div style={{ textAlign: "right" }}>작업</div>}
             </div>
             <div style={{ overflow: "auto", maxHeight: 560 }}>
               {membersQ.error && (
@@ -150,7 +271,9 @@ export default function AdminMembersPage() {
               )}
               {!membersQ.error && data?.members.length === 0 && !membersQ.loading && (
                 <div style={{ padding: 24, color: p.inkMuted, fontSize: 13, textAlign: "center" }}>
-                  미러된 회원이 없습니다. 「지금 동기화」를 눌러 ezpass에서 가져오세요.
+                  {isLocal
+                    ? "회원이 없습니다. 「회원 추가」로 등록하세요."
+                    : "미러된 회원이 없습니다. 「지금 동기화」를 눌러 ezpass에서 가져오세요."}
                 </div>
               )}
               {data?.members.map((m, i) => {
@@ -162,24 +285,32 @@ export default function AdminMembersPage() {
                     key={m.userId}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: COLS,
+                      gridTemplateColumns: cols,
                       padding: "13px 20px",
                       fontSize: 12,
                       alignItems: "center",
                       background: zebra ? p.bg : p.surface,
                       borderBottom: `1px solid ${p.line}`,
+                      opacity: m.active ? 1 : 0.5,
                     }}
                   >
                     <div className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
                       {m.empId}
                     </div>
-                    <div style={{ color: p.ink, fontWeight: 700 }}>{m.name}</div>
+                    <div style={{ color: p.ink, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                      {m.name}
+                      {!m.active && (
+                        <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
+                          비활성
+                        </Pill>
+                      )}
+                    </div>
                     <div className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
                       {m.email ?? "—"}
                     </div>
                     <div style={{ color: p.inkSoft }}>{m.team ?? "—"}</div>
                     <div style={{ color: p.inkSoft }}>{rankTitle}</div>
-                    <div style={{ textAlign: "right" }}>
+                    <div style={{ textAlign: isLocal ? "left" : "right" }}>
                       <Pill
                         p={p}
                         size="sm"
@@ -189,6 +320,16 @@ export default function AdminMembersPage() {
                         {isAdmin ? "관리자" : "직원"}
                       </Pill>
                     </div>
+                    {isLocal && (
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                        <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
+                          수정
+                        </Btn>
+                        <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
+                          {m.active ? "비활성" : "활성"}
+                        </Btn>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -207,11 +348,131 @@ export default function AdminMembersPage() {
                 color: p.inkMuted,
               }}
             >
-              총 {data?.total ?? 0}명 · 출처 ezpass 미러
+              총 {data?.total ?? 0}명 · 출처 {isLocal ? "자체 관리" : "ezpass 미러"}
             </div>
           </Card>
         </div>
       </div>
+
+      {form && (
+        <div
+          onClick={() => !saving && setForm(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(11,25,41,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 460,
+              background: p.surface,
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+              maxHeight: "86vh",
+              overflow: "auto",
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 18 }}>
+              {form.userId === null ? "회원 추가" : "회원 수정"}
+            </div>
+
+            <Field label="이메일 (로그인 ID)">
+              <input
+                style={inp(p)}
+                type="email"
+                value={form.email}
+                disabled={form.userId !== null}
+                placeholder="user@company.com"
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </Field>
+            <Field label="이름">
+              <input style={inp(p)} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Field label="부서">
+                <input style={inp(p)} value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} />
+              </Field>
+              <Field label="권한">
+                <select
+                  style={inp(p)}
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value as "EMPLOYEE" | "ADMIN" })}
+                >
+                  <option value="EMPLOYEE">직원</option>
+                  <option value="ADMIN">관리자</option>
+                </select>
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Field label="직급">
+                <input style={inp(p)} value={form.jobRank} onChange={(e) => setForm({ ...form, jobRank: e.target.value })} />
+              </Field>
+              <Field label="직책">
+                <input style={inp(p)} value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} />
+              </Field>
+            </div>
+            <Field label={form.userId === null ? "비밀번호" : "새 비밀번호 (변경 시에만)"}>
+              <input
+                style={inp(p)}
+                type="password"
+                value={form.password}
+                placeholder={form.userId === null ? "" : "비워두면 유지"}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </Field>
+            {form.userId !== null && (
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: p.ink, margin: "4px 0 8px" }}>
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                />
+                활성 (체크 해제 시 로그인 차단)
+              </label>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={saving} onClick={() => setForm(null)}>
+                취소
+              </Btn>
+              <Btn p={p} variant="primary" size="md" disabled={saving} onClick={doSave}>
+                {saving ? "저장 중…" : "저장"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenFrame>
   );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  const p = PALETTES.cobalt;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 6 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function inp(p: Palette): CSSProperties {
+  return {
+    width: "100%",
+    padding: "9px 12px",
+    borderRadius: 9,
+    border: `1px solid ${p.line}`,
+    fontSize: 13,
+    color: p.ink,
+    background: p.bg,
+    boxSizing: "border-box",
+  };
 }

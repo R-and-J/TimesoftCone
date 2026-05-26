@@ -1,7 +1,7 @@
 // Backend query functions. All "money" fields are strings (bigint-as-string
 // from the backend); UI does Number(x) at display.
 
-import { apiGet, apiPost } from "./api";
+import { apiGet, apiPost, apiPatch } from "./api";
 
 export type AuctionStatus = "CREATED" | "OPEN" | "AWARDED" | "UNSOLD";
 
@@ -204,7 +204,7 @@ export function listLedger(params: {
 }
 
 // ── Members (회원관리) ─────────────────────────────────────────────
-// 위임형(ezpass) 배포: 우리 users는 ezpass 미러라 읽기 전용 + 동기화만.
+// 위임형(ezpass): ezpass 미러 → 읽기전용 + 동기화. 자립형(local): CRUD. (ADR-022)
 export type MemberRow = {
   userId: string;
   empId: string;
@@ -214,10 +214,12 @@ export type MemberRow = {
   jobRank: string | null;
   jobTitle: string | null;
   role: "EMPLOYEE" | "ADMIN";
+  active: boolean;
 };
 
 export type MemberListResponse = {
-  source: "ezpass-mirror";
+  mode: "ezpass" | "local";
+  source: "ezpass-mirror" | "local";
   total: number;
   admins: number;
   members: MemberRow[];
@@ -238,4 +240,34 @@ export function listMembers() {
 
 export function syncMembers() {
   return apiPost<SyncMembersResponse>("/admin/members/sync", {});
+}
+
+// 자립형(local) 전용 CRUD — 위임형에선 백엔드가 409로 거부.
+export type CreateMemberInput = {
+  email: string;
+  name: string;
+  password: string;
+  role: "EMPLOYEE" | "ADMIN";
+  empId?: string;
+  team?: string | null;
+  jobRank?: string | null;
+  jobTitle?: string | null;
+};
+
+export type UpdateMemberInput = {
+  name?: string;
+  role?: "EMPLOYEE" | "ADMIN";
+  team?: string | null;
+  jobRank?: string | null;
+  jobTitle?: string | null;
+  active?: boolean;
+  password?: string;
+};
+
+export function createMember(input: CreateMemberInput) {
+  return apiPost<MemberRow>("/admin/members", input);
+}
+
+export function updateMember(userId: string, input: UpdateMemberInput) {
+  return apiPatch<MemberRow>(`/admin/members/${userId}`, input);
 }
