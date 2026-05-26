@@ -28,6 +28,13 @@ export type DividendRow = {
   dividendPoint: number;
 };
 
+export type SpendRow = {
+  empId: string;
+  name: string;
+  spentPoint: number;
+  wins: number;
+};
+
 @Injectable()
 export class ExportSettlementUseCase {
   constructor(
@@ -82,5 +89,35 @@ export class ExportSettlementUseCase {
         dividendPoint: Math.floor(escrow * ratio),
       };
     });
+  }
+
+  /** 누가 얼마나 썼나 — 낙찰자가 escrow에 넣은 포인트(=실제 지출)를 사람별로 합산. */
+  async spending(): Promise<SpendRow[]> {
+    const auctions = await this.prisma.auction.findMany({
+      where: { status: "AWARDED", highestBidder: { not: null } },
+      select: { highestBidder: true, highest: true },
+    });
+    const agg = new Map<bigint, { spent: bigint; wins: number }>();
+    for (const a of auctions) {
+      const k = a.highestBidder!;
+      const cur = agg.get(k) ?? { spent: 0n, wins: 0 };
+      cur.spent += a.highest;
+      cur.wins += 1;
+      agg.set(k, cur);
+    }
+    if (agg.size === 0) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...agg.keys()] } },
+      select: { id: true, empId: true, name: true },
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return [...agg.entries()]
+      .map(([id, v]) => ({
+        empId: byId.get(id)?.empId ?? String(id),
+        name: byId.get(id)?.name ?? "",
+        spentPoint: Number(v.spent),
+        wins: v.wins,
+      }))
+      .sort((a, b) => b.spentPoint - a.spentPoint);
   }
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PALETTES, FONT, fmt } from "@/lib/tokens";
+import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
@@ -7,6 +7,33 @@ import { useQuery } from "@/lib/use-query";
 import { apiPost } from "@/lib/api";
 import { getAdminStats, listAuctions, type AuctionListItem } from "@/lib/queries";
 import { useToast } from "@/lib/toast";
+
+// 정산 데이터 export 다운로드 링크 베이스 (ADR-021). VITE_API_BASE 없으면 vite 프록시(/api).
+const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+
+/** export 엔드포인트를 특정 형식으로 다운로드하는 작은 버튼(앵커). */
+function DownloadBtn({ p, endpoint, format, label }: { p: Palette; endpoint: string; format: string; label: string }) {
+  return (
+    <a
+      href={`${API_BASE}/admin/export/${endpoint}?format=${format}`}
+      download
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 12px",
+        borderRadius: 8,
+        border: `1px solid ${p.line}`,
+        fontSize: 12,
+        fontWeight: 600,
+        color: p.ink,
+        textDecoration: "none",
+        background: p.surface,
+      }}
+    >
+      {label}
+    </a>
+  );
+}
 
 type SettleDueResponse = {
   attempted: number;
@@ -140,6 +167,52 @@ export default function AdminOpsPage() {
               good
             />
           </div>
+
+          <Card p={p} padding={0} style={{ marginBottom: 16 }}>
+            <div style={{ padding: "18px 24px", borderBottom: `1px solid ${p.line}` }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: p.ink, letterSpacing: "-0.01em" }}>
+                정산 데이터 내보내기
+              </div>
+              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
+                도입사 HR/급여 반영용 핸드오프 (ADR-021). leave_type=AUCTION은 연차수당 제외 대상.
+              </div>
+            </div>
+            <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: p.ink }}>
+                  낙찰 연차 부여 내역
+                  <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 6 }}>
+                    누가 어떤 경매로 며칠 받았나
+                  </span>
+                </div>
+                <DownloadBtn p={p} endpoint="leave-grants" format="csv" label="CSV" />
+                <DownloadBtn p={p} endpoint="leave-grants" format="md" label="MD" />
+                <DownloadBtn p={p} endpoint="leave-grants" format="json" label="JSON" />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: p.ink }}>
+                  연말 배당 내역
+                  <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 6 }}>
+                    기여 지분별 복지카드 배당
+                  </span>
+                </div>
+                <DownloadBtn p={p} endpoint="dividends" format="csv" label="CSV" />
+                <DownloadBtn p={p} endpoint="dividends" format="md" label="MD" />
+                <DownloadBtn p={p} endpoint="dividends" format="json" label="JSON" />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: p.ink }}>
+                  지출 내역
+                  <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 6 }}>
+                    누가 얼마나 썼나 (낙찰 escrow 기여)
+                  </span>
+                </div>
+                <DownloadBtn p={p} endpoint="spending" format="csv" label="CSV" />
+                <DownloadBtn p={p} endpoint="spending" format="md" label="MD" />
+                <DownloadBtn p={p} endpoint="spending" format="json" label="JSON" />
+              </div>
+            </div>
+          </Card>
 
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

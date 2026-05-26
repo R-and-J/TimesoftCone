@@ -56,4 +56,10 @@ export class AdminExportController {
   async dividends(@Query("format") format = "json", @Res() res: Response) {
     send(res, format, await this.exporter.dividends(), "dividends");
   }
+
+  /** 지출 내역 — 누가 얼마나 썼나(낙찰 escrow 기여). ?format=csv|json|md */
+  @Get("spending")
+  async spending(@Query("format") format = "json", @Res() res: Response) {
+    send(res, format, await this.exporter.spending(), "spending");
+  }
 }
