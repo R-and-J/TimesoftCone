@@ -50,23 +50,39 @@ async function main() {
   for (const u of USERS) {
     const user = await prisma.user.upsert({
       where: { empId: u.empId },
-      update: {
-        contributedDays: u.contributedDays,
-        regularLeaveDays: u.regular,
-        auctionLeaveDays: u.auction,
-        eventLeaveDays: u.event,
-      },
+      update: { contributedDays: u.contributedDays },
       create: {
         empId: u.empId,
         name: u.name,
         team: u.team,
         role: u.role,
         contributedDays: u.contributedDays,
-        regularLeaveDays: u.regular,
-        auctionLeaveDays: u.auction,
-        eventLeaveDays: u.event,
       },
     });
+
+    // Leave balances (ADR-016 leave master). REGULAR -> granted; AUCTION/EVENT -> adjusted.
+    const SEED_YEAR = 2026;
+    const leaveRows = [
+      { leaveType: "REGULAR" as const, grantedDays: u.regular, adjustedDays: 0 },
+      { leaveType: "AUCTION" as const, grantedDays: 0, adjustedDays: u.auction },
+      { leaveType: "EVENT" as const, grantedDays: 0, adjustedDays: u.event },
+    ];
+    for (const lr of leaveRows) {
+      await prisma.leaveBalance.upsert({
+        where: {
+          uq_leave_user_year_type: { userId: user.id, year: SEED_YEAR, leaveType: lr.leaveType },
+        },
+        update: { grantedDays: lr.grantedDays, adjustedDays: lr.adjustedDays },
+        create: {
+          userId: user.id,
+          year: SEED_YEAR,
+          leaveType: lr.leaveType,
+          grantedDays: lr.grantedDays,
+          adjustedDays: lr.adjustedDays,
+          usedDays: 0,
+        },
+      });
+    }
 
     if (u.seedAmount > 0n) {
       const existing = await prisma.wallet.findUnique({

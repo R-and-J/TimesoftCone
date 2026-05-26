@@ -35,3 +35,6 @@ prisma/*.db-journal
 # Docker 로컬 볼륨
 docker-data/
 pgdata/
+
+# 사내 ezpass msaportal DB 조사/이식 스크립트 — 접속정보(mammoth) 하드코딩, 커밋 금지
+scripts/

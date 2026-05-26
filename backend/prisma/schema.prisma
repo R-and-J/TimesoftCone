@@ -27,18 +27,13 @@ model User {
   /// School-project simplification — production would derive this from a
   /// LeavePool aggregate (ADR-017).
   contributedDays  Int      @default(0)  @map("contributed_days")
-  /// ADR-002 three-flag leave separation (REGULAR / AUCTION / EVENT).
-  /// Read-only here — bid settlement does NOT yet credit auctionLeaveDays.
-  /// See scope-cuts.md CUT-9 (Leave context partial revival).
-  regularLeaveDays Int      @default(12) @map("regular_leave_days")
-  auctionLeaveDays Int      @default(0)  @map("auction_leave_days")
-  eventLeaveDays   Int      @default(0)  @map("event_leave_days")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  wallets   Wallet[]
-  ledger    LedgerEntry[]
-  bids      BidEvent[]
-  wonAuctions Auction[] @relation("AuctionWinner")
+  wallets       Wallet[]
+  ledger        LedgerEntry[]
+  bids          BidEvent[]
+  wonAuctions   Auction[]      @relation("AuctionWinner")
+  leaveBalances LeaveBalance[]
 
   @@map("users")
 }
@@ -149,4 +144,42 @@ model BidEvent {
 
   @@index([auctionId, placedAt(sort: Desc)])
   @@map("bid_event")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEAVE_BALANCE — leave master is THIS system (ADR-016).
+// Structured per user / year / type, modeled on ezpass tbl_user_yryc
+// (granted = atmc_yryc_day_qty, adjusted = mdat_yryc_day_qty).
+// ADR-002 three-flag separation lives in `leaveType` — only REGULAR is
+// wage-eligible / feeds the pool; AUCTION/EVENT stay separate.
+// Member identity (name/dept/직급/직책/role) is sourced from ezpass; leave
+// balances are owned here so auction settlement stays a single local tx.
+// remaining = grantedDays + adjustedDays − usedDays.
+// ─────────────────────────────────────────────────────────────
+model LeaveBalance {
+  id           BigInt    @id @default(autoincrement())
+  userId       BigInt    @map("user_id")
+  /// 연차년도 (ezpass yryc_year).
+  year         Int
+  leaveType    LeaveType @map("leave_type")
+  /// 자동 부여분 (ezpass atmc_yryc_day_qty).
+  grantedDays  Int       @default(0) @map("granted_days")
+  /// 조정분 — 경매 낙찰로 획득한 연차가 여기로 적립 (ezpass mdat_yryc_day_qty).
+  adjustedDays Int       @default(0) @map("adjusted_days")
+  /// 사용분.
+  usedDays     Int       @default(0) @map("used_days")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, year, leaveType], name: "uq_leave_user_year_type")
+  @@index([userId, year])
+  @@map("leave_balance")
+}
+
+enum LeaveType {
+  REGULAR
+  AUCTION
+  EVENT
 }
