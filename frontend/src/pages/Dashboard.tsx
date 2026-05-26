@@ -390,7 +390,7 @@ export default function DashboardPage() {
                       {a.id}
                     </div>
                     <div style={{ fontSize: 13, color: p.ink, fontWeight: 700, marginTop: 4 }}>
-                      연차 1일권
+                      연차 {a.leaveDays}일권
                     </div>
                     <div
                       className="mono"

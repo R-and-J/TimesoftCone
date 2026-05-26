@@ -213,7 +213,7 @@ function AuctionCard({
           letterSpacing: "-0.01em",
         }}
       >
-        연차 1일권
+        연차 {a.leaveDays}일권
       </div>
       {isOpen ? (
         <>

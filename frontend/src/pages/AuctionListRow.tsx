@@ -196,7 +196,7 @@ function Row({
       <div className="mono" style={{ fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>
         {a.id}
       </div>
-      <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 1일권</div>
+      <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
       <div
         className="mono"
         style={{

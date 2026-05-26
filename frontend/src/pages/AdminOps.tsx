@@ -244,7 +244,7 @@ export default function AdminOpsPage() {
                       <div className="mono" style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>
                         {a.id}
                       </div>
-                      <div style={{ fontSize: 12, color: p.ink, fontWeight: 600 }}>연차 1일권</div>
+                      <div style={{ fontSize: 12, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
                       <div style={{ fontSize: 10, color: p.inkMuted }}>
                         마감 {formatTime(new Date(a.endsAt))}
                       </div>
@@ -415,7 +415,7 @@ function UpcomingRow({ a }: { a: AuctionListItem }) {
       <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>
         {a.id}
       </div>
-      <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 1일권</div>
+      <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
       <div style={{ fontSize: 12, color: p.inkMuted }}>
         오픈 {formatTime(new Date(a.startedAt))}
       </div>

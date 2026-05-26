@@ -180,10 +180,10 @@ export default function AuctionDetailPage() {
                     lineHeight: 1.1,
                   }}
                 >
-                  연차 1일권
+                  연차 {a.leaveDays}일권
                 </div>
                 <div style={{ fontSize: 13, color: p.inkSoft, marginTop: 8, lineHeight: 1.5 }}>
-                  낙찰 시 즉시 연차 1일이 부여됩니다. 사용 시점은 자유롭게 선택할 수 있어요.
+                  낙찰 시 즉시 연차 {a.leaveDays}일이 부여됩니다. 사용 시점은 자유롭게 선택할 수 있어요.
                 </div>
               </div>
 
