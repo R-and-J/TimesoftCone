@@ -13,6 +13,8 @@ export type AuctionListItem = {
   highestBidder: string | null;
   bidCount: number;
   minIncrement: string;
+  /** 낙찰 시 받는 AUCTION 연차 일수. */
+  leaveDays: number;
   startedAt: string;
   endsAt: string;
 };

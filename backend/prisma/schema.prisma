@@ -113,6 +113,9 @@ model Auction {
   highestBidder   BigInt?        @map("highest_bidder_id")
   bidCount        Int            @default(0) @map("bid_count")
   minIncrement    BigInt         @default(100) @map("min_increment")
+  /// 낙찰자에게 부여하는 AUCTION 연차 일수 (ADR-002 3-flag / CUT-9). 낙찰 정산 시
+  /// 우리 leave_balance(AUCTION).adjustedDays 에 적립. ezpass엔 안 보냄(이중보상 방지).
+  leaveDays       Int            @default(1) @map("leave_days")
   startedAt       DateTime       @map("started_at")
   endsAt          DateTime       @map("ends_at")
   settledAt       DateTime?      @map("settled_at")

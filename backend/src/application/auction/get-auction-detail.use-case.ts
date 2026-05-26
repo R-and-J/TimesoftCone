@@ -16,6 +16,7 @@ export type AuctionDetail = {
   highestBidder: bigint | null;
   bidCount: number;
   minIncrement: bigint;
+  leaveDays: number;
   startedAt: Date;
   endsAt: Date;
   recentBids: { userId: bigint; userName: string; amount: bigint; placedAt: Date }[];
@@ -54,6 +55,7 @@ export class GetAuctionDetailUseCase {
       highestBidder: s.highestBidder?.toBigInt() ?? null,
       bidCount: s.bidCount,
       minIncrement: s.minIncrement.toBigInt(),
+      leaveDays: s.leaveDays,
       startedAt: s.startedAt,
       endsAt: s.endsAt,
       recentBids: bids.map((b) => ({

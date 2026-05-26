@@ -11,6 +11,8 @@ export type CreateAuctionInput = {
   id: string;
   startPrice: bigint | number | string;
   minIncrement?: bigint | number | string;
+  /** 낙찰자에게 부여할 AUCTION 연차 일수 (기본 1). */
+  leaveDays?: number | string;
   startedAt: Date | string;
   endsAt: Date | string;
 };
@@ -26,6 +28,7 @@ export class CreateAuctionUseCase {
       id: AuctionId.of(input.id),
       startPrice: Point.of(input.startPrice),
       minIncrement: Point.of(input.minIncrement ?? 100),
+      leaveDays: Number(input.leaveDays ?? 1),
       startedAt: new Date(input.startedAt),
       endsAt: new Date(input.endsAt),
     });

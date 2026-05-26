@@ -99,6 +99,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
               row.highestBidder !== null ? UserId.of(row.highestBidder) : null,
             bidCount: row.bidCount,
             minIncrement: Point.of(row.minIncrement),
+            leaveDays: row.leaveDays,
             startedAt: row.startedAt,
             endsAt: row.endsAt,
             settledAt: row.settledAt,
@@ -136,6 +137,15 @@ export class PrismaUnitOfWork implements UnitOfWork {
         // on the same auction for the duration of this transaction. Auto-released
         // on commit/rollback. scope-cuts.md CUT-1.
         await tx.$queryRaw`SELECT id FROM auction WHERE id = ${auctionId.toString()} FOR UPDATE`;
+      },
+      grantAuctionLeave: async ({ userId, year, days }) => {
+        // 낙찰 연차는 AUCTION 타입으로 우리 DB에만 적립 (ADR-002/020). ezpass엔
+        // 안 보냄 — 이중보상 방지. 같은 정산 트랜잭션 안에서 원자적으로 처리.
+        await tx.leaveBalance.upsert({
+          where: { uq_leave_user_year_type: { userId, year, leaveType: "AUCTION" } },
+          update: { adjustedDays: { increment: days } },
+          create: { userId, year, leaveType: "AUCTION", grantedDays: 0, adjustedDays: days, usedDays: 0 },
+        });
       },
     };
   }

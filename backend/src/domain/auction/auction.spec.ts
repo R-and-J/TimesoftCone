@@ -15,6 +15,7 @@ function freshAuction(opts?: { startedAt?: Date; endsAt?: Date }) {
     id: AuctionId.of("A-2026-106"),
     startPrice: Point.of(5000),
     minIncrement: Point.of(100),
+    leaveDays: 1,
     startedAt: opts?.startedAt ?? new Date("2026-04-01T00:00:00Z"),
     endsAt: opts?.endsAt ?? new Date("2026-04-03T09:00:00Z"),
   });
@@ -36,6 +37,7 @@ describe("Auction.create", () => {
         id: AuctionId.of("A-2026-106"),
         startPrice: Point.of(5000),
         minIncrement: Point.of(100),
+        leaveDays: 1,
         startedAt: new Date("2026-04-01T00:00:00Z"),
         endsAt: new Date("2026-04-01T00:00:00Z"),
       }),

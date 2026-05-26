@@ -30,6 +30,8 @@ export type AuctionSnapshot = {
   highestBidder: UserId | null;
   bidCount: number;
   minIncrement: Point;
+  /** 이 경매가 낙찰자에게 부여하는 AUCTION 연차 일수 (ADR-002/CUT-9). */
+  leaveDays: number;
   startedAt: Date;
   endsAt: Date;
   settledAt: Date | null;
@@ -56,6 +58,8 @@ export class Auction {
     readonly startedAt: Date,
     readonly endsAt: Date,
     private _settledAt: Date | null,
+    /** 낙찰자에게 부여할 AUCTION 연차 일수. */
+    readonly leaveDays: number,
   ) {}
 
   static create(props: {
@@ -64,12 +68,16 @@ export class Auction {
     minIncrement: Point;
     startedAt: Date;
     endsAt: Date;
+    leaveDays: number;
   }): Auction {
     if (props.endsAt <= props.startedAt) {
       throw new Error("endsAt must be strictly after startedAt");
     }
     if (props.minIncrement.isZero()) {
       throw new Error("minIncrement must be positive");
+    }
+    if (!Number.isInteger(props.leaveDays) || props.leaveDays < 1) {
+      throw new Error("leaveDays must be a positive integer");
     }
     return new Auction(
       props.id,
@@ -82,6 +90,7 @@ export class Auction {
       props.startedAt,
       props.endsAt,
       null,
+      props.leaveDays,
     );
   }
 
@@ -97,6 +106,7 @@ export class Auction {
       s.startedAt,
       s.endsAt,
       s.settledAt,
+      s.leaveDays,
     );
   }
 
@@ -116,6 +126,7 @@ export class Auction {
       highestBidder: this._highestBidder,
       bidCount: this._bidCount,
       minIncrement: this.minIncrement,
+      leaveDays: this.leaveDays,
       startedAt: this.startedAt,
       endsAt: this.endsAt,
       settledAt: this._settledAt,

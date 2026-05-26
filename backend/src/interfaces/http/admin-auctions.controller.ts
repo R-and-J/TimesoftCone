@@ -23,6 +23,10 @@ const createSchema = z.object({
   id: z.string().regex(/^A-\d{4}-\d{3,}$/, "id must match A-YYYY-NNN"),
   startPrice: z.union([z.string(), z.number()]),
   minIncrement: z.union([z.string(), z.number()]).optional(),
+  leaveDays: z
+    .union([z.string(), z.number()])
+    .refine((v) => Number.isInteger(Number(v)) && Number(v) >= 1, "leaveDays must be a positive integer")
+    .optional(),
   startedAt: isoDate,
   endsAt: isoDate,
 });

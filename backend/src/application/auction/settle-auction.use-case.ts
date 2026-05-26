@@ -59,6 +59,12 @@ export class SettleAuctionUseCase {
             refNote: "낙찰 확정",
           }),
         );
+        // 낙찰자에게 AUCTION 연차 적립 (ADR-002/020/CUT-9) — 같은 트랜잭션.
+        await tx.grantAuctionLeave({
+          userId: outcome.winner.toBigInt(),
+          year: new Date().getFullYear(),
+          days: auction.leaveDays,
+        });
       }
 
       await tx.auctions.save(auction);

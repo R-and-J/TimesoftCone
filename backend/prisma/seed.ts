@@ -35,13 +35,13 @@ function makeAuctions(now: Date) {
   return [
     // OPEN: endsAt in the near future so the scheduler eventually auto-settles them.
     // A-2026-104 is the "watch the cron settle me" candidate (~2 min).
-    { id: "A-2026-104", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 2 * MIN),   startPrice: 5000n },
-    { id: "A-2026-105", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 30 * MIN),  startPrice: 5000n },
-    { id: "A-2026-106", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 2 * HR),    startPrice: 5000n },
-    { id: "A-2026-107", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 1 * DAY),   startPrice: 5000n },
+    { id: "A-2026-104", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 2 * MIN),   startPrice: 5000n, leaveDays: 1 },
+    { id: "A-2026-105", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 30 * MIN),  startPrice: 5000n, leaveDays: 2 },
+    { id: "A-2026-106", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 2 * HR),    startPrice: 5000n, leaveDays: 3 },
+    { id: "A-2026-107", status: "OPEN" as const,    startedAt: new Date(t - 1 * HR),   endsAt: new Date(t + 1 * DAY),   startPrice: 5000n, leaveDays: 1 },
     // CREATED: opens later, ends much later. Shown as "오픈 예정".
-    { id: "A-2026-108", status: "CREATED" as const, startedAt: new Date(t + 30 * MIN), endsAt: new Date(t + 6 * HR),    startPrice: 5000n },
-    { id: "A-2026-109", status: "CREATED" as const, startedAt: new Date(t + 1 * DAY),  endsAt: new Date(t + 3 * DAY),   startPrice: 5000n },
+    { id: "A-2026-108", status: "CREATED" as const, startedAt: new Date(t + 30 * MIN), endsAt: new Date(t + 6 * HR),    startPrice: 5000n, leaveDays: 2 },
+    { id: "A-2026-109", status: "CREATED" as const, startedAt: new Date(t + 1 * DAY),  endsAt: new Date(t + 3 * DAY),   startPrice: 5000n, leaveDays: 3 },
   ];
 }
 
@@ -127,6 +127,7 @@ async function main() {
         highest: a.startPrice,
         highestBidder: null,
         bidCount: 0,
+        leaveDays: a.leaveDays,
         startedAt: a.startedAt,
         endsAt: a.endsAt,
         settledAt: null,
@@ -137,6 +138,7 @@ async function main() {
         startPrice: a.startPrice,
         highest: a.startPrice,
         minIncrement: 100n,
+        leaveDays: a.leaveDays,
         startedAt: a.startedAt,
         endsAt: a.endsAt,
         bidCount: 0,

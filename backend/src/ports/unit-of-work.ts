@@ -24,6 +24,12 @@ export interface TxContext {
    * this transaction. Auto-released on commit/rollback.
    */
   lockAuction(auctionId: AuctionId): Promise<void>;
+  /**
+   * Credit AUCTION-type leave to the winner in the same transaction as
+   * auction settlement (ADR-016 leave master, ADR-002 3-flag). Upserts
+   * leave_balance(userId, year, AUCTION).adjustedDays += days.
+   */
+  grantAuctionLeave(input: { userId: bigint; year: number; days: number }): Promise<void>;
 }
 
 export interface UnitOfWork {

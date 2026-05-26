@@ -12,6 +12,7 @@ export type AuctionListItem = {
   highestBidder: bigint | null;
   bidCount: number;
   minIncrement: bigint;
+  leaveDays: number;
   startedAt: Date;
   endsAt: Date;
 };
@@ -34,6 +35,7 @@ export class ListAuctionsUseCase {
         highestBidder: s.highestBidder?.toBigInt() ?? null,
         bidCount: s.bidCount,
         minIncrement: s.minIncrement.toBigInt(),
+        leaveDays: s.leaveDays,
         startedAt: s.startedAt,
         endsAt: s.endsAt,
       };
