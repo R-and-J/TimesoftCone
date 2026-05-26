@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
+import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
@@ -11,28 +11,25 @@ import { useToast } from "@/lib/toast";
 // 정산 데이터 export 다운로드 링크 베이스 (ADR-021). VITE_API_BASE 없으면 vite 프록시(/api).
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
-/** export 엔드포인트를 특정 형식으로 다운로드하는 작은 버튼(앵커). */
-function DownloadBtn({ p, endpoint, format, label }: { p: Palette; endpoint: string; format: string; label: string }) {
-  return (
-    <a
-      href={`${API_BASE}/admin/export/${endpoint}?format=${format}`}
-      download
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "6px 12px",
-        borderRadius: 8,
-        border: `1px solid ${p.line}`,
-        fontSize: 12,
-        fontWeight: 600,
-        color: p.ink,
-        textDecoration: "none",
-        background: p.surface,
-      }}
-    >
-      {label}
-    </a>
-  );
+// 내보내기 모달에서 고르는 항목/형식.
+const EXPORT_SETS = [
+  { key: "leave-grants", label: "낙찰 연차 부여 내역", desc: "누가 어떤 경매로 며칠" },
+  { key: "dividends", label: "연말 배당 내역", desc: "기여 지분별 복지카드 배당" },
+  { key: "spending", label: "지출 내역", desc: "누가 얼마나 썼나" },
+] as const;
+const EXPORT_FORMATS = [
+  { key: "xlsx", label: "Excel (.xlsx · 항목별 시트)" },
+  { key: "md", label: "Markdown (.md · 노션/문서)" },
+  { key: "json", label: "JSON" },
+] as const;
+
+/** 첨부(Content-Disposition) 응답을 페이지 이동 없이 다운로드 트리거. */
+function triggerDownload(url: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 type SettleDueResponse = {
@@ -48,6 +45,23 @@ export default function AdminOpsPage() {
   const upcomingQ = useQuery(() => listAuctions(["CREATED"]), []);
   const unsoldQ = useQuery(() => listAuctions(["UNSOLD"]), []);
   const [running, setRunning] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportSets, setExportSets] = useState<Record<string, boolean>>({
+    "leave-grants": true,
+    dividends: true,
+    spending: true,
+  });
+  const [exportFmt, setExportFmt] = useState<string>("xlsx");
+
+  const doExport = () => {
+    const sel = EXPORT_SETS.filter((s) => exportSets[s.key]).map((s) => s.key);
+    if (sel.length === 0) {
+      toast.push("error", "내보낼 항목을 하나 이상 선택하세요");
+      return;
+    }
+    triggerDownload(`${API_BASE}/admin/export?sets=${sel.join(",")}&format=${exportFmt}`);
+    setExportOpen(false);
+  };
 
   const triggerSettle = async () => {
     setRunning(true);
@@ -169,48 +183,20 @@ export default function AdminOpsPage() {
           </div>
 
           <Card p={p} padding={0} style={{ marginBottom: 16 }}>
-            <div style={{ padding: "18px 24px", borderBottom: `1px solid ${p.line}` }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: p.ink, letterSpacing: "-0.01em" }}>
-                정산 데이터 내보내기
-              </div>
-              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
-                도입사 HR/급여 반영용 핸드오프 (ADR-021). leave_type=AUCTION은 연차수당 제외 대상.
-              </div>
-            </div>
-            <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: p.ink }}>
-                  낙찰 연차 부여 내역
-                  <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 6 }}>
-                    누가 어떤 경매로 며칠 받았나
-                  </span>
+            <div style={{ padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: p.ink, letterSpacing: "-0.01em" }}>
+                  정산 데이터 내보내기
                 </div>
-                <DownloadBtn p={p} endpoint="leave-grants" format="csv" label="CSV" />
-                <DownloadBtn p={p} endpoint="leave-grants" format="md" label="MD" />
-                <DownloadBtn p={p} endpoint="leave-grants" format="json" label="JSON" />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: p.ink }}>
-                  연말 배당 내역
-                  <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 6 }}>
-                    기여 지분별 복지카드 배당
-                  </span>
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
+                  도입사 HR/급여 반영용 핸드오프 (ADR-021) · Excel(.xlsx)/Markdown/JSON
                 </div>
-                <DownloadBtn p={p} endpoint="dividends" format="csv" label="CSV" />
-                <DownloadBtn p={p} endpoint="dividends" format="md" label="MD" />
-                <DownloadBtn p={p} endpoint="dividends" format="json" label="JSON" />
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: p.ink }}>
-                  지출 내역
-                  <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 6 }}>
-                    누가 얼마나 썼나 (낙찰 escrow 기여)
-                  </span>
-                </div>
-                <DownloadBtn p={p} endpoint="spending" format="csv" label="CSV" />
-                <DownloadBtn p={p} endpoint="spending" format="md" label="MD" />
-                <DownloadBtn p={p} endpoint="spending" format="json" label="JSON" />
-              </div>
+              <Btn p={p} variant="dark" size="md" onClick={() => setExportOpen(true)}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon.bolt size={14} /> 내보내기
+                </span>
+              </Btn>
             </div>
           </Card>
 
@@ -435,6 +421,77 @@ export default function AdminOpsPage() {
           </div>
         </div>
       </div>
+      {exportOpen && (
+        <div
+          onClick={() => setExportOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(11,25,41,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 440,
+              background: p.surface,
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
+              정산 데이터 내보내기
+            </div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18 }}>
+              내보낼 항목과 형식을 선택하세요. 선택분이 한 파일로 묶여 다운로드됩니다.
+            </div>
+
+            <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 8 }}>항목</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+              {EXPORT_SETS.map((s) => (
+                <label key={s.key} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={!!exportSets[s.key]}
+                    onChange={(e) => setExportSets((prev) => ({ ...prev, [s.key]: e.target.checked }))}
+                  />
+                  <span style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>{s.label}</span>
+                  <span style={{ fontSize: 11, color: p.inkMuted }}>{s.desc}</span>
+                </label>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 8 }}>형식</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+              {EXPORT_FORMATS.map((f) => (
+                <label key={f.key} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="exportFmt"
+                    checked={exportFmt === f.key}
+                    onChange={() => setExportFmt(f.key)}
+                  />
+                  <span style={{ fontSize: 13, color: p.ink }}>{f.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Btn p={p} variant="ghost" size="md" onClick={() => setExportOpen(false)}>
+                취소
+              </Btn>
+              <Btn p={p} variant="primary" size="md" onClick={doExport}>
+                다운로드
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenFrame>
   );
 }
