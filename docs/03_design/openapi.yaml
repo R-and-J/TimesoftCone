@@ -243,7 +243,7 @@ paths:
       tags: [Auction]
       summary: 입찰 (FR-2.1)
       description: |
-        행 락(`SELECT … FOR UPDATE`) → wallet 차감 → 직전자 즉시 환불 → highest_bid 갱신 → LEDGER_ENTRY → WebSocket 브로드캐스트. 모두 단일 트랜잭션. scope-cuts CUT-1(ADR-006 Superseded)·ADR-018 참조.
+        SQLite write 락(lockAuction) → wallet 차감 → 직전자 즉시 환불 → highest_bid 갱신 → LEDGER_ENTRY → WebSocket 브로드캐스트. 모두 단일 트랜잭션. scope-cuts CUT-1(ADR-006 Superseded)·ADR-018 참조.
       parameters:
         - $ref: '#/components/parameters/AuctionIdPath'
       requestBody:

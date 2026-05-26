@@ -2,7 +2,7 @@
 // RBAC NOT enforced — scope-cuts.md CUT-8.
 
 import { Controller, Get, Query } from "@nestjs/common";
-import type { LedgerActionType } from "@prisma/client";
+import type { LedgerActionType } from "@/domain/ledger/ledger-action-type";
 import { GetAdminStatsUseCase } from "@/application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "@/application/admin/list-ledger.use-case";
 

@@ -1,6 +1,6 @@
 # ADR-006: Redis 분산 락 선택 (vs PostgreSQL Advisory Lock)
 
-> **상태**: ⛔ Superseded — [scope-cuts.md CUT-1](../06_tech/scope-cuts.md)으로 대체. 입찰 동시성은 MySQL InnoDB 행 락(`SELECT … FOR UPDATE`)으로 처리하며 Redis는 프로젝트에서 영구 제거됨(2026-05-26). 아래 내용은 역사적 기록으로 보존.
+> **상태**: ⛔ Superseded — [scope-cuts.md CUT-1](../06_tech/scope-cuts.md)으로 대체. 입찰 동시성은 SQLite write 락(`lockAuction`의 no-op UPDATE)으로 처리하며 Redis는 프로젝트에서 영구 제거됨(2026-05-26). 아래 내용은 역사적 기록으로 보존.
 
 - **상태**: ⛔ Superseded (← 🟡 Proposed)
 - **결정일**: _미결_

@@ -2,7 +2,7 @@
 // The domain stays oblivious to Prisma; mapping happens here at the boundary.
 
 import { Injectable } from "@nestjs/common";
-import type { Prisma, Currency as PrismaCurrency } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "./prisma.service";
 import type { WalletRepository } from "@/ports/wallet-repository";
 import { Wallet } from "@/domain/wallet/wallet";
@@ -19,7 +19,7 @@ export class PrismaWalletRepository implements WalletRepository {
       where: {
         uq_wallet_user_currency: {
           userId: userId.toBigInt(),
-          currency: currency.code as PrismaCurrency,
+          currency: currency.code,
         },
       },
     });
@@ -43,13 +43,13 @@ export class PrismaWalletRepository implements WalletRepository {
       where: {
         uq_wallet_user_currency: {
           userId: wallet.userId.toBigInt(),
-          currency: wallet.currency.code as PrismaCurrency,
+          currency: wallet.currency.code,
         },
       },
       update: { balance: wallet.balance.toBigInt() },
       create: {
         userId: wallet.userId.toBigInt(),
-        currency: wallet.currency.code as PrismaCurrency,
+        currency: wallet.currency.code,
         balance: wallet.balance.toBigInt(),
       },
     });

@@ -1,7 +1,7 @@
 # 개발 환경 설정 가이드
 
 **상태**: ⚪ TODO — 기술 스택 확정 후 완성
-**전제**: [tech-stack.md](tech-stack.md)의 권장 스택 기준 (NestJS + MySQL + Docker)
+**전제**: [tech-stack.md](tech-stack.md)의 권장 스택 기준 (NestJS + SQLite — DB 컨테이너 불필요)
 
 ---
 
@@ -51,11 +51,8 @@ cp .env.example .env
 # 의존성 설치
 npm install
 
-# 인프라 컨테이너 기동 (MySQL)
-docker compose up -d
-
-# DB 마이그레이션 + 시드
-npm run db:migrate
+# DB 준비 (SQLite — 파일 기반, 컨테이너 불필요)
+npm run db:migrate   # dev.db 생성
 npm run db:seed
 
 # 개발 서버 기동
@@ -64,25 +61,11 @@ npm run dev
 
 ---
 
-## 4. docker-compose.yml 예시 (작성 예정)
+## 4. DB 컨테이너 (불필요)
 
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: auction
-      POSTGRES_PASSWORD: auction_dev
-      POSTGRES_DB: auction_dev
-    ports: ["5432:5432"]
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-      - ./06_tech/db-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-
-volumes:
-  pg_data:
-```
+> **SQLite는 파일 기반(`backend/prisma/dev.db`)이라 docker compose가 필요 없습니다.**
+> `npm run db:migrate`가 `dev.db`를 생성하고 `npm run db:seed`가 시드를 넣습니다.
+> 외부 DB 서버·컨테이너 0. (과거 PostgreSQL/MySQL compose 블록은 SQLite 전환으로 제거됨 — 2026-05-26.)
 
 ---
 
@@ -93,8 +76,8 @@ volumes:
 NODE_ENV=development
 PORT=3000
 
-# Database
-DATABASE_URL=postgresql://auction:auction_dev@localhost:5432/auction_dev
+# Database (SQLite — 파일 기반, 외부 서버 불필요)
+DATABASE_URL=file:./prisma/dev.db
 
 # SSO
 SSO_PROVIDER=company-idp
@@ -142,7 +125,7 @@ LOG_LEVEL=debug
 # 단위 테스트
 npm run test
 
-# 통합 테스트 (docker-compose 기동 필요)
+# 통합 테스트 (SQLite 파일 DB — 컨테이너 불필요)
 npm run test:e2e
 
 # 커버리지
@@ -156,9 +139,9 @@ k6 run tests/load/bid-concurrent.js
 
 ## 8. 트러블슈팅
 
-### Q1. PostgreSQL 파티션 생성 오류
+### Q1. `database is locked` (SQLite 파일 잠김)
 
-→ 파티션 테이블은 수동 생성 필요. `db-schema.sql` 끝부분 참조.
+→ SQLite는 동시 write를 직렬화하므로, 다른 프로세스(`npm run dev` · 마이그레이션 · DB 뷰어)가 `dev.db`를 잡고 있으면 발생. 점유 중인 프로세스를 닫고 재시도. 필요 시 `dev.db`를 지우고 `npm run db:migrate`로 재생성.
 
 ### Q2. SSO 콜백이 localhost에서 작동 안 함
 

@@ -5,9 +5,11 @@
 // type = granted + adjusted − used, summed across years.
 
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type { LeaveType } from "@prisma/client";
 import { PrismaService } from "@/adapters/persistence/prisma.service";
 import { UserId } from "@/domain/shared/value-objects/user-id";
+
+// ADR-002 three-flag leave types. SQLite stores leave_type as TEXT (no enum).
+type LeaveTypeKey = "REGULAR" | "AUCTION" | "EVENT";
 
 export type UserLeaveResult = {
   userId: bigint;
@@ -34,9 +36,9 @@ export class GetUserLeaveUseCase {
       select: { leaveType: true, grantedDays: true, adjustedDays: true, usedDays: true },
     });
 
-    const byType: Record<LeaveType, number> = { REGULAR: 0, AUCTION: 0, EVENT: 0 };
+    const byType: Record<LeaveTypeKey, number> = { REGULAR: 0, AUCTION: 0, EVENT: 0 };
     for (const r of rows) {
-      byType[r.leaveType] += r.grantedDays + r.adjustedDays - r.usedDays;
+      byType[r.leaveType as LeaveTypeKey] += r.grantedDays + r.adjustedDays - r.usedDays;
     }
 
     return {

@@ -9,7 +9,7 @@
 본 시스템은 다수의 외부 시스템·인프라와 결합된다:
 
 - **외부 시스템**: HR API (`/leave`, `/welfare`), SSO IdP
-- **인프라**: PostgreSQL, Redis, Outbox/MQ, WebSocket, Slack
+- **인프라**: SQLite, Redis, Outbox/MQ, WebSocket, Slack
 - **변화 축**: 화폐 종류 ([[ADR-010]]), HR 클라이언트(Mock vs Real), 락 구현, 알림 채널
 
 이들이 코어 도메인(`Auction`, `Bid`, `Escrow`, `Stake`, `Wallet`)에 *직접 침투*하면:
@@ -86,7 +86,7 @@
                                  ▼
        ┌─────────────────  Outbound Adapters (Driven) ──────────────────┐
        │                                                                 │
-       │   PostgreSQL · Redis · WireMock HR · Slack · NestEventEmitter  │
+       │   SQLite · Redis · WireMock HR · Slack · NestEventEmitter  │
        │                                                                 │
        └─────────────────────────────────────────────────────────────────┘
 ```

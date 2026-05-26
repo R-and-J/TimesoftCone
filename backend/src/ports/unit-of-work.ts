@@ -2,9 +2,9 @@
 // Use cases that need to atomically write across Wallet + Ledger + Auction
 // depend on this port (not on Prisma directly), preserving ADR-012.
 //
-// scope-cuts.md CUT-1: lockAuction() uses a MySQL InnoDB row lock
-// (SELECT id FROM auction WHERE id = ? FOR UPDATE) in the Prisma adapter.
-// A future adapter could swap the lock strategy without touching the use case.
+// scope-cuts.md CUT-1: lockAuction() serializes bids on the same auction. The
+// SQLite adapter takes the database write lock via a no-op UPDATE; a future
+// adapter could swap the lock strategy without touching the use case.
 
 import type { AuctionId } from "../domain/shared/value-objects/auction-id";
 import type { WalletRepository } from "./wallet-repository";
@@ -20,8 +20,9 @@ export interface TxContext {
   /** Append a BidEvent row (audit log of accepted bids). */
   recordBid(input: { auctionId: AuctionId; userId: bigint; amount: bigint }): Promise<void>;
   /**
-   * Acquire an advisory lock keyed on the auction ID for the duration of
-   * this transaction. Auto-released on commit/rollback.
+   * Serialize concurrent bids on this auction for the duration of the
+   * transaction (SQLite write lock via a no-op UPDATE). Auto-released on
+   * commit/rollback.
    */
   lockAuction(auctionId: AuctionId): Promise<void>;
   /**

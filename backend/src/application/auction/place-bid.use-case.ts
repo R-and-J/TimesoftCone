@@ -1,7 +1,7 @@
 // PlaceBid — the most critical use case in this system.
 //
-// All of the following happen in ONE MySQL transaction, guarded by a
-// `SELECT ... FOR UPDATE` row lock on the auction (scope-cuts.md CUT-1):
+// All of the following happen in ONE SQLite transaction, guarded by
+// lockAuction() — a no-op UPDATE that takes the DB write lock (scope-cuts.md CUT-1):
 //
 //   1. Acquire row lock for this auction
 //   2. Read auction

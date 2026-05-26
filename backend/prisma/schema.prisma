@@ -1,12 +1,27 @@
-// TimesoftCone — schema (after follow-up PR: Auction + Bid)
+// TimesoftCone — schema (SQLite).
 // Encodes invariants from CLAUDE.md, ADR-011, ADR-014 (with scope-cuts.md CUT-3).
+//
+// DB engine: SQLite (file-based, zero external server). The Prisma SQLite
+// connector does NOT support `enum` blocks, so the former enums
+// (UserRole / Currency / LedgerActionType / AuctionStatus / LeaveType) are
+// modeled as String columns. Valid values are enforced two ways:
+//   1. domain Value Objects / unions (Currency VO, AuctionStatus, LedgerActionType)
+//   2. DB-level CHECK (… IN (…)) constraints in the init migration.
+//
+// NOTE on autoincrement ids: PKs are `BigInt @default(autoincrement())`, but
+// SQLite only auto-assigns an `INTEGER PRIMARY KEY` (rowid alias) — a `BIGINT`
+// column is not. The init migration declares those PKs as
+// `INTEGER PRIMARY KEY AUTOINCREMENT` (stores 64-bit, read back as BigInt).
+// Consequence: `prisma migrate dev` may report drift on the id columns — use
+// `migrate deploy` / `migrate reset` (replay the migration as-is), or keep the
+// id columns as INTEGER when hand-editing any new migration.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -27,7 +42,7 @@ model User {
   /// ezpass의 user_id(이메일)로 이 사용자를 찾는다. (ADR-019)
   email           String?  @unique @map("email")
   /// EMPLOYEE/ADMIN — ezpass 관리자권한(mngrAuthorAt)으로 매 로그인 재동기화 (ADR-020).
-  role            UserRole @default(EMPLOYEE)
+  role            String   @default("EMPLOYEE")
   /// Annual leave days the user has contributed to the public pool this year.
   /// Drives year-end dividend stake (see GET /api/dividend/me/:userId).
   /// School-project simplification — production would derive this from a
@@ -44,18 +59,13 @@ model User {
   @@map("users")
 }
 
-enum UserRole {
-  EMPLOYEE
-  ADMIN
-}
-
 // ─────────────────────────────────────────────────────────────
 // WALLET (ADR-011 master).
 // ─────────────────────────────────────────────────────────────
 model Wallet {
   id        BigInt   @id @default(autoincrement())
   userId    BigInt   @map("user_id")
-  currency  Currency
+  currency  String
   balance   BigInt   @default(0)
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -65,10 +75,6 @@ model Wallet {
   @@map("wallet")
 }
 
-enum Currency {
-  WELFARE_POINT
-}
-
 // ─────────────────────────────────────────────────────────────
 // LEDGER_ENTRY — Insert-Only (CLAUDE.md DB-RULE-1).
 // ─────────────────────────────────────────────────────────────
@@ -76,8 +82,8 @@ model LedgerEntry {
   id           BigInt          @id @default(autoincrement())
   occurredAt   DateTime        @default(now()) @map("occurred_at")
   userId       BigInt          @map("user_id")
-  currency     Currency
-  actionType   LedgerActionType @map("action_type")
+  currency     String
+  actionType   String          @map("action_type")
   amount       BigInt
   balanceAfter BigInt          @map("balance_after")
   auctionId    String?         @map("auction_id")
@@ -90,24 +96,15 @@ model LedgerEntry {
   @@map("ledger_entry")
 }
 
-enum LedgerActionType {
-  BID
-  REFUND
-  WIN
-  DIVIDEND
-  CREDIT_ADMIN
-  EXPIRE
-}
-
 // ─────────────────────────────────────────────────────────────
 // AUCTION — see scope-cuts.md CUT-3 for why this uses a status
-// enum instead of the ADR-014 State Pattern.
+// string instead of the ADR-014 State Pattern.
 // ─────────────────────────────────────────────────────────────
 model Auction {
   // Human-readable ID ("A-2026-106"). String, not autoinc, so the design
   // canvas mockup data (which uses these IDs) maps 1:1 to the seed.
   id              String         @id
-  status          AuctionStatus  @default(CREATED)
+  status          String         @default("CREATED")
   startPrice      BigInt         @map("start_price")
   highest         BigInt
   highestBidder   BigInt?        @map("highest_bidder_id")
@@ -127,13 +124,6 @@ model Auction {
 
   @@index([status, endsAt])
   @@map("auction")
-}
-
-enum AuctionStatus {
-  CREATED
-  OPEN
-  AWARDED
-  UNSOLD
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -170,7 +160,7 @@ model LeaveBalance {
   userId       BigInt    @map("user_id")
   /// 연차년도 (ezpass yryc_year).
   year         Int
-  leaveType    LeaveType @map("leave_type")
+  leaveType    String    @map("leave_type")
   /// 자동 부여분 (ezpass atmc_yryc_day_qty).
   grantedDays  Int       @default(0) @map("granted_days")
   /// 조정분 — 경매 낙찰로 획득한 연차가 여기로 적립 (ezpass mdat_yryc_day_qty).
@@ -185,10 +175,4 @@ model LeaveBalance {
   @@unique([userId, year, leaveType], name: "uq_leave_user_year_type")
   @@index([userId, year])
   @@map("leave_balance")
-}
-
-enum LeaveType {
-  REGULAR
-  AUCTION
-  EVENT
 }

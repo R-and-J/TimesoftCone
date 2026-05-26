@@ -10,7 +10,6 @@ import {
   Param,
   Post,
   Query,
-  UsePipes,
 } from "@nestjs/common";
 import { z } from "zod";
 import { ListAuctionsUseCase } from "@/application/auction/list-auctions.use-case";
@@ -51,10 +50,11 @@ export class AuctionsController {
   }
 
   @Post(":id/bids")
-  @UsePipes(new ZodValidationPipe(placeBidSchema))
   async placeBid(
     @Param("id") id: string,
-    @Body() body: z.infer<typeof placeBidSchema>,
+    // Pipe is bound to @Body (NOT the method) on purpose: a method-level
+    // @UsePipes would also run this object schema against the :id string param.
+    @Body(new ZodValidationPipe(placeBidSchema)) body: z.infer<typeof placeBidSchema>,
   ) {
     try {
       return await this.placeBidUC.execute({

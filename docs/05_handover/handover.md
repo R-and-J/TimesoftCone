@@ -55,7 +55,7 @@
 - 💣 회피: HR 200 OK + DB 롤백 시 에스크로 정합성 붕괴 → 내부화로 원천 차단
 
 ### 3.6 [ADR-006~009]
-- ADR-006: (Superseded) NFR-1 동시성은 CUT-1 MySQL 행 락으로
+- ADR-006: (Superseded) NFR-1 동시성은 CUT-1 SQLite write 락으로
 - ADR-007: 경매 단위 "1일권" 고정
 - ADR-008: 연말 일괄 배당 (즉시 분배 불가)
 - ADR-009: 기존 복지 포인트 재활용 (신규 화폐 미발행)
@@ -73,7 +73,7 @@
 ### 4.2 동시성 제어 (Concurrency Control)
 
 - 경매 마감 직전 트래픽 몰림 → 같은 경매 입찰을 직렬화해야 **입찰가 꼬임** 방지
-- **MySQL InnoDB 행 락**(`SELECT … FOR UPDATE`)으로 같은 경매 입찰 직렬화. 트랜잭션 커밋/롤백 시 자동 해제. 별도 인프라 없음 (scope-cuts CUT-1)
+- **SQLite write 락**(`lockAuction`이 no-op UPDATE로 트랜잭션 write 락 선점)으로 같은 경매 입찰 직렬화. 커밋/롤백 시 자동 해제. 외부 DB 서버 없음 (scope-cuts CUT-1)
 
 ### 4.3 API 트랜잭션 무결성 보장
 
@@ -108,7 +108,7 @@
 
 - [ ] 도메인 모델 구현 (User / Auction / LeaveBalance / PointTransactionLog)
 - [ ] SSO 인증 연동 + JWT 발급
-- [ ] 입찰 API 구현 + 행 락 동시성 테스트
+- [ ] 입찰 API 구현 + SQLite write 락 동시성 테스트
 - [ ] WebSocket 실시간 브로드캐스트 채널
 
 ### 이후 Sprint

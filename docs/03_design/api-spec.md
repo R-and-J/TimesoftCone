@@ -217,7 +217,7 @@ Body:
 ```
 
 **흐름** (Hexagonal — ADR-012 / State 패턴 — ADR-014):
-1. `UnitOfWork.lockAuction(id)` — MySQL 행 락 `SELECT … FOR UPDATE` (트랜잭션 동안 보유)
+1. `UnitOfWork.lockAuction(id)` — SQLite write 락 (no-op `UPDATE`로 트랜잭션 write 락 선점)
 2. `auction.placeBid(...)` — State 객체가 `OpenState`일 때만 허용, 최고가 비교
 3. `BiddingCurrency.debit(...)` — wallet 잔액 검증 + 즉시 차감 (외부 호출 없음)
 4. DB 트랜잭션: wallet 차감 + 최고가 갱신 + `LEDGER_ENTRY` INSERT

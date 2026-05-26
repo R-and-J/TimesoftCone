@@ -1,6 +1,6 @@
 # TimesoftCone Backend
 
-연차 경매 시스템 — NestJS + TypeScript + Prisma + PostgreSQL.
+연차 경매 시스템 — NestJS + TypeScript + Prisma + SQLite.
 
 **현재 스코프**: Wallet/Ledger 기반 + Auction 도메인 + 입찰/낙찰 로직.
 잘라낸 항목은 [`scope-cuts.md`](../06_tech/scope-cuts.md) 참고.
@@ -10,9 +10,8 @@
 ```powershell
 cd backend
 npm install
-docker compose up -d
 copy .env.example .env
-npm run db:migrate
+npm run db:migrate         # SQLite dev.db 생성 (DB 컨테이너 불필요)
 npm run db:seed
 npm run start:dev          # → http://localhost:3001
 ```
@@ -131,7 +130,7 @@ src/
 │   ├── ledger-repository.ts
 │   ├── auction-repository.ts
 │   ├── bidding-currency.ts
-│   └── unit-of-work.ts        ← 트랜잭션 + 행 락(FOR UPDATE) 추상화
+│   └── unit-of-work.ts        ← 트랜잭션 + write 락(lockAuction) 추상화
 ├── application/       ← Use Cases
 │   ├── wallet/   GetWalletBalance · CreditWalletAdmin
 │   ├── auction/  CreateAuction · ListAuctions · GetAuctionDetail · PlaceBid · SettleAuction
@@ -144,10 +143,10 @@ src/
 
 ## 입찰 트랜잭션 흐름 (가장 중요한 부분)
 
-`PlaceBidUseCase`가 단일 MySQL 트랜잭션에서:
+`PlaceBidUseCase`가 단일 SQLite 트랜잭션에서:
 
 ```
-1. SELECT id FROM auction WHERE id = ? FOR UPDATE  ← 동일 경매 동시 입찰 직렬화 (행 락, CUT-1)
+1. UPDATE auction SET id=id WHERE id = ?            ← write 락 선점, 동일 경매 동시 입찰 직렬화 (CUT-1)
 2. SELECT auction WHERE id = ?
 3. auction.placeBid(bidder, amount, now)           ← 도메인 검증
 4. 이전 최고가 입찰자 있으면:
@@ -169,7 +168,7 @@ src/
 |---|---|---|
 | Insert-Only 원장 | `LedgerRepository`에 update/delete 없음 | `reject_ledger_mutation()` 트리거 |
 | Point 음수 불가 | `Point.of()` 검증 | `wallet.balance_nonnegative` CHECK |
-| 동일 경매 동시 입찰 직렬화 | `PrismaUnitOfWork.lockAuction` | `SELECT … FOR UPDATE` (행 락) |
+| 동일 경매 동시 입찰 직렬화 | `PrismaUnitOfWork.lockAuction` | no-op `UPDATE` (SQLite write 락) |
 | 입찰 = 최고가 + 최소 증분 | `Auction.placeBid()` 가드 | (도메인 책임) |
 | 같은 사람 연속 입찰 금지 | `Auction.placeBid()` 가드 | (도메인 책임) |
 | 마감 후 입찰 거부 | `Auction.placeBid()` 가드 | (도메인 책임) |
@@ -191,7 +190,7 @@ npm test
 
 자세한 내역과 되돌리는 비용은 [`scope-cuts.md`](../06_tech/scope-cuts.md). 요약:
 
-- **CUT-1**: Redis 분산 락 → MySQL 행 락(`SELECT … FOR UPDATE`)
+- **CUT-1**: Redis 분산 락 → SQLite write 락(`lockAuction` no-op UPDATE)
 - **CUT-2**: in-process 도메인 이벤트 버스 → use case가 직접 호출
 - **CUT-3**: State Pattern → `AuctionStatus` enum + 가드 절
 - **CUT-4**: Outbox → 외부 호출 없으니 생략 (ADR-005 dormant)

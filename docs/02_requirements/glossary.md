@@ -45,7 +45,7 @@
 | 용어 | 정의 |
 |---|---|
 | **MSA** (Microservices Architecture) | 마이크로서비스 아키텍처. 본 시스템은 HR 시스템과 독립적인 MSA로 동작. |
-| **분산 락** (Distributed Lock) | 여러 서버 인스턴스에서 공유 자원 접근을 직렬화하는 메커니즘. 본 시스템은 채택하지 않음 — 단일 인스턴스라 MySQL 행 락(`FOR UPDATE`)으로 대체 (scope-cuts CUT-1, [ADR-006](../04_decisions/ADR-006-redis-lock.md) Superseded). |
+| **분산 락** (Distributed Lock) | 여러 서버 인스턴스에서 공유 자원 접근을 직렬화하는 메커니즘. 본 시스템은 채택하지 않음 — 단일 인스턴스라 SQLite write 락(`lockAuction`의 no-op UPDATE)으로 대체 (scope-cuts CUT-1, [ADR-006](../04_decisions/ADR-006-redis-lock.md) Superseded). |
 | **Race Condition** | 경쟁 상태. 다수 사용자의 동시 입찰 시 발생할 수 있는 데이터 꼬임. NFR-1의 대응 대상. |
 | **Insert-Only Ledger** | 삽입만 허용되는 대장. 수정·삭제 불가. 금융 시스템의 감사 추적성 확보를 위한 패턴. `LEDGER_ENTRY` 테이블(구 `POINT_TRANSACTION_LOG`)에 적용. |
 | **Outbox Pattern** | DB 트랜잭션 커밋 후 외부 메시지 발행을 보장하는 패턴. ADR-005 후보. |

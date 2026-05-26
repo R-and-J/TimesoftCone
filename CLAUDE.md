@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository nature
 
-This repository currently contains **only design and planning documentation** — no source code, no `package.json`, no build system. It is the documentation phase of a university software-engineering team project (타임소프트콘, 2-person team). When code lands, the chosen stack will be NestJS + TypeScript + PostgreSQL 16 + Redis 7 (see `06_tech/tech-stack.md`), but the stack is **not yet finalized**.
+This repository currently contains **only design and planning documentation** — no source code, no `package.json`, no build system. It is the documentation phase of a university software-engineering team project (타임소프트콘, 2-person team). When code lands, the chosen stack is NestJS + TypeScript + Prisma + SQLite (see `06_tech/tech-stack.md`), but the stack is **not yet finalized**.
 
 The working language of all documents (and the user) is **Korean**. Match that when editing or summarizing docs.
 
@@ -86,7 +86,7 @@ When implementation starts, the planned layout (ADR-012) is:
 src/domain/        — pure TypeScript, zero external deps
 src/application/   — Use Cases (PlaceBid, SettleAuction, …)
 src/ports/         — outbound interfaces (incl. LeaveGrantPort, BiddingCurrency, …)
-src/adapters/      — concrete implementations (persistence, redis, leave, notification)
+src/adapters/      — concrete implementations (persistence, leave, notification)
 src/interfaces/    — inbound adapters (http, websocket, cli)
 ```
 

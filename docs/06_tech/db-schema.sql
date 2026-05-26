@@ -1,5 +1,10 @@
 -- ============================================================================
--- 사내 연차 경매 시스템 — PostgreSQL 스키마 (v2)
+-- ⚠️ 역사적 참고용 스냅샷 (구 PostgreSQL/MySQL 설계). 정본 아님.
+--    실제 스키마는 SQLite이며 정본은:
+--      backend/prisma/schema.prisma + backend/prisma/migrations/<ts>_init/migration.sql
+--    (DB는 2026-05-26 SQLite로 전환됨. 충돌 시 Prisma 마이그레이션이 우선.)
+-- ============================================================================
+-- 사내 연차 경매 시스템 — 스키마 설계 스냅샷 (구 PostgreSQL/MySQL — 정본은 Prisma SQLite)
 -- 상태: 🟡 초안. 팀 리뷰 및 tech-stack 확정 후 최종화
 -- 참조: SRS 3.4, erd.md, ADR-001/002/004/010/011/014/015
 --

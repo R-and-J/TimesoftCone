@@ -6,7 +6,8 @@
 // fine — see ADR-012 §"read models" exception.
 
 import { Injectable } from "@nestjs/common";
-import type { LedgerActionType, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type { LedgerActionType } from "@/domain/ledger/ledger-action-type";
 import { PrismaService } from "@/adapters/persistence/prisma.service";
 
 export type ListLedgerInput = {

@@ -76,7 +76,7 @@ export class LoginUseCase {
       userId: user.id,
       empId: user.empId,
       name: user.name,
-      role: user.role,
+      role: user.role as "EMPLOYEE" | "ADMIN",
       team: user.team,
       jobRank: user.jobRank,
       jobTitle: user.jobTitle,

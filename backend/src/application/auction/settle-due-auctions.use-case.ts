@@ -2,8 +2,8 @@
 // and settle each one. Called periodically by SettleDueAuctionsScheduler.
 //
 // Each auction is settled in its own transaction so one bad row doesn't
-// block the others. The underlying SettleAuctionUseCase already holds an
-// advisory lock per auction, so even if two cron ticks race, only one wins
+// block the others. The underlying SettleAuctionUseCase locks the auction row
+// (UnitOfWork.lockAuction), so even if two cron ticks race, only one wins
 // per auction — the loser will see the status as no-longer-OPEN and throw
 // AuctionNotReadyToSettleError, which we catch and log.
 

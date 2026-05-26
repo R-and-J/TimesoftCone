@@ -82,12 +82,12 @@ export class WalletCreditedEvent { /* ... */ }
 // application/place-bid.usecase.ts
 async execute(cmd: PlaceBidCommand) {
   await this.unitOfWork.transaction(async (tx) => {
-    await tx.lockAuction(cmd.auctionId);                       // SELECT … FOR UPDATE — 같은 경매 입찰 직렬화
+    await tx.lockAuction(cmd.auctionId);                       // lockAuction — SQLite write 락, 같은 경매 입찰 직렬화
     const auction = await this.auctionRepo.findById(cmd.auctionId, tx);
     const event = auction.placeBid(cmd.bidderId, cmd.amount);  // 도메인이 이벤트 *반환*
     await this.auctionRepo.save(auction, tx);
     await this.ledger.insertBid(event, tx);                    // 트랜잭션 내부
-    this.eventBus.publish(event);                              // 커밋 후 발행 (행 락은 커밋 시 자동 해제)
+    this.eventBus.publish(event);                              // 커밋 후 발행 (write 락은 커밋 시 자동 해제)
   });
 }
 ```

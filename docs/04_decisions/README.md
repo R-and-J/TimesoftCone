@@ -30,7 +30,7 @@
 | [003](ADR-003-forced-priority.md) | 백엔드 강제 차감 우선순위 | ✅ Accepted | UX 사고 방지 |
 | [004](ADR-004-year-partitioning.md) | Year 기준 파티셔닝 | ✅ Accepted | 오버엔지니어링 방지 |
 | [005](ADR-005-hr-api-timing.md) | HR API 호출 시점 (Outbox vs Saga) | ✅ Accepted | Outbox 채택 + InternalLeaveAdapter로 분산 트랜잭션 회피 |
-| [006](ADR-006-redis-lock.md) | Redis 분산 락 선택 | ⛔ Superseded | CUT-1(MySQL 행 락)로 대체 |
+| [006](ADR-006-redis-lock.md) | Redis 분산 락 선택 | ⛔ Superseded | CUT-1(SQLite write 락)로 대체 |
 | [007](ADR-007-one-day-unit.md) | 경매 단위 "1일권" 고정 | 🟡 Proposed | 연속 N일권 불가 근거 |
 | [008](ADR-008-year-end-dividend.md) | 연말 일괄 배당 (즉시 분배 불가) | 🟡 Proposed | 001의 자연 귀결 명문화 |
 | [009](ADR-009-point-reuse.md) | 기존 복지 포인트 재활용 | ✅ Accepted (v2) | 정책 결정 (구조는 010, 보완은 011) |
@@ -62,7 +62,7 @@ ADR-004 (Year 파티셔닝)                 ← 002와 연계 (AUCTION/EVENT 소
 ADR-005 (HR API 타이밍) ✅             ← Outbox 채택, 내부화로 분산 트랜잭션 회피
   └─ ADR-016 (자체 휴가 관리 보유)      ← 005의 내부화 결정 상세 (011의 휴가 버전)
        └─ ADR-017 (휴가 풀 분리 컨텍스트) ← 016에서 연말 배치를 분리
-ADR-006 (Redis 락, Superseded)         ← CUT-1(행 락)로 대체
+ADR-006 (Redis 락, Superseded)         ← CUT-1(SQLite write 락)로 대체
 ADR-007 (1일권 고정)                   ← 004와 연계
 ADR-018 (경매 정산 규칙)               ← 009의 "즉시 차감/환불"을 패자 환불·입찰 취소로 구체화
 

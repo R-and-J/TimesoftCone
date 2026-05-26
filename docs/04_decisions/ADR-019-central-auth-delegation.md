@@ -60,7 +60,7 @@ ezpass dev는 사내 자체서명 CA → Node가 신뢰 거부. `EZPASS_TLS_INSE
 
 ### ✅ 긍정적 결과
 - **비밀번호 비저장** — 사내 계정 체계 단일화, 우리 DB에 비번 없음
-- **검증 완료** — 실제 ezpass dev + 우리 MySQL로 end-to-end 동작 확인 (`admin@timesoftcon.co.kr` → 박부장)
+- **검증 완료** — 실제 ezpass dev + 우리 DB(SQLite)로 end-to-end 동작 확인 (`admin@timesoftcon.co.kr` → 박부장)
 - **교체 가능** — `AuthProvider` 포트라 추후 진짜 OIDC SSO 어댑터로 교체 가능
 - **회사번호 자동 조회** — 하드코딩 없이 이메일로 cmpnyNo 해결
 

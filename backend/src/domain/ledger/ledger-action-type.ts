@@ -1,4 +1,4 @@
-// Matches the Postgres enum LedgerActionType.
+// The ledger action types (stored as a TEXT column on SQLite — no DB enum).
 // Each action type also implies a sign convention that the adapter can verify:
 //   credit (positive amount): REFUND, WIN-payout, DIVIDEND, CREDIT_ADMIN
 //   debit  (negative amount): BID, EXPIRE

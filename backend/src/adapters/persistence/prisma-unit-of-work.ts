@@ -1,13 +1,13 @@
 // PrismaUnitOfWork — runs a callback inside a single Prisma $transaction,
 // providing repository wrappers that all share the same tx client.
 //
-// scope-cuts.md CUT-1: lockAuction() takes a MySQL InnoDB row lock on the
-// auction row (`SELECT id FROM auction WHERE id = ? FOR UPDATE`). Held until
-// the tx commits or rolls back, so concurrent bids on the same auction are
-// serialized. No Redis needed at this scale.
+// scope-cuts.md CUT-1: lockAuction() serializes concurrent bids on the same
+// auction. SQLite has no row locks, so it issues a no-op UPDATE that takes the
+// database write lock for the transaction; held until commit/rollback. No Redis
+// needed at this scale.
 
 import { Inject, Injectable } from "@nestjs/common";
-import type { Prisma, Currency as PrismaCurrency, AuctionStatus as PrismaAuctionStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "./prisma.service";
 import { PrismaWalletRepository } from "./prisma-wallet.repository";
 import { PrismaLedgerRepository } from "./prisma-ledger.repository";
@@ -56,7 +56,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
           where: {
             uq_wallet_user_currency: {
               userId: userId.toBigInt(),
-              currency: currency.code as PrismaCurrency,
+              currency: currency.code,
             },
           },
         });
@@ -80,9 +80,9 @@ export class PrismaUnitOfWork implements UnitOfWork {
       },
       async list(filter) {
         const status = Array.isArray(filter?.status)
-          ? { in: filter!.status as PrismaAuctionStatus[] }
+          ? { in: filter!.status }
           : filter?.status
-            ? { equals: filter.status as PrismaAuctionStatus }
+            ? { equals: filter.status }
             : undefined;
         const rows = await tx.auction.findMany({
           where: status ? { status } : undefined,
@@ -133,10 +133,11 @@ export class PrismaUnitOfWork implements UnitOfWork {
         });
       },
       lockAuction: async (auctionId: AuctionId) => {
-        // MySQL InnoDB row lock on the auction row — serializes concurrent bids
-        // on the same auction for the duration of this transaction. Auto-released
-        // on commit/rollback. scope-cuts.md CUT-1.
-        await tx.$queryRaw`SELECT id FROM auction WHERE id = ${auctionId.toString()} FOR UPDATE`;
+        // SQLite has no row-level locks (no `SELECT … FOR UPDATE`). A no-op
+        // UPDATE on the target row takes SQLite's database write lock for this
+        // transaction, serializing concurrent bids on the same auction.
+        // Auto-released on commit/rollback. scope-cuts.md CUT-1 (SQLite variant).
+        await tx.$executeRaw`UPDATE auction SET id = id WHERE id = ${auctionId.toString()}`;
       },
       grantAuctionLeave: async ({ userId, year, days }) => {
         // 낙찰 연차는 AUCTION 타입으로 우리 DB에만 적립 (ADR-002/020). ezpass엔

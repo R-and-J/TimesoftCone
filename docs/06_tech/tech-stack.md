@@ -46,13 +46,13 @@
 
 | 후보 | 결정 | 근거 |
 |---|---|---|
-| **PostgreSQL 16** | ✅ **권장** | SRS 3.4에서 명시 권장. 파티셔닝·JSON·트리거 모두 강력. |
-| MySQL 8 | 대안 | 가능하지만 파티셔닝·CHECK 제약이 PG보다 약함 |
-| Oracle/MSSQL | 비권장 | 라이선스 부담 |
+| **SQLite** | ✅ **채택** | 파일 기반·외부 서버 0. 데모/MVP 단순화(2026-05-26). Prisma provider=sqlite. enum은 TEXT+CHECK로. |
+| PostgreSQL 16 | 과거 권장(미채택) | 운영 확장 시 후보 |
+| MySQL 8 | 과거 실제 사용(미채택) | 원격 서버 의존 제거 위해 SQLite로 전환 |
 
 ### 2.4 동시성 제어 (분산 락)
 
-**MySQL InnoDB 행 락(`SELECT … FOR UPDATE`) 채택** — 단일 인스턴스라 별도 락 인프라 불필요 (scope-cuts CUT-1). Redis 미사용.
+**SQLite write 락(`lockAuction` no-op UPDATE) 채택** — 단일 인스턴스 + SQLite 전역 직렬화라 별도 락 인프라 불필요 (scope-cuts CUT-1). Redis 미사용.
 
 ### 2.5 메시지 큐 (ADR-005 Outbox 채택 시)
 
@@ -61,9 +61,9 @@
 | **RabbitMQ** | 가볍고 설치 용이 | 처리량 한계 |
 | **Kafka** | 대용량 / 순서 보장 | 운영 복잡 |
 | **SQS (AWS)** | 매니지드 | AWS 종속 |
-| **PostgreSQL Outbox 테이블** | 별도 인프라 불필요 | 폴링 오버헤드 |
+| **SQLite Outbox 테이블** | 별도 인프라 불필요 | 폴링 오버헤드 |
 
-> **권장 (학교 프로젝트)**: **PostgreSQL Outbox 테이블** — 인프라 단순화, 학습 부담 최소
+> **권장 (학교 프로젝트)**: **SQLite Outbox 테이블** — 인프라 단순화, 학습 부담 최소
 
 ### 2.6 컨테이너 / 오케스트레이션
 
@@ -94,10 +94,10 @@
 | **ORM** | Prisma or TypeORM | |
 | **프론트** | React + Vite | React 18, Vite 5 |
 | UI 라이브러리 | Mantine or MUI | |
-| **DB** | PostgreSQL | 16 |
-| **동시성 제어** | MySQL 행 락(`FOR UPDATE`) | — |
+| **DB** | SQLite | (파일 기반) |
+| **동시성 제어** | SQLite write 락(lockAuction) | — |
 | **실시간** | Socket.IO | |
-| **MQ/Outbox** | PostgreSQL Outbox 테이블 (Phase 1), Kafka (Phase 2) | |
+| **MQ/Outbox** | SQLite Outbox 테이블 (Phase 1), Kafka (Phase 2) | |
 | **컨테이너** | Docker | |
 | **오케스트레이션** | Docker Compose (개발) / K8s (운영 선택) | |
 | **CI/CD** | Jenkins + Docker Registry | |
@@ -114,7 +114,7 @@
 |---|---|
 | 백엔드 | Spring Boot 3.x (Kotlin) |
 | ORM | Spring Data JPA + QueryDSL |
-| 동시성 | DB 행 락 |
+| 동시성 | DB write 락(SQLite) |
 | 나머지 | 위와 동일 |
 
 ---
@@ -125,7 +125,7 @@
 # TODO: 실제 설치·고정 시 업데이트
 node: 20.11.x
 typescript: 5.3.x
-postgres: 16.2
+# DB: SQLite (파일 기반, 별도 서버 버전 핀 불필요 — Prisma provider=sqlite)
 ```
 
 ---

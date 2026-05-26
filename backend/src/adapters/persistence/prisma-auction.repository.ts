@@ -2,7 +2,7 @@
 // auction row. Domain stays free of Prisma; mapping happens here.
 
 import { Injectable } from "@nestjs/common";
-import type { Prisma, AuctionStatus as PrismaAuctionStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "./prisma.service";
 import type {
   AuctionListFilter,
@@ -51,9 +51,9 @@ export class PrismaAuctionRepository implements AuctionRepository {
 
   async list(filter: AuctionListFilter = {}): Promise<Auction[]> {
     const status = Array.isArray(filter.status)
-      ? { in: filter.status as PrismaAuctionStatus[] }
+      ? { in: filter.status }
       : filter.status
-        ? { equals: filter.status as PrismaAuctionStatus }
+        ? { equals: filter.status }
         : undefined;
 
     const rows = await this.prisma.auction.findMany({
@@ -76,7 +76,7 @@ export class PrismaAuctionRepository implements AuctionRepository {
     await tx.auction.upsert({
       where: { id: s.id.toString() },
       update: {
-        status: s.status as PrismaAuctionStatus,
+        status: s.status,
         highest: s.highest.toBigInt(),
         highestBidder: s.highestBidder?.toBigInt() ?? null,
         bidCount: s.bidCount,
@@ -84,7 +84,7 @@ export class PrismaAuctionRepository implements AuctionRepository {
       },
       create: {
         id: s.id.toString(),
-        status: s.status as PrismaAuctionStatus,
+        status: s.status,
         startPrice: s.startPrice.toBigInt(),
         highest: s.highest.toBigInt(),
         highestBidder: s.highestBidder?.toBigInt() ?? null,

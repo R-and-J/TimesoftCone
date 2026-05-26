@@ -10,7 +10,7 @@
 UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 
 ```
-1. 행 락 획득 (SELECT … FOR UPDATE)
+1. 락 획득 (lockAuction — SQLite write 락)
 2. 포인트 차감 (DB)
 3. 에스크로 적립 (DB)
 4. POST /api/hr/leave  ← ⚠️ HR API 호출
@@ -59,7 +59,7 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 
 **흐름**:
 ```
-1. 행 락 획득 (SELECT … FOR UPDATE)
+1. 락 획득 (lockAuction — SQLite write 락)
 2. BEGIN TRANSACTION
 3. 포인트 차감, 에스크로 적립, 로그 INSERT
 4. outbox 테이블에 HR API 발행 요청 INSERT (같은 트랜잭션!)

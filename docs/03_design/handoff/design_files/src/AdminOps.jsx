@@ -97,7 +97,7 @@ function AdminOps({ p }) {
               <div style={{ fontSize: 14, fontWeight: 800, color: p.ink, marginBottom: 14, letterSpacing: '-0.01em' }}>시스템 상태</div>
               {[
                 { k: 'HR API (Outbox)', v: '정상', sub: 'p95 142ms', tone: 'success' },
-                { k: 'DB 행 락', v: '정상', sub: 'FOR UPDATE', tone: 'success' },
+                { k: 'SQLite write 락', v: '정상', sub: 'lockAuction', tone: 'success' },
                 { k: 'WebSocket', v: '정상', sub: '연결 24명', tone: 'success' },
                 { k: '에스크로 정합성', v: '✓', sub: '마지막 검증 14:30', tone: 'success' },
                 { k: 'Outbox 대기열', v: '0', sub: '재시도 0건', tone: 'success' },

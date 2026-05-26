@@ -40,7 +40,7 @@
   - [ADR-003 백엔드 강제 차감 우선순위](04_decisions/ADR-003-forced-priority.md)
   - [ADR-004 Year 기준 파티셔닝](04_decisions/ADR-004-year-partitioning.md)
   - [ADR-005 HR API 호출 시점](04_decisions/ADR-005-hr-api-timing.md) ✅ (Outbox + 내부화)
-  - [ADR-006 Redis 분산 락 선택](04_decisions/ADR-006-redis-lock.md)
+  - [ADR-006 Redis 분산 락 선택](04_decisions/ADR-006-redis-lock.md) ⛔ (Superseded — CUT-1 SQLite write 락)
   - [ADR-007 경매 단위 "1일권" 고정](04_decisions/ADR-007-one-day-unit.md)
   - [ADR-008 연말 일괄 배당](04_decisions/ADR-008-year-end-dividend.md)
   - [ADR-009 복지 포인트 재활용 (v2)](04_decisions/ADR-009-point-reuse.md)

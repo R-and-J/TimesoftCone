@@ -1,9 +1,9 @@
 // WalletRepository — port to load and persist Wallet aggregates.
 // Implementations live in adapters/persistence/.
 //
-// Concurrency note: scope-cuts CUT-1: the bid path serializes via a MySQL
-// InnoDB row lock (SELECT … FOR UPDATE). This repository assumes the caller
-// has acquired any required lock before calling save().
+// Concurrency note: scope-cuts CUT-1: the bid path serializes via the SQLite
+// database write lock (taken in UnitOfWork.lockAuction). This repository assumes
+// the caller has acquired any required lock before calling save().
 
 import type { Wallet } from "../domain/wallet/wallet";
 import type { Currency } from "../domain/shared/value-objects/currency";

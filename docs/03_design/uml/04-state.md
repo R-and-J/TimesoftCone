@@ -85,7 +85,7 @@ stateDiagram-v2
     note right of OPEN
         entry / WebSocket 채널 개설
         do / 입찰 수신 대기
-        exit / 행 락 해제(트랜잭션 종료)
+        exit / write 락 해제(트랜잭션 종료)
     end note
 
     note right of AWARDED
@@ -124,7 +124,7 @@ stateDiagram-v2
 | 상태 | 유형 | entry 액션 | do 액션 | exit 액션 |
 |---|---|---|---|---|
 | **CREATED** | Composite | Stake 비율 계산 | 오픈 시점 대기 | 시퀀스 ID 부여 |
-| **OPEN** | Composite | WebSocket 채널 개설 | 입찰 수신 대기 | 행 락 해제(트랜잭션 종료) |
+| **OPEN** | Composite | WebSocket 채널 개설 | 입찰 수신 대기 | write 락 해제(트랜잭션 종료) |
 | **CLOSED** | Simple | 최종 최고가 동결 | 낙찰 여부 판정 | winner_id 확정 |
 | **AWARDED** | Composite | 낙찰 이벤트 발행 | — | 지표 대시보드 업데이트 |
 | **UNSOLD** | Composite | 유찰 콘솔 표시 | EVENT 수동 지급 대기 | — |
