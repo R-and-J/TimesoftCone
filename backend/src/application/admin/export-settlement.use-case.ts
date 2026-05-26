@@ -8,6 +8,12 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/adapters/persistence/prisma.service";
 import { GetAdminStatsUseCase } from "./get-admin-stats.use-case";
 
+/** Date → "YYYY-MM-DD HH:mm" (서버 로컬=KST). ISO 대신 사람이 읽기 좋은 형식. */
+function fmtDateTime(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export type LeaveGrantRow = {
   empId: string;
   name: string;
@@ -24,7 +30,7 @@ export type DividendRow = {
   empId: string;
   name: string;
   contributedDays: number;
-  stakeRatio: number;
+  stakePct: number;
   dividendPoint: number;
 };
 
@@ -62,7 +68,7 @@ export class ExportSettlementUseCase {
           days: a.leaveDays,
           auctionId: a.id,
           amountPoint: Number(a.highest),
-          grantedAt: at.toISOString(),
+          grantedAt: fmtDateTime(at),
         };
       });
   }
@@ -85,7 +91,7 @@ export class ExportSettlementUseCase {
         empId: c.empId,
         name: c.name,
         contributedDays: c.contributedDays,
-        stakeRatio: Number(ratio.toFixed(6)),
+        stakePct: Number((ratio * 100).toFixed(2)),
         dividendPoint: Math.floor(escrow * ratio),
       };
     });
