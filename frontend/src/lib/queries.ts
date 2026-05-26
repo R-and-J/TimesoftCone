@@ -106,6 +106,8 @@ export type LoginResponse = {
   name: string;
   role: "EMPLOYEE" | "ADMIN";
   team: string | null;
+  jobRank: string | null;
+  jobTitle: string | null;
   email: string | null;
   provisioned: boolean;
 };

@@ -28,7 +28,9 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
   const [open, setOpen] = useState(false);
 
   const displayName = user ?? current.name;
-  const displayRole = role ?? (current.role === "ADMIN" ? "관리자" : "사원");
+  // 직급(ezpass clsf_nm)을 우선 표시. 없으면 role 라벨로 폴백. (ADR-020)
+  const displayRole =
+    role ?? current.jobRank ?? (current.role === "ADMIN" ? "관리자" : "사원");
 
   const items: { id: NonNullable<Props["active"]>; label: string }[] = [
     { id: "dashboard", label: "홈" },
@@ -125,6 +127,13 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
                 <Avatar p={p} name={current.name} size={28} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>{current.name}</div>
+                  {(current.team || current.jobRank || current.jobTitle) && (
+                    <div style={{ fontSize: 11, color: p.inkSoft }}>
+                      {[current.team, [current.jobRank, current.jobTitle].filter(Boolean).join("/")]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  )}
                   <div className="mono" style={{ fontSize: 10, color: p.inkMuted }}>
                     {current.email ?? current.empId} · {current.role}
                   </div>

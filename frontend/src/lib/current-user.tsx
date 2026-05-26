@@ -10,6 +10,10 @@ export type CurrentUser = {
   empId: string;
   role: "EMPLOYEE" | "ADMIN";
   team: string | null;
+  /** 직급 (ezpass clsf_nm). */
+  jobRank?: string | null;
+  /** 직책 (ezpass ofcsprtps_nm). */
+  jobTitle?: string | null;
   email: string | null;
 };
 

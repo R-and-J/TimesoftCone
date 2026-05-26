@@ -22,6 +22,10 @@ export type LoginResult = {
   name: string;
   role: "EMPLOYEE" | "ADMIN";
   team: string | null;
+  /** 직급 (ezpass clsf_nm) — 배치 동기화로 채워진 표시용 값. */
+  jobRank: string | null;
+  /** 직책 (ezpass ofcsprtps_nm). */
+  jobTitle: string | null;
   email: string | null;
   /** 이 로그인으로 우리 users 행이 새로 생성됐는지. */
   provisioned: boolean;
@@ -48,27 +52,34 @@ export class LoginUseCase {
     let user = await this.prisma.user.findUnique({ where: { email: identity.email } });
     let provisioned = false;
 
-    // 3. 없으면 자동 프로비저닝
+    // role은 ezpass 관리자권한(mngrAuthorAt)으로 매 로그인 재동기화 (ADR-020).
+    const role: "EMPLOYEE" | "ADMIN" = identity.isAdmin ? "ADMIN" : "EMPLOYEE";
+    const name = identity.name ?? identity.email.split("@")[0];
+
     if (!user) {
+      // 3. 없으면 자동 프로비저닝
       const empId = `EZP-${identity.externalUserNo ?? Date.now()}`;
       user = await this.prisma.user.create({
-        data: {
-          empId,
-          email: identity.email,
-          name: identity.name ?? identity.email.split("@")[0],
-          role: identity.isAdmin ? "ADMIN" : "EMPLOYEE",
-        },
+        data: { empId, email: identity.email, name, role },
       });
       provisioned = true;
+    } else if (user.role !== role || user.name !== name) {
+      // 3-b. 기존 사용자는 role/이름을 ezpass 기준으로 재동기화.
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role, name },
+      });
     }
 
-    // 4. 우리 사용자 정보 반환
+    // 4. 우리 사용자 정보 반환 (직급/직책은 배치 동기화로 채워진 값)
     return {
       userId: user.id,
       empId: user.empId,
       name: user.name,
       role: user.role,
       team: user.team,
+      jobRank: user.jobRank,
+      jobTitle: user.jobTitle,
       email: user.email,
       provisioned,
     };

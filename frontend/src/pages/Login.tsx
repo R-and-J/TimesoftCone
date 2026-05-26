@@ -79,6 +79,8 @@ function useLoginForm() {
         empId: r.empId,
         role: r.role,
         team: r.team,
+        jobRank: r.jobRank,
+        jobTitle: r.jobTitle,
         email: r.email,
       });
       toast.push("success", `${r.name}님으로 로그인했습니다`);
