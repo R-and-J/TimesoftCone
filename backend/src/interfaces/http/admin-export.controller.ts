@@ -17,11 +17,25 @@ function toCsv(rows: Record<string, unknown>[]): string {
   return "﻿" + lines.join("\r\n"); // BOM → Excel이 한글 UTF-8 인식
 }
 
+function toMarkdown(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return "_(데이터 없음)_\n";
+  const headers = Object.keys(rows[0]);
+  const esc = (v: unknown) => String(v ?? "").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
+  const head = `| ${headers.join(" | ")} |`;
+  const sep = `| ${headers.map(() => "---").join(" | ")} |`;
+  const body = rows.map((r) => `| ${headers.map((h) => esc(r[h])).join(" | ")} |`).join("\n");
+  return `${head}\n${sep}\n${body}\n`;
+}
+
 function send(res: Response, format: string, rows: Record<string, unknown>[], filename: string) {
   if (format === "csv") {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}.csv"`);
     res.send(toCsv(rows));
+  } else if (format === "md") {
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}.md"`);
+    res.send(toMarkdown(rows));
   } else {
     res.json(rows);
   }
@@ -31,13 +45,13 @@ function send(res: Response, format: string, rows: Record<string, unknown>[], fi
 export class AdminExportController {
   constructor(private readonly exporter: ExportSettlementUseCase) {}
 
-  /** 낙찰 AUCTION 연차 부여 내역. ?format=csv|json (기본 json) */
+  /** 낙찰 AUCTION 연차 부여 내역. ?format=csv|json|md (기본 json) */
   @Get("leave-grants")
   async leaveGrants(@Query("format") format = "json", @Res() res: Response) {
     send(res, format, await this.exporter.leaveGrants(), "leave-grants");
   }
 
-  /** 연말 배당 내역. ?format=csv|json */
+  /** 연말 배당 내역. ?format=csv|json|md */
   @Get("dividends")
   async dividends(@Query("format") format = "json", @Res() res: Response) {
     send(res, format, await this.exporter.dividends(), "dividends");
