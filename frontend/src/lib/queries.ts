@@ -202,3 +202,40 @@ export function listLedger(params: {
   const tail = qs.toString();
   return apiGet<ListLedgerResponse>(`/admin/ledger${tail ? `?${tail}` : ""}`);
 }
+
+// ── Members (회원관리) ─────────────────────────────────────────────
+// 위임형(ezpass) 배포: 우리 users는 ezpass 미러라 읽기 전용 + 동기화만.
+export type MemberRow = {
+  userId: string;
+  empId: string;
+  name: string;
+  email: string | null;
+  team: string | null;
+  jobRank: string | null;
+  jobTitle: string | null;
+  role: "EMPLOYEE" | "ADMIN";
+};
+
+export type MemberListResponse = {
+  source: "ezpass-mirror";
+  total: number;
+  admins: number;
+  members: MemberRow[];
+};
+
+export type SyncMembersResponse = {
+  synced: number;
+  created: number;
+  updated: number;
+  total: number;
+  at: string;
+  errors: string[];
+};
+
+export function listMembers() {
+  return apiGet<MemberListResponse>("/admin/members");
+}
+
+export function syncMembers() {
+  return apiPost<SyncMembersResponse>("/admin/members/sync", {});
+}

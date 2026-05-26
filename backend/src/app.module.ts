@@ -11,6 +11,7 @@ import { PrismaAuctionRepository } from "./adapters/persistence/prisma-auction.r
 import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
+import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 
 // Use cases
@@ -28,6 +29,8 @@ import { LoginUseCase } from "./application/auth/login.use-case";
 import { GetAdminStatsUseCase } from "./application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "./application/admin/list-ledger.use-case";
 import { ExportSettlementUseCase } from "./application/admin/export-settlement.use-case";
+import { ListMembersUseCase } from "./application/admin/list-members.use-case";
+import { SyncMembersUseCase } from "./application/admin/sync-members.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 
 // HTTP
@@ -39,6 +42,7 @@ import { MeController } from "./interfaces/http/me.controller";
 import { AuthController } from "./interfaces/http/auth.controller";
 import { AdminController } from "./interfaces/http/admin.controller";
 import { AdminExportController } from "./interfaces/http/admin-export.controller";
+import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 
 // Port symbols
@@ -48,6 +52,7 @@ import { LEDGER_REPOSITORY } from "./ports/ledger-repository";
 import { AUCTION_REPOSITORY } from "./ports/auction-repository";
 import { UNIT_OF_WORK } from "./ports/unit-of-work";
 import { AUTH_PROVIDER } from "./ports/auth-provider";
+import { MEMBER_DIRECTORY } from "./ports/member-directory";
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true })],
@@ -59,6 +64,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
     AdminAuctionsController,
     AdminController,
     AdminExportController,
+    AdminMembersController,
     DividendController,
     MeController,
   ],
@@ -71,6 +77,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
     PrismaUnitOfWork,
     WelfarePointProvider,
     EzpassAuthProvider,
+    MsaportalMemberDirectoryAdapter,
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
     { provide: LEDGER_REPOSITORY, useExisting: PrismaLedgerRepository },
@@ -78,6 +85,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
     { provide: UNIT_OF_WORK, useExisting: PrismaUnitOfWork },
     { provide: BIDDING_CURRENCY, useExisting: WelfarePointProvider },
     { provide: AUTH_PROVIDER, useExisting: EzpassAuthProvider },
+    { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
 
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
@@ -93,6 +101,8 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
     GetAdminStatsUseCase,
     ListLedgerUseCase,
     ExportSettlementUseCase,
+    ListMembersUseCase,
+    SyncMembersUseCase,
     GetMyDividendUseCase,
 
     SettleDueAuctionsScheduler,

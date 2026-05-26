@@ -11,6 +11,7 @@ import MyActivityPage from "@/pages/MyActivity";
 import DividendPage from "@/pages/Dividend";
 import AdminOpsPage from "@/pages/AdminOps";
 import AdminLedgerPage from "@/pages/AdminLedger";
+import AdminMembersPage from "@/pages/AdminMembers";
 import { useAuth } from "@/lib/current-user";
 
 // 로그인 안 된 상태로 보호된 페이지 접근 시 /login으로. 보호된 페이지는
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/dividend" element={<RequireAuth><DividendPage /></RequireAuth>} />
         <Route path="/admin/ops" element={<RequireAuth><AdminOpsPage /></RequireAuth>} />
         <Route path="/admin/ledger" element={<RequireAuth><AdminLedgerPage /></RequireAuth>} />
+        <Route path="/admin/members" element={<RequireAuth><AdminMembersPage /></RequireAuth>} />
 
         {/* Developer escape hatch — full 12-screen catalog. */}
         <Route path="/_screens" element={<IndexPage />} />

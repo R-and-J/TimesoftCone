@@ -3,6 +3,7 @@ import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { AdminTabs } from "@/components/AdminTabs";
 import {
   listLedger,
   type LedgerActionType,
@@ -99,8 +100,9 @@ export default function AdminLedgerPage() {
           flexDirection: "column",
         }}
       >
-        <TopNav p={p} active="admin" user="박부장" role="관리자" />
+        <TopNav p={p} active="admin" />
         <div style={{ flex: 1, padding: "24px 40px", overflow: "auto" }}>
+          <AdminTabs p={p} active="ledger" />
           <div
             style={{
               display: "flex",
