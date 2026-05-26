@@ -173,7 +173,7 @@ flowchart LR
 
 | 유스케이스 | SRS | ADR |
 |---|---|---|
-| 입찰 신청 | FR-2.1 | ADR-006 |
+| 입찰 신청 | FR-2.1 | CUT-1 (ADR-006 Superseded) |
 | 낙찰 확정 처리 | FR-2.2 | ADR-001, ADR-005 |
 | HR API 연차 권한 부여 | FR-2.3 | ADR-005 |
 | 연차 사용 신청 | FR-3.1 | ADR-002, ADR-003 |

@@ -58,7 +58,6 @@ https://auction.company.internal/api/v1
 | `BID_TOO_LOW` | 400 | 현재 최고가보다 낮거나 같음 |
 | `INVALID_STATE_TRANSITION` | 409 | 허용되지 않는 경매 상태 전이 (ADR-014) |
 | `AUCTION_CLOSED` | 409 | 마감된 경매에 입찰 시도 |
-| `LOCK_CONFLICT` | 409 | Redis 락 획득 실패 (재시도 권장) |
 | `REASON_REQUIRED` | 400 | 관리자 적립 시 사유 누락 (FR-5.1) |
 | `HR_API_TIMEOUT` | 502 | HR API 응답 지연 (Outbox 재시도 처리 중) |
 | `ESCROW_MISMATCH` | 500 | 에스크로 정합성 오류 (Critical) |
@@ -218,7 +217,7 @@ Body:
 ```
 
 **흐름** (Hexagonal — ADR-012 / State 패턴 — ADR-014):
-1. `LockProvider.withLock(auction:{id})` — Redis 분산 락 TTL 5s
+1. `UnitOfWork.lockAuction(id)` — MySQL 행 락 `SELECT … FOR UPDATE` (트랜잭션 동안 보유)
 2. `auction.placeBid(...)` — State 객체가 `OpenState`일 때만 허용, 최고가 비교
 3. `BiddingCurrency.debit(...)` — wallet 잔액 검증 + 즉시 차감 (외부 호출 없음)
 4. DB 트랜잭션: wallet 차감 + 최고가 갱신 + `LEDGER_ENTRY` INSERT
@@ -231,8 +230,7 @@ Body:
   "data": {
     "auctionId": 101,
     "acceptedAmount": 9000,
-    "newHighestBid": 9000,
-    "lockHeldMs": 47
+    "newHighestBid": 9000
   }
 }
 ```

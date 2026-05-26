@@ -33,7 +33,7 @@
 ### 흐름
 
 ```
-입찰 접수 (단일 DB 트랜잭션, Redis 락 보유 중):
+입찰 접수 (단일 DB 트랜잭션, 행 락(`FOR UPDATE`) 보유 중):
   ├─ auction.placeBid() — OpenState, amount >= highest_bid + 증분 검증
   ├─ BiddingCurrency.debit(신규입찰자, amount)
   ├─ LEDGER_ENTRY INSERT (BID, -amount, 신규입찰자)
@@ -93,7 +93,7 @@
 ## 관련 문서
 
 - [[ADR-009]] 복지 포인트 재활용 — "즉시 차감, 취소 시 REFUND" 원칙
-- [[ADR-006]] Redis 분산 락 — 입찰 직렬화
+- [[ADR-006]] (Superseded) 입찰 직렬화는 CUT-1 행 락으로
 - [[business-rules]] §2.3 패자 환불 흐름, OP-4 분산 오픈
 - [[edge-cases]] EC-1(퇴사자), EC-6(동점), EC-9(잔액 부족)
 - [[SRS]] FR-2.1, FR-2.2 — 입찰·낙찰 요구사항

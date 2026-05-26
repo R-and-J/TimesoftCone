@@ -12,7 +12,7 @@
 | **0. 설계 마감** | Week 0 (1주) | 미결 ADR 해소, 기술스택 확정, 구조 ADR 확정 | ADR-005 Accepted, tech-stack 확정, **ADR-010~017 적용**, 도메인 계산식 명세 |
 | **1. 인프라 준비** | Week 1 (1주) | 개발환경, CI/CD 골격, Hexagonal 디렉토리 구조 | repo, docker-compose, Jenkinsfile, ESLint boundaries 규칙 |
 | **2. 도메인 코어** | Week 2~3 (2주) | Value Object·State 패턴·이벤트 정의 | Auction/Bid/Wallet/Escrow 도메인 + 단위 테스트 |
-| **3. 어댑터 + 경매 핵심** | Week 4~5 (2주) | Repository·LockProvider·CurrencyProvider 구현체, 입찰·낙찰 | 어댑터 + AuctionService, WebSocket |
+| **3. 어댑터 + 경매 핵심** | Week 4~5 (2주) | Repository·CurrencyProvider 구현체, 입찰·낙찰 | 어댑터 + AuctionService, WebSocket |
 | **4. HR 연동** | Week 6 (1주) | Outbox Worker, Mock/Real HR Client (Adapter) | ADR-005 구현 |
 | **5. 배치·배당** | Week 7 (1주) | 12/31 연말 배치, 관리자 적립 API | 배치 스케줄러 + FR-5.1 API |
 | **6. 프론트엔드** | Week 4~7 (4주, 병렬) | React UI, 실시간 입찰 화면 | 핵심 5개 화면 |
@@ -79,7 +79,7 @@
   3.4 Auction 도메인 (State 패턴 — ADR-014)
     3.4.1 6개 상태 객체 (CREATED/OPEN/CLOSED/AWARDED/UNSOLD/EXPIRED)
     3.4.2 경매 조회 API
-    3.4.3 입찰 API (LockProvider 어댑터 + Redis 구현)
+    3.4.3 입찰 API (UnitOfWork.lockAuction — MySQL 행 락)
     3.4.4 낙찰 배치 (경매 마감 처리 — wallet·escrow·ledger·leave 단일 트랜잭션)
   3.5 LeavePool 컨텍스트 — 연말 풀 수집 (ADR-017)
     3.5.1 12/31 풀 수집 배치 (REGULAR 미사용 → 매물 생성)
@@ -150,7 +150,7 @@
 | 담당 | Task | 산출물 |
 |---|---|---|
 | 김기철 | TypeORM/Prisma Repository 어댑터 | `adapters/persistence/` |
-| 오지석 | RedisLockProvider · WelfarePointProvider | `adapters/redis/`, `adapters/wallet/` |
+| 오지석 | WelfarePointProvider · UnitOfWork 행 락 | `adapters/wallet/`, `adapters/persistence/` |
 | 공동 | PlaceBid / SettleAuction Use Case + WebSocket | `application/`, `interfaces/websocket/` |
 
 (이하 매주 업데이트)
@@ -165,7 +165,7 @@
 |---|---|---|---|---|
 | R1 | ~~ADR-005 결정 지연~~ ✅ 해소 (Outbox + 내부화 확정) | — | — | — |
 | R2 | HR API Mock 환경 부재 | 높음 | 중 | WireMock 기반 Mock HR 서버 구축 + HrClient 어댑터 인터페이스 분리 |
-| R3 | Redis 분산 락 동시성 버그 | 중 | 높음 | k6 부하 테스트 조기 수행 |
+| R3 | 행 락 경합/데드락 | 중 | 높음 | k6 부하 테스트 조기 수행 |
 | R4 | 프론트-백 API 스펙 불일치 | 중 | 중 | OpenAPI 기반 codegen 도입 |
 | R5 | 2인 팀 병가/휴가로 병목 | 중 | 높음 | PR 크로스 리뷰 + 문서화 강화 |
 | R6 | 일학습병행제 업무 일정과 충돌 | 높음 | 중 | 주간 가용 시간 사전 공유 |

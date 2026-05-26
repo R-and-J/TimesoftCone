@@ -12,7 +12,6 @@
 - [ ] 백엔드 언어/프레임워크
 - [ ] 프론트엔드 프레임워크
 - [ ] DB 제품/버전
-- [ ] Redis 버전 및 클라이언트 라이브러리
 - [ ] 메시지 큐 제품 (ADR-005 결과에 따라 필요)
 - [ ] 컨테이너화 여부 (Docker 기본 전제)
 - [ ] 배포 환경 (K8s / ECS / Cloud Run / VM)
@@ -51,12 +50,9 @@
 | MySQL 8 | 대안 | 가능하지만 파티셔닝·CHECK 제약이 PG보다 약함 |
 | Oracle/MSSQL | 비권장 | 라이선스 부담 |
 
-### 2.4 분산 락 / 캐시
+### 2.4 동시성 제어 (분산 락)
 
-| 후보 | 결정 | 근거 |
-|---|---|---|
-| **Redis 7.x** | ✅ **권장** | SRS NFR-1, ADR-006. Lua 스크립트 지원. |
-| 클라이언트 | **Redisson (Java)** 또는 **ioredis + redlock (Node)** | |
+**MySQL InnoDB 행 락(`SELECT … FOR UPDATE`) 채택** — 단일 인스턴스라 별도 락 인프라 불필요 (scope-cuts CUT-1). Redis 미사용.
 
 ### 2.5 메시지 큐 (ADR-005 Outbox 채택 시)
 
@@ -99,8 +95,7 @@
 | **프론트** | React + Vite | React 18, Vite 5 |
 | UI 라이브러리 | Mantine or MUI | |
 | **DB** | PostgreSQL | 16 |
-| **캐시/락** | Redis | 7.2 |
-| Redis 클라이언트 | ioredis + redlock | |
+| **동시성 제어** | MySQL 행 락(`FOR UPDATE`) | — |
 | **실시간** | Socket.IO | |
 | **MQ/Outbox** | PostgreSQL Outbox 테이블 (Phase 1), Kafka (Phase 2) | |
 | **컨테이너** | Docker | |
@@ -119,7 +114,7 @@
 |---|---|
 | 백엔드 | Spring Boot 3.x (Kotlin) |
 | ORM | Spring Data JPA + QueryDSL |
-| Redis | Redisson |
+| 동시성 | DB 행 락 |
 | 나머지 | 위와 동일 |
 
 ---
@@ -131,7 +126,6 @@
 node: 20.11.x
 typescript: 5.3.x
 postgres: 16.2
-redis: 7.2.4
 ```
 
 ---
@@ -147,4 +141,4 @@ redis: 7.2.4
 - [architecture.md](../03_design/architecture.md)
 - [dev-setup.md](dev-setup.md)
 - [ADR-005](../04_decisions/ADR-005-hr-api-timing.md)
-- [ADR-006](../04_decisions/ADR-006-redis-lock.md)
+- [ADR-006](../04_decisions/ADR-006-redis-lock.md) (Superseded — CUT-1)

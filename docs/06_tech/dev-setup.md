@@ -1,7 +1,7 @@
 # 개발 환경 설정 가이드
 
 **상태**: ⚪ TODO — 기술 스택 확정 후 완성
-**전제**: [tech-stack.md](tech-stack.md)의 권장 스택 기준 (NestJS + PostgreSQL + Redis + Docker)
+**전제**: [tech-stack.md](tech-stack.md)의 권장 스택 기준 (NestJS + MySQL + Docker)
 
 ---
 
@@ -51,7 +51,7 @@ cp .env.example .env
 # 의존성 설치
 npm install
 
-# 인프라 컨테이너 기동 (PG + Redis)
+# 인프라 컨테이너 기동 (MySQL)
 docker compose up -d
 
 # DB 마이그레이션 + 시드
@@ -80,16 +80,8 @@ services:
       - pg_data:/var/lib/postgresql/data
       - ./06_tech/db-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
 
-  redis:
-    image: redis:7.2-alpine
-    ports: ["6379:6379"]
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-
 volumes:
   pg_data:
-  redis_data:
 ```
 
 ---
@@ -103,10 +95,6 @@ PORT=3000
 
 # Database
 DATABASE_URL=postgresql://auction:auction_dev@localhost:5432/auction_dev
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
 
 # SSO
 SSO_PROVIDER=company-idp
@@ -168,15 +156,11 @@ k6 run tests/load/bid-concurrent.js
 
 ## 8. 트러블슈팅
 
-### Q1. Docker Desktop이 Redis에 연결 실패
-
-→ WSL 2 모드에서 실행 중인지 확인 (`wsl --status`), `localhost` 대신 `host.docker.internal` 사용 확인.
-
-### Q2. PostgreSQL 파티션 생성 오류
+### Q1. PostgreSQL 파티션 생성 오류
 
 → 파티션 테이블은 수동 생성 필요. `db-schema.sql` 끝부분 참조.
 
-### Q3. SSO 콜백이 localhost에서 작동 안 함
+### Q2. SSO 콜백이 localhost에서 작동 안 함
 
 → 사내 IdP가 외부 도메인만 허용하는 경우, `ngrok`으로 터널링하거나 개발용 Mock IdP 사용.
 

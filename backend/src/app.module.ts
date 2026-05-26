@@ -27,6 +27,7 @@ import { GetUserLeaveUseCase } from "./application/user/get-user-leave.use-case"
 import { LoginUseCase } from "./application/auth/login.use-case";
 import { GetAdminStatsUseCase } from "./application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "./application/admin/list-ledger.use-case";
+import { ExportSettlementUseCase } from "./application/admin/export-settlement.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 
 // HTTP
@@ -37,6 +38,7 @@ import { AdminAuctionsController } from "./interfaces/http/admin-auctions.contro
 import { MeController } from "./interfaces/http/me.controller";
 import { AuthController } from "./interfaces/http/auth.controller";
 import { AdminController } from "./interfaces/http/admin.controller";
+import { AdminExportController } from "./interfaces/http/admin-export.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 
 // Port symbols
@@ -56,6 +58,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
     AuctionsController,
     AdminAuctionsController,
     AdminController,
+    AdminExportController,
     DividendController,
     MeController,
   ],
@@ -89,6 +92,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
     LoginUseCase,
     GetAdminStatsUseCase,
     ListLedgerUseCase,
+    ExportSettlementUseCase,
     GetMyDividendUseCase,
 
     SettleDueAuctionsScheduler,

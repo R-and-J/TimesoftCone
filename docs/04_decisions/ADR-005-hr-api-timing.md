@@ -10,12 +10,12 @@
 UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 
 ```
-1. Redis LOCK
+1. 행 락 획득 (SELECT … FOR UPDATE)
 2. 포인트 차감 (DB)
 3. 에스크로 적립 (DB)
 4. POST /api/hr/leave  ← ⚠️ HR API 호출
 5. COMMIT
-6. Redis UNLOCK
+6. (트랜잭션 커밋 시 자동 해제)
 ```
 
 **문제**: HR API 호출이 **DB COMMIT 전**에 있다. 외부 시스템은 DB처럼 자동 롤백되지 않는다.
@@ -59,12 +59,12 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 
 **흐름**:
 ```
-1. Redis LOCK
+1. 행 락 획득 (SELECT … FOR UPDATE)
 2. BEGIN TRANSACTION
 3. 포인트 차감, 에스크로 적립, 로그 INSERT
 4. outbox 테이블에 HR API 발행 요청 INSERT (같은 트랜잭션!)
 5. COMMIT  ← 여기까지 원자적
-6. Redis UNLOCK
+6. (트랜잭션 커밋 시 자동 해제)
 ---
 (비동기 Worker)
 7. outbox 폴링 → HR API 호출 → 성공 시 outbox 레코드 "sent" 마킹

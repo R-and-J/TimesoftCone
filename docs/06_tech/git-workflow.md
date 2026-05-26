@@ -40,7 +40,7 @@ main (protected, 항상 배포 가능 상태)
 ### Type
 | Type | 의미 | 예시 |
 |---|---|---|
-| `feat` | 신규 기능 | `feat(auction): 입찰 API 및 Redis 락 통합` |
+| `feat` | 신규 기능 | `feat(auction): 입찰 API 및 행 락 동시성 처리` |
 | `fix` | 버그 수정 | `fix(escrow): 소수점 반올림 오차 수정` |
 | `docs` | 문서 | `docs(adr): ADR-005 Outbox 패턴 확정` |
 | `refactor` | 기능 변화 없는 구조 개선 | |
@@ -53,10 +53,10 @@ main (protected, 항상 배포 가능 상태)
 
 ### 예시
 ```
-feat(bid): Redis 분산 락을 이용한 동시 입찰 처리 구현
+feat(bid): MySQL 행 락을 이용한 동시 입찰 직렬화 구현
 
-- ADR-006 결정 반영
-- Redlock 알고리즘 사용 (TTL 5s)
+- scope-cuts CUT-1 반영
+- SELECT … FOR UPDATE (트랜잭션 수명)
 - 통합 테스트 추가 (k6 부하 시나리오)
 
 Closes #12

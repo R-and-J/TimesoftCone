@@ -45,13 +45,13 @@
 | 용어 | 정의 |
 |---|---|
 | **MSA** (Microservices Architecture) | 마이크로서비스 아키텍처. 본 시스템은 HR 시스템과 독립적인 MSA로 동작. |
-| **분산 락** (Distributed Lock) | 여러 서버 인스턴스에서 공유 자원 접근을 직렬화하는 메커니즘. 본 시스템은 Redis 기반 구현 채택 ([ADR-006](../04_decisions/ADR-006-redis-lock.md)). |
+| **분산 락** (Distributed Lock) | 여러 서버 인스턴스에서 공유 자원 접근을 직렬화하는 메커니즘. 본 시스템은 채택하지 않음 — 단일 인스턴스라 MySQL 행 락(`FOR UPDATE`)으로 대체 (scope-cuts CUT-1, [ADR-006](../04_decisions/ADR-006-redis-lock.md) Superseded). |
 | **Race Condition** | 경쟁 상태. 다수 사용자의 동시 입찰 시 발생할 수 있는 데이터 꼬임. NFR-1의 대응 대상. |
 | **Insert-Only Ledger** | 삽입만 허용되는 대장. 수정·삭제 불가. 금융 시스템의 감사 추적성 확보를 위한 패턴. `LEDGER_ENTRY` 테이블(구 `POINT_TRANSACTION_LOG`)에 적용. |
 | **Outbox Pattern** | DB 트랜잭션 커밋 후 외부 메시지 발행을 보장하는 패턴. ADR-005 후보. |
 | **Saga Pattern** | 분산 트랜잭션을 보상 트랜잭션으로 처리하는 패턴. ADR-005 후보. |
 | **Hexagonal Architecture** (Ports & Adapters) | 도메인 코어를 외부 의존(인프라·외부 API)으로부터 격리하는 구조. `domain → ports → adapters` 의존 방향 ([ADR-012](../04_decisions/ADR-012-hexagonal-architecture.md)). |
-| **Port / Adapter** | Port는 도메인이 외부에 요구하는 *인터페이스*, Adapter는 그 *구현체*. 예: `LockProvider`(port) ↔ `RedisLockProvider`(adapter). |
+| **Port / Adapter** | Port는 도메인이 외부에 요구하는 *인터페이스*, Adapter는 그 *구현체*. 예: `BiddingCurrency`(port) ↔ `WelfarePointProvider`(adapter). |
 | **CurrencyProvider** | 화폐를 추상화한 outbound port. `BiddingCurrency`(입찰 차감)와 `PayoutChannel`(배당 출금)로 ISP 분리 ([ADR-010](../04_decisions/ADR-010-currency-abstraction.md)). |
 | **Domain Event** | 도메인에서 발생한 사실(`BidPlacedEvent` 등). EventBus로 fan-out하여 횡단 관심사를 분리 ([ADR-013](../04_decisions/ADR-013-domain-event.md)). |
 | **State 패턴** | 객체의 상태별 행위를 상태 객체로 분리하는 GoF 패턴. Auction의 6개 상태에 적용 ([ADR-014](../04_decisions/ADR-014-auction-state-pattern.md)). |

@@ -131,7 +131,7 @@ src/
 │   ├── ledger-repository.ts
 │   ├── auction-repository.ts
 │   ├── bidding-currency.ts
-│   └── unit-of-work.ts        ← 트랜잭션 + advisory lock 추상화
+│   └── unit-of-work.ts        ← 트랜잭션 + 행 락(FOR UPDATE) 추상화
 ├── application/       ← Use Cases
 │   ├── wallet/   GetWalletBalance · CreditWalletAdmin
 │   ├── auction/  CreateAuction · ListAuctions · GetAuctionDetail · PlaceBid · SettleAuction
@@ -144,10 +144,10 @@ src/
 
 ## 입찰 트랜잭션 흐름 (가장 중요한 부분)
 
-`PlaceBidUseCase`가 단일 Postgres 트랜잭션에서:
+`PlaceBidUseCase`가 단일 MySQL 트랜잭션에서:
 
 ```
-1. pg_advisory_xact_lock(hashtext(auction_id))    ← 동일 경매 동시 입찰 직렬화
+1. SELECT id FROM auction WHERE id = ? FOR UPDATE  ← 동일 경매 동시 입찰 직렬화 (행 락, CUT-1)
 2. SELECT auction WHERE id = ?
 3. auction.placeBid(bidder, amount, now)           ← 도메인 검증
 4. 이전 최고가 입찰자 있으면:
@@ -169,7 +169,7 @@ src/
 |---|---|---|
 | Insert-Only 원장 | `LedgerRepository`에 update/delete 없음 | `reject_ledger_mutation()` 트리거 |
 | Point 음수 불가 | `Point.of()` 검증 | `wallet.balance_nonnegative` CHECK |
-| 동일 경매 동시 입찰 직렬화 | `PrismaUnitOfWork.lockAuction` | `pg_advisory_xact_lock` |
+| 동일 경매 동시 입찰 직렬화 | `PrismaUnitOfWork.lockAuction` | `SELECT … FOR UPDATE` (행 락) |
 | 입찰 = 최고가 + 최소 증분 | `Auction.placeBid()` 가드 | (도메인 책임) |
 | 같은 사람 연속 입찰 금지 | `Auction.placeBid()` 가드 | (도메인 책임) |
 | 마감 후 입찰 거부 | `Auction.placeBid()` 가드 | (도메인 책임) |
@@ -191,7 +191,7 @@ npm test
 
 자세한 내역과 되돌리는 비용은 [`scope-cuts.md`](../06_tech/scope-cuts.md). 요약:
 
-- **CUT-1**: Redis 분산 락 → `pg_advisory_xact_lock`
+- **CUT-1**: Redis 분산 락 → MySQL 행 락(`SELECT … FOR UPDATE`)
 - **CUT-2**: in-process 도메인 이벤트 버스 → use case가 직접 호출
 - **CUT-3**: State Pattern → `AuctionStatus` enum + 가드 절
 - **CUT-4**: Outbox → 외부 호출 없으니 생략 (ADR-005 dormant)
@@ -207,7 +207,7 @@ npm test
 | Leave | LeaveGrantPort + InternalLeaveAdapter ([ADR-016](../04_decisions/ADR-016-internal-leave-system.md)) |
 | LeavePool | 연말 배당 잡 + LeavePool 컨텍스트 ([ADR-008](../04_decisions/ADR-008-year-end-dividend.md), [ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |
 | Tests | 어댑터 통합 테스트 (testcontainers) |
-| CUT 부활 | Redis 락 / WebSocket / Anti-snipe / 도메인 이벤트 |
+| CUT 부활 | WebSocket / Anti-snipe / 도메인 이벤트 |
 
 ## 참고
 

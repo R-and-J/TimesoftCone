@@ -37,7 +37,7 @@ function Login({ p }) {
           {[
             { k: '재무 리스크', v: '0%', sub: '회사 예산 선투입 없음' },
             { k: '재무 정합성', v: '100%', sub: 'Insert-Only 원장' },
-            { k: '동시성 제어', v: 'Redis', sub: '분산 락 · NFR-1' },
+            { k: '동시성 제어', v: 'DB 행 락', sub: 'SELECT FOR UPDATE · NFR-1' },
           ].map((s, i) => (
             <div key={i} style={{ flex: 1, background: p.surface, borderRadius: 18, padding: 18 }}>
               <div style={{ fontSize: 12, color: p.inkMuted, fontWeight: 500 }}>{s.k}</div>

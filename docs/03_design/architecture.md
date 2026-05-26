@@ -29,13 +29,14 @@
 │  ┌──────┴─────────────────┴─────────────────────┴──────────┐     │
 │  │     공통: 인증 미들웨어 / 로깅 / 메트릭 / EventBus         │     │
 │  └──────────────────────────────────────────────────────────┘     │
-└──────┬─────────────────┬──────────────────┬──────────────────────┘
+└──────┬─────────────────┬──────────────────┬────────────────────┘
        │                 │                  │
-┌──────▼─────┐   ┌───────▼──────┐   ┌──────▼─────────┐   ┌────────────┐
-│ PostgreSQL │   │ Redis         │   │ Outbox / MQ    │   │ 외부: HR    │
-│ (원장 +     │   │ (분산 락 +    │   │ (HR 호출 큐)    │   │  시스템 API │
-│  wallet DB) │   │  실시간 상태)  │   │                │   │            │
-└────────────┘   └──────────────┘   └────────────────┘   └────────────┘
+┌──────▼─────┐   ┌──────▼─────────┐   ┌──────▼─────┐
+│ PostgreSQL │   │ Outbox / MQ    │   │ 외부: HR    │
+│ (원장 +     │   │ (HR 호출 큐)    │   │  시스템 API │
+│  wallet DB  │   │                │   │            │
+│  + 행 락)    │   │                │   │            │
+└────────────┘   └────────────────┘   └────────────┘
 ```
 
 > **MSA 경계 주의**: 각 서비스는 *논리적으로* 분리되어 있으나, 입찰·정산·배당이 공유하는 `wallet`·`escrow`·`stake` 데이터로 인해 *물리적으로는* 단일 배포 단위로 시작한다. 진짜 마이크로서비스 분리는 Hexagonal 경계(ADR-012)가 자연 분리선을 제공한다.
@@ -66,12 +67,12 @@
                                    ▼
                ┌────────  Outbound Ports (ports/)  ─────────────┐
                │  WalletRepository · AuctionRepository          │
-               │  LockProvider · BiddingCurrency · PayoutChannel│
+               │  BiddingCurrency · PayoutChannel              │
                │  HrClient · NotificationChannel · EventBus     │
                └────────────────────┬───────────────────────────┘
                                     ▼
        ┌─────────────  Outbound Adapters (adapters/)  ───────────────┐
-       │   PostgreSQL · Redis · WireMock/Real HR · Slack · Emitter   │
+       │   PostgreSQL · WireMock/Real HR · Slack · Emitter           │
        └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,11 +83,10 @@
 | 컴포넌트 | 책임 | 핵심 관심사 |
 |---|---|---|
 | **AuthService** | SSO 인증 / 세션 / 권한 | HR IdP 연동, JWT 발급 |
-| **AuctionService** | 경매 목록·입찰·낙찰·실시간 알림 | State 패턴(ADR-014), Redis 분산 락, Domain Event |
+| **AuctionService** | 경매 목록·입찰·낙찰·실시간 알림 | State 패턴(ADR-014), MySQL 행 락(`FOR UPDATE`), Domain Event |
 | **DividendService** | 지분 계산·연말 배당·배치 | 에스크로 정합성 검증, PayoutChannel |
 | **AdminService** | 유찰 재고 수동 지급·관리자 적립·모니터링 | RBAC, 감사 로그 접근, FR-5.1 |
-| **PostgreSQL** | 영구 저장소 (User / Wallet / Auction / LeaveBalance / LedgerEntry) | 트랜잭션 무결성, Insert-Only 트리거 |
-| **Redis** | 분산 락 + 실시간 최고가 캐시 | TTL 기반 락 해제, Pub/Sub |
+| **PostgreSQL** | 영구 저장소 (User / Wallet / Auction / LeaveBalance / LedgerEntry) | 트랜잭션 무결성, Insert-Only 트리거, 행 락(`FOR UPDATE`) |
 | **Outbox / MQ** | HR API 호출 신뢰성 발행 | At-least-once, 멱등 키 |
 | **EventBus** | 프로세스 내부 도메인 이벤트 fan-out (ADR-013) | 횡단 관심사 분리 |
 
@@ -116,13 +116,13 @@
 ```
 [Cloudfront / CloudFlare] → [ALB] → [ECS / Cloud Run + Auto Scaling]
                                       ↓
-                              [Aurora PG] + [ElastiCache Redis] + [SQS]
+                              [Aurora PG] + [SQS]
 ```
 
 **Option B — 온프레미스 K8s**
 
 ```
-[Ingress] → [K8s Pods (Deployment)] → [StatefulSet: PG / Redis]
+[Ingress] → [K8s Pods (Deployment)] → [StatefulSet: PG]
                                       ↓
                                    [RabbitMQ]
 ```
@@ -136,7 +136,7 @@
 ```
 [입찰]
   PlaceBidUseCase
-    ├─ LockProvider.withLock(auction:{id})       ← Redis 락
+    ├─ UnitOfWork.lockAuction(id)                ← MySQL 행 락(FOR UPDATE)
     └─ UnitOfWork.transaction:
          ├─ auction.placeBid(bidderId, amount)   ← State 패턴: OpenState만 허용
          ├─ BiddingCurrency.debit(...)           ← wallet 차감 (외부 호출 X)
@@ -206,9 +206,9 @@
 
 ### 6.3 동시성 (Concurrency)
 
-- Redis 분산 락: `LOCK auction:{id}` TTL 5초 — `LockProvider` 포트로 추상화
-- 실패 시 `lock_acquired: false` 리턴 → 클라이언트 즉시 에러 표시
-- 자세한 근거: [ADR-006](../04_decisions/ADR-006-redis-lock.md)
+- MySQL InnoDB 행 락: `SELECT id FROM auction WHERE id=? FOR UPDATE` — 트랜잭션 동안 보유, 커밋/롤백 시 자동 해제
+- 같은 경매 입찰 직렬화, 별도 인프라 없음
+- 자세한 근거: [scope-cuts.md CUT-1](../06_tech/scope-cuts.md) (ADR-006 Superseded)
 
 ### 6.4 장애 대응
 
@@ -225,7 +225,7 @@
 ## 7. 확장성 고려
 
 - **수평 확장**: AuctionService는 stateless → Pod 증설로 입찰 TPS 확장
-- **병목 지점**: Redis 단일 노드. Replica 구성 필요 시 Redis Sentinel 또는 Cluster
+- **병목 지점**: 인기 경매 1건의 행 락 경합 — 락 보유 구간(트랜잭션)을 짧게 유지
 - **DB 파티셔닝**: `LEAVE_BALANCE.year` 기준 파티셔닝 ([ADR-004](../04_decisions/ADR-004-year-partitioning.md))
 - **MSA 분리 경로**: Hexagonal 경계가 자연 분리선 — `wallet`/`escrow`/`stake` 공유 데이터를 Bounded Context로 떼어낼 때 도메인 코어는 무수정
 

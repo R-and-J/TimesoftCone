@@ -243,7 +243,7 @@ paths:
       tags: [Auction]
       summary: 입찰 (FR-2.1)
       description: |
-        Redis 분산 락 → wallet 차감 → 직전자 즉시 환불 → highest_bid 갱신 → LEDGER_ENTRY → WebSocket 브로드캐스트. 모두 단일 트랜잭션. ADR-006·ADR-018 참조.
+        행 락(`SELECT … FOR UPDATE`) → wallet 차감 → 직전자 즉시 환불 → highest_bid 갱신 → LEDGER_ENTRY → WebSocket 브로드캐스트. 모두 단일 트랜잭션. scope-cuts CUT-1(ADR-006 Superseded)·ADR-018 참조.
       parameters:
         - $ref: '#/components/parameters/AuctionIdPath'
       requestBody:
@@ -272,7 +272,6 @@ paths:
         '409':
           description: |
             - `AUCTION_CLOSED` — 마감된 경매
-            - `LOCK_CONFLICT` — Redis 락 획득 실패
             - `INVALID_STATE_TRANSITION` — OPEN 상태가 아님
           content:
             application/json:
@@ -774,7 +773,7 @@ components:
                 표준 에러 코드:
                 - UNAUTHORIZED · FORBIDDEN · NOT_FOUND
                 - POINT_INSUFFICIENT · BID_TOO_LOW · INVALID_STATE_TRANSITION
-                - AUCTION_CLOSED · LOCK_CONFLICT
+                - AUCTION_CLOSED
                 - REASON_REQUIRED · INVALID_AMOUNT · USER_NOT_FOUND
                 - HR_API_TIMEOUT · ESCROW_MISMATCH
                 - INSUFFICIENT_LEAVE
@@ -962,7 +961,6 @@ components:
           format: int64
           nullable: true
           description: 즉시 환불된 직전 최고가 입찰자 ID (ADR-018)
-        lockHeldMs: { type: integer }
 
     MyBid:
       type: object

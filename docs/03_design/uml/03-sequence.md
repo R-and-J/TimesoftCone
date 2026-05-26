@@ -38,7 +38,6 @@ sequenceDiagram
     end
 
     box rgb(255, 243, 224) Infrastructure
-    participant Redis
     participant DB as PostgreSQL
     participant OB as Outbox Table
     end
@@ -55,11 +54,11 @@ sequenceDiagram
     FE ->> AS: POST /auctions/{id}/bids {amount: 9000}
     activate AS
 
-    %% --------- 2. 분산 락 획득 ---------
-    AS ->> Redis: SET auction:lock:{id} NX PX 5000
-    activate Redis
-    Redis -->> AS: lock_acquired: true
-    deactivate Redis
+    %% --------- 2. 행 락 획득 ---------
+    AS ->> DB: SELECT id FROM auction WHERE id={id} FOR UPDATE
+    activate DB
+    DB -->> AS: row locked
+    deactivate DB
 
     %% --------- 3. 자기-메시지 ---------
     AS ->> AS: 현재 최고가 비교 (입찰가가 최고가 초과?)
@@ -67,7 +66,7 @@ sequenceDiagram
 
     %% --------- 4. 검증 분기 ---------
     alt 포인트 부족 [잔액이 입찰가 미만]
-        AS ->> Redis: UNLOCK (조기 해제)
+        Note right of AS: 트랜잭션 롤백 시 행 락 자동 해제
         AS -->> FE: 400 POINT_INSUFFICIENT
         FE -->> 구매자: "포인트 부족" 알림
     else 정상 입찰
@@ -87,7 +86,7 @@ sequenceDiagram
         deactivate DB
 
         %% --------- 7. 락 해제 ---------
-        AS ->> Redis: UNLOCK auction:lock:{id}
+        Note right of AS: 트랜잭션 커밋 시 행 락 자동 해제
 
         %% --------- 8. 즉시 반환 ---------
         AS -->> FE: 200 OK {accepted_amount: 9000}
@@ -156,7 +155,7 @@ sequenceDiagram
 
 | 메시지 | ADR |
 |---|---|
-| Redis 분산 락 (②) | [ADR-006](../../04_decisions/ADR-006-redis-lock.md) |
+| MySQL 행 락 (②) | scope-cuts CUT-1 ([ADR-006](../../04_decisions/ADR-006-redis-lock.md) Superseded) |
 | `wallet` 차감 (⑤ — BiddingCurrency.debit) | [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md) · [ADR-011](../../04_decisions/ADR-011-welfare-point-ownership.md) |
 | `ledger_entry` INSERT (⑤) | [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md) |
 | Outbox INSERT (⑥) | [**ADR-005**](../../04_decisions/ADR-005-hr-api-timing.md) |

@@ -78,7 +78,6 @@
                   │  WalletRepository                   │
                   │  AuctionRepository                  │
                   │  LedgerRepository                   │
-                  │  LockProvider                       │
                   │  BiddingCurrency / PayoutChannel    │
                   │  HrClient · NotificationChannel     │
                   │  EventBus                           │
@@ -116,7 +115,6 @@ src/
 ├── ports/                     ← Outbound Ports (인터페이스만)
 │   ├── wallet.repository.ts
 │   ├── auction.repository.ts
-│   ├── lock.provider.ts
 │   ├── bidding-currency.ts
 │   ├── payout-channel.ts
 │   ├── hr-client.ts
@@ -124,7 +122,6 @@ src/
 │
 ├── adapters/                  ← Outbound Adapters (구현체)
 │   ├── persistence/           ← TypeORM/Prisma
-│   ├── redis/                 ← LockProvider 구현
 │   ├── hr/                    ← Real/Mock HR
 │   ├── notification/          ← Slack/WebSocket
 │   └── event-emitter/         ← Domain Event Bus

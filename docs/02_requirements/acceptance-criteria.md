@@ -57,7 +57,7 @@
 
 - 입찰 트랜잭션은 **단일 DB 트랜잭션** ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md))
 - 에스크로 등식: `Σ(BID + WIN) − Σ(REFUND + DIVIDEND) = ESCROW.balance` 진행 중에도 일관 ([DB-RULE-4](SRS.md#342-데이터-무결성-제약조건))
-- Redis 락(`auction:lock:{id}`) TTL 5초 ([ADR-006](../04_decisions/ADR-006-redis-lock.md))
+- 행 락(`SELECT … FOR UPDATE`) — 트랜잭션 수명 동안 보유 (CUT-1, [ADR-006](../04_decisions/ADR-006-redis-lock.md)은 Superseded)
 - 동시 입찰 시 락으로 직렬화 — 둘 다 성공하는 일 없음
 
 ### 예외 시나리오
@@ -67,7 +67,7 @@
 | AC-2.1.E1 | wallet 잔액 부족 (`balance < amount`) | 입찰 시도 | `400 POINT_INSUFFICIENT` · 차감 없음 ([edge-cases](edge-cases.md) EC-9) |
 | AC-2.1.E2 | 현재가 5000, 최소 증분 100 | 5050P 입찰 | `400 BID_TOO_LOW` (5000+100=5100 미만) ([edge-cases](edge-cases.md) EC-6) |
 | AC-2.1.E3 | 경매 마감 시각 경과 | 입찰 시도 | `409 AUCTION_CLOSED` |
-| AC-2.1.E4 | Redis 락 획득 실패 | 입찰 시도 | `409 LOCK_CONFLICT`, 클라이언트 재시도 권장 |
+| AC-2.1.E4 | 동시 입찰(같은 경매) | 두 입찰 동시 도착 | 행 락으로 직렬화 — 뒤 입찰은 앞 입찰 커밋 후 갱신된 현재가로 재검증(`BID_TOO_LOW` 가능) |
 | AC-2.1.E5 | 입찰자 = 현재 최고가 입찰자 (자기 자신에 재입찰) | 더 높은 가격 재입찰 | 정상 수락, 단 자기에게 환불-자기 차감 — ledger에 REFUND+BID 동시 |
 
 ---
@@ -246,11 +246,11 @@
 
 ## 횡단 인수 조건 (NFR · 보안)
 
-### NFR-1 동시성 (Redis 분산 락)
+### NFR-1 동시성 (MySQL 행 락)
 
 | ID | Given | When | Then |
 |---|---|---|---|
-| AC-N1.1 | 경매 X에 1000명이 동시 입찰 시도 | 동시 입찰 | 한 번에 1명만 통과 (Redis 락 직렬화) · 나머지는 `LOCK_CONFLICT` 또는 락 획득 후 재검증으로 정상 처리 · 입찰가 꼬임 0건 |
+| AC-N1.1 | 경매 X에 1000명이 동시 입찰 시도 | 동시 입찰 | 한 번에 1명만 통과 (행 락 직렬화) · 나머지는 락 해제 후 순차 진입하여 갱신된 현재가로 재검증 · 입찰가 꼬임 0건 |
 
 ### NFR-2 재무 정합성
 

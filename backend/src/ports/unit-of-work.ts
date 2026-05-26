@@ -2,9 +2,9 @@
 // Use cases that need to atomically write across Wallet + Ledger + Auction
 // depend on this port (not on Prisma directly), preserving ADR-012.
 //
-// scope-cuts.md CUT-1: lockAuction() uses pg_advisory_xact_lock(hashtext(id))
-// in the Prisma adapter. Future Redis-backed implementations can replace it
-// without touching the use case.
+// scope-cuts.md CUT-1: lockAuction() uses a MySQL InnoDB row lock
+// (SELECT id FROM auction WHERE id = ? FOR UPDATE) in the Prisma adapter.
+// A future adapter could swap the lock strategy without touching the use case.
 
 import type { AuctionId } from "../domain/shared/value-objects/auction-id";
 import type { WalletRepository } from "./wallet-repository";
