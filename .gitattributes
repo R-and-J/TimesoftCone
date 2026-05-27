@@ -1,0 +1,10 @@
+# SQLite 공유 시드(dev.db): 바이너리로 취급(텍스트/줄바꿈 변환 금지) +
+# 병합 충돌 시 한쪽(우리 것)을 자동 채택해 conflict 마커가 안 생기게 한다.
+#
+# ⚠️ merge=ours 드라이버는 git 기본 제공이 아니라, 각 개발자가 클론마다 1회 등록해야 한다:
+#     git config merge.ours.driver true
+# (등록 안 하면 merge 시 그냥 충돌로 떨어짐 — 데이터 손실은 없음)
+#
+# 운영 규칙: dev.db 는 "단일 소유자"만 커밋. 받는 쪽은 클론 후 1회:
+#     git update-index --skip-worktree backend/prisma/dev.db
+backend/prisma/dev.db binary merge=ours

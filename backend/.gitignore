@@ -27,10 +27,15 @@ logs/
 # Lint cache
 .eslintcache
 
-# Prisma 로컬 SQLite (개발용)
-prisma/migrations/dev.db*
-prisma/*.db
+# Prisma SQLite — sidecar/journal 은 커밋 금지
 prisma/*.db-journal
+prisma/*.db-wal
+prisma/*.db-shm
+# dev.db 는 팀 공유 시드로 *커밋한다* (테스트 데이터, PII 없음).
+# 규칙: 단일 소유자만 커밋. 받는 쪽은 클론 후 한 번만 실행 —
+#   git update-index --skip-worktree backend/prisma/dev.db
+prisma/*.db
+!prisma/dev.db
 
 # Docker 로컬 볼륨
 docker-data/
