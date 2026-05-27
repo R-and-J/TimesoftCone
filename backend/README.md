@@ -16,6 +16,54 @@ npm run db:seed
 npm run start:dev          # → http://localhost:3001
 ```
 
+## 공유 시드 `dev.db` (팀 온보딩)
+
+이 레포는 `backend/prisma/dev.db`(SQLite)를 **팀 공유 테스트 시드**로 커밋합니다.
+회원·경매·지갑·원장·연차 데이터가 그 파일 한 개에 들어 있어서, **클론하면 migrate/seed 없이
+바로 같은 데이터로 실행**됩니다. (데이터는 `user001@exam.com` 류 샌드박스 — 실제 PII 아님.)
+
+### 받는 개발자 — 클론/풀 후 **1회만**
+
+```bash
+git config merge.ours.driver true                       # .gitattributes merge=ours 드라이버 등록
+git update-index --skip-worktree backend/prisma/dev.db  # 내 로컬 dev.db 변경을 git이 무시
+```
+
+그 뒤엔 그냥:
+
+```bash
+cd backend && npm install
+copy .env.example .env      # MSAPORTAL_URL / EZPASS_* 등 실제 값은 .env 에만
+npm run start:dev
+```
+
+> 위 `## 실행`의 `db:migrate` / `db:seed`는 **빈 DB를 처음부터 만들 때**만 필요합니다.
+> 커밋된 dev.db를 그대로 쓸 거면 생략하세요.
+
+### 왜 충돌이 안 나는가 (안전장치)
+
+- **단일 소유자**: dev.db 커밋은 시드 정본 관리자 **1명만**.
+- **`skip-worktree`**: 받는 쪽이 앱을 돌려 dev.db가 바뀌어도 git이 무시 → 오커밋/충돌 없음.
+- **`.gitattributes` `binary merge=ours`**: 병합 시 conflict 마커 없이 정본이 자동 채택.
+- sidecar(`*.db-wal` / `-shm` / `-journal`)는 `.gitignore`로 계속 제외.
+
+### 시드 갱신 (소유자)
+
+```bash
+# 데이터를 만든 뒤
+git add backend/prisma/dev.db && git commit -m "chore(db): 시드 갱신" && git push
+# 스키마도 바꿨으면 prisma 마이그레이션 파일도 같이 커밋
+```
+
+### 새 시드 받기 (받는 쪽 — skip-worktree라 자동으로 안 옴)
+
+```bash
+git update-index --no-skip-worktree backend/prisma/dev.db
+git checkout -- backend/prisma/dev.db    # 또는 git pull 로 최신 dev.db 반영
+git update-index --skip-worktree backend/prisma/dev.db
+# 스키마가 바뀐 커밋이면: npm run db:migrate
+```
+
 ## API
 
 ### 경매 — 공개
