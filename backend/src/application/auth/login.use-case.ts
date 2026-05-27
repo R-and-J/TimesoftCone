@@ -9,6 +9,7 @@
 // 우리 자체 JWT/가드는 아직 없음(scope-cuts CUT-8) — 후속 과제.
 
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "@/adapters/persistence/prisma.service";
 import {
   AUTH_PROVIDER,
@@ -29,6 +30,8 @@ export type LoginResult = {
   email: string | null;
   /** 이 로그인으로 우리 users 행이 새로 생성됐는지. */
   provisioned: boolean;
+  /** 자체 발급 JWT(RBAC) — 프론트가 Authorization: Bearer로 재전송. */
+  token: string;
 };
 
 @Injectable()
@@ -36,6 +39,7 @@ export class LoginUseCase {
   constructor(
     @Inject(AUTH_PROVIDER) private readonly auth: AuthProvider,
     private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
   ) {}
 
   async execute(id: string, password: string, cmpnyNo?: string): Promise<LoginResult> {
@@ -76,7 +80,15 @@ export class LoginUseCase {
       });
     }
 
-    // 4. 우리 사용자 정보 반환 (직급/직책은 배치 동기화로 채워진 값)
+    // 4. 우리 자체 JWT 서명 — 주체/역할을 담아 위변조 불가하게. 가드가 이 토큰을 검증.
+    //    role을 토큰에 박으므로 매 요청 DB 조회 없이 RBAC 판정 가능(만료까지 유효).
+    const token = this.jwt.sign({
+      sub: String(user.id),
+      role: user.role,
+      empId: user.empId,
+    });
+
+    // 5. 우리 사용자 정보 + 토큰 반환 (직급/직책은 배치 동기화로 채워진 값)
     return {
       userId: user.id,
       empId: user.empId,
@@ -87,6 +99,7 @@ export class LoginUseCase {
       jobTitle: user.jobTitle,
       email: user.email,
       provisioned,
+      token,
     };
   }
 }

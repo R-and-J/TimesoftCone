@@ -1,4 +1,4 @@
-// Admin auction operations. RBAC is NOT enforced (scope-cuts.md CUT-8).
+// Admin auction operations. ADMIN 전용 (permission-matrix AC-5~7).
 
 import {
   BadRequestException,
@@ -14,6 +14,7 @@ import { SettleAuctionUseCase } from "@/application/auction/settle-auction.use-c
 import { SettleDueAuctionsUseCase } from "@/application/auction/settle-due-auctions.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
+import { Roles } from "./auth/auth.decorators";
 
 const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
   message: "Must be an ISO timestamp",
@@ -31,6 +32,7 @@ const createSchema = z.object({
   endsAt: isoDate,
 });
 
+@Roles("ADMIN")
 @Controller("api/admin/auctions")
 export class AdminAuctionsController {
   constructor(

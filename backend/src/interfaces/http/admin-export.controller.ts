@@ -8,6 +8,7 @@ import { Controller, Get, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { Workbook } from "exceljs";
 import { ExportSettlementUseCase } from "@/application/admin/export-settlement.use-case";
+import { Roles } from "./auth/auth.decorators";
 
 const PROJECT = "타임소프트콘";
 
@@ -84,6 +85,7 @@ const MIME = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 } as const;
 
+@Roles("ADMIN")
 @Controller("api/admin/export")
 export class AdminExportController {
   constructor(private readonly exporter: ExportSettlementUseCase) {}

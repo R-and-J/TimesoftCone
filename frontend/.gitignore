@@ -14,6 +14,15 @@ build/
 # TypeScript
 *.tsbuildinfo
 
+# tsc가 설정 파일에서 떨구는 산출물 — vite.config.js가 vite.config.ts를 가리는
+# 사고 방지(소스는 .ts만 유지). tsconfig.node.json은 noEmit이라 보통 안 생기지만 방어.
+vite.config.js
+vite.config.d.ts
+tailwind.config.js
+tailwind.config.d.ts
+postcss.config.js
+postcss.config.d.ts
+
 # Test / coverage
 coverage/
 .nyc_output/

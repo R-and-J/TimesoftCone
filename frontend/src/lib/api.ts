@@ -5,6 +5,29 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+// ── Auth token (RBAC) ─────────────────────────────────────────────
+// 로그인 시 백엔드가 발급한 자체 JWT를 저장하고, 모든 요청에 Bearer로 붙인다.
+// current-user(localStorage)와 별개 키 — 토큰은 자격증명, 프로필은 표시용.
+const TOKEN_KEY = "timesoftcone.token";
+const USER_KEY = "timesoftcone.currentUser";
+
+export function setAuthToken(token: string): void {
+  try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
+}
+export function clearAuthToken(): void {
+  try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+}
+function getAuthToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...(extra ?? {}) };
+  const token = getAuthToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -16,8 +39,20 @@ export class ApiError extends Error {
   }
 }
 
-async function handle<T>(res: Response): Promise<T> {
+// 토큰을 들고 보낸 요청이 401이면 = 만료/무효 → 세션 정리 후 로그인으로.
+// (토큰 없이 받은 401은 로그인 시도 자체이므로 페이지가 메시지를 처리하게 둔다.)
+function onUnauthorized(): void {
+  clearAuthToken();
+  try { localStorage.removeItem(USER_KEY); } catch { /* ignore */ }
+  if (typeof window !== "undefined" && !window.location.hash.startsWith("#/login")) {
+    window.location.hash = "/login";
+    window.location.reload();
+  }
+}
+
+async function handle<T>(res: Response, hadToken: boolean): Promise<T> {
   if (res.ok) return res.json() as Promise<T>;
+  if (res.status === 401 && hadToken) onUnauthorized();
   const text = await res.text();
   let body: unknown = text;
   let message = text;
@@ -35,21 +70,26 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export function apiGet<T>(path: string): Promise<T> {
-  return fetch(`${API_BASE}${path}`).then(handle<T>);
+  const hadToken = getAuthToken() !== null;
+  return fetch(`${API_BASE}${path}`, { headers: authHeaders() }).then((r) =>
+    handle<T>(r, hadToken),
+  );
 }
 
 export function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const hadToken = getAuthToken() !== null;
   return fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
-  }).then(handle<T>);
+  }).then((r) => handle<T>(r, hadToken));
 }
 
 export function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const hadToken = getAuthToken() !== null;
   return fetch(`${API_BASE}${path}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
-  }).then(handle<T>);
+  }).then((r) => handle<T>(r, hadToken));
 }

@@ -1,13 +1,14 @@
-// /api/me/* — endpoints scoped to the authenticated user.
-// Auth is NOT yet implemented (scope-cuts.md CUT-8); we accept userId in the
-// path for now. Switch to a Guard-injected request user once auth lands.
+// /api/users/:userId/* — endpoints scoped to a user.
+// ABAC: 본인(:userId == 토큰 주체)이거나 ADMIN만 (SelfOrAdminGuard가 강제).
 
 import { BadRequestException, Controller, Get, Param } from "@nestjs/common";
 import { ListMyActivityUseCase } from "@/application/user/list-my-activity.use-case";
 import { GetWalletBalanceUseCase } from "@/application/wallet/get-wallet-balance.use-case";
 import { GetUserLeaveUseCase } from "@/application/user/get-user-leave.use-case";
 import { DomainError } from "@/domain/shared/errors";
+import { SelfParam } from "./auth/auth.decorators";
 
+@SelfParam("userId")
 @Controller("api/users")
 export class MeController {
   constructor(

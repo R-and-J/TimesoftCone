@@ -1,6 +1,4 @@
-// Admin wallet endpoints — RBAC is NOT implemented in this PR
-// (auth/session is out of scope for the wallet/ledger foundation).
-// A later PR will protect this route with an ADMIN role guard.
+// Admin wallet endpoints — ADMIN 전용 (permission-matrix WA-5, CREDIT_ADMIN).
 
 import {
   BadRequestException,
@@ -13,6 +11,7 @@ import { z } from "zod";
 import { CreditWalletAdminUseCase } from "@/application/wallet/credit-wallet-admin.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
+import { Roles } from "./auth/auth.decorators";
 
 const creditBodySchema = z.object({
   // Accept stringified bigint or numeric; the use case re-parses via UserId.of.
@@ -32,6 +31,7 @@ const creditBodySchema = z.object({
 
 type CreditBody = z.infer<typeof creditBodySchema>;
 
+@Roles("ADMIN")
 @Controller("api/admin/wallet")
 export class AdminWalletController {
   constructor(private readonly creditAdmin: CreditWalletAdminUseCase) {}

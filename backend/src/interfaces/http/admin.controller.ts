@@ -1,10 +1,10 @@
-// Catch-all admin read endpoints (stats + ledger).
-// RBAC NOT enforced — scope-cuts.md CUT-8.
+// Catch-all admin read endpoints (stats + ledger). ADMIN 전용 (WA-4 감사).
 
 import { Controller, Get, Query } from "@nestjs/common";
 import type { LedgerActionType } from "@/domain/ledger/ledger-action-type";
 import { GetAdminStatsUseCase } from "@/application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "@/application/admin/list-ledger.use-case";
+import { Roles } from "./auth/auth.decorators";
 
 const ALL_ACTIONS: LedgerActionType[] = [
   "BID",
@@ -15,6 +15,7 @@ const ALL_ACTIONS: LedgerActionType[] = [
   "EXPIRE",
 ];
 
+@Roles("ADMIN")
 @Controller("api/admin")
 export class AdminController {
   constructor(

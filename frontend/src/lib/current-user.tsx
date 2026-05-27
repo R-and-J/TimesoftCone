@@ -3,6 +3,7 @@
 //  로그인되므로, 프로필을 API 응답에서 받아 그대로 사용한다.)
 
 import { createContext, useContext, useState, type ReactNode } from "react";
+import { clearAuthToken } from "./api";
 
 export type CurrentUser = {
   id: number;
@@ -47,6 +48,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   };
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY);
+    clearAuthToken();
     setUserState(null);
   };
 

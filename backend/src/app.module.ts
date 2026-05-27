@@ -3,6 +3,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
+import { JwtModule } from "@nestjs/jwt";
+import { APP_GUARD } from "@nestjs/core";
 
 // Adapters
 import { PrismaService } from "./adapters/persistence/prisma.service";
@@ -53,6 +55,11 @@ import { AdminMembersController } from "./interfaces/http/admin-members.controll
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 
+// RBAC guards (전역)
+import { JwtAuthGuard } from "./interfaces/http/auth/jwt-auth.guard";
+import { RolesGuard } from "./interfaces/http/auth/roles.guard";
+import { SelfOrAdminGuard } from "./interfaces/http/auth/self-or-admin.guard";
+
 // Port symbols
 import { BIDDING_CURRENCY } from "./ports/bidding-currency";
 import { WALLET_REPOSITORY } from "./ports/wallet-repository";
@@ -63,7 +70,18 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), EventEmitterModule.forRoot()],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
+    // 자체 JWT(RBAC) — 비밀키/만료는 .env. 로그인이 서명, 가드가 검증.
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>("JWT_SECRET") ?? "dev-only-change-me",
+        signOptions: { expiresIn: config.get<string>("JWT_EXPIRES_IN") ?? "12h" },
+      }),
+    }),
+  ],
   controllers: [
     AuthController,
     WalletController,
@@ -78,6 +96,11 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     MeController,
   ],
   providers: [
+    // 전역 가드 — 실행 순서는 등록 순서: 인증 → 역할 → 소유자.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: SelfOrAdminGuard },
+
     PrismaService,
 
     PrismaWalletRepository,

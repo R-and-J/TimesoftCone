@@ -1,7 +1,7 @@
 // 관리자 회원관리 (ADR-022).
 //   위임형(ezpass): 읽기 전용 미러 뷰 + "지금 동기화".
 //   자립형(local) : 회원 CRUD(추가/수정/비번/비활성). local 모드가 아니면 CRUD는 409.
-// RBAC는 아직 없음(scope-cuts CUT-8) — 후속 PR에서 ADMIN 가드.
+// ADMIN 전용 (회원 관리 = 운영 권한).
 
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import { ListMembersUseCase } from "@/application/admin/list-members.use-case";
 import { SyncMembersUseCase } from "@/application/admin/sync-members.use-case";
 import { ManageMembersUseCase } from "@/application/admin/manage-members.use-case";
 import { ZodValidationPipe } from "./zod.pipe";
+import { Roles } from "./auth/auth.decorators";
 
 const createSchema = z.object({
   email: z.string().email("올바른 이메일이 아닙니다"),
@@ -31,6 +32,7 @@ const updateSchema = z.object({
   password: z.string().min(4).optional(),
 });
 
+@Roles("ADMIN")
 @Controller("api/admin/members")
 export class AdminMembersController {
   constructor(
