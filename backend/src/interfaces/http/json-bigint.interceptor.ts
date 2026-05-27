@@ -11,6 +11,9 @@ import { map, Observable } from "rxjs";
 
 function stringifyBigInts(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
+  // Date(및 toJSON 보유 객체)는 재귀로 풀면 own-enumerable 속성이 없어 {}가 된다.
+  // 그대로 통과시키면 JSON.stringify가 toJSON으로 직렬화(Date → ISO 문자열).
+  if (value instanceof Date) return value;
   if (Array.isArray(value)) return value.map(stringifyBigInts);
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
