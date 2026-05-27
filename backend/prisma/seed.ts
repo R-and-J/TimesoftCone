@@ -16,6 +16,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import * as mysql from "mysql2/promise";
+import * as bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 const CMPNY = 7;
@@ -211,9 +212,26 @@ async function seedActivity() {
   console.log(`  escrow ${Number(escrow)}P, auctions ${JSON.stringify(byStatus)}, bids ${await prisma.bidEvent.count()}`);
 }
 
+/** 데모 관리자 — ezpass admin@ 계정이 외부 사유로 인증 불가가 되자, role을 우리 DB가
+ *  소유하게 하고(ADR-020 개정) admin@에 *로컬 비번*을 부여한다. CompositeAuthProvider가
+ *  로컬 비번 보유 계정을 로컬 검증하므로, ezpass와 무관하게 admin@로 로그인 가능(ADR-022).
+ *  데모 비번이라 평문 주석 OK. */
+async function setupDemoAdmin() {
+  const ADMIN_EMAIL = "admin@timesoftcon.co.kr";
+  const DEMO_PW = "!12345qwertY"; // 데모 전용
+  const hash = await bcrypt.hash(DEMO_PW, 10);
+  const r = await prisma.user.updateMany({
+    where: { email: ADMIN_EMAIL },
+    data: { role: "ADMIN", passwordHash: hash, active: true },
+  });
+  console.log(`  데모 관리자: ${ADMIN_EMAIL} → ADMIN + 로컬 비번 (updated ${r.count})`);
+}
+
 async function main() {
   console.log("== 1) ezpass 회원 미러 + REGULAR 연차 ==");
   await syncMembersAndLeave();
+  console.log("== 1b) 데모 관리자 (로컬 비번) ==");
+  await setupDemoAdmin();
   console.log("== 2) 회원 펀딩 ==");
   await fundMembers();
   console.log("== 3) 경매 데모 활동 ==");

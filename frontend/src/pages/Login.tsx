@@ -61,7 +61,7 @@ export default function LoginPage() {
 function useLoginForm() {
   // 중앙 인증 위임(ADR-019): 이메일+비밀번호 → 사내 ezpass 검증.
   const [email, setEmail] = useState<string>("admin@timesoftcon.co.kr");
-  // 데모 편의: 테스트 계정 비번 프리필 → 바로 로그인 가능
+  // 데모 편의: 관리자 계정 프리필 → 바로 로그인 가능 (로컬 인증, ADR-022 합성).
   const [password, setPassword] = useState<string>("!12345qwertY");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -508,15 +508,15 @@ function LoginStandard() {
           >
             <strong style={{ color: p.ink }}>📢 데모 로그인 안내</strong>
             <br />
+            관리자: <span className="mono" style={{ color: p.ink, userSelect: "all" }}>admin@timesoftcon.co.kr</span>
+            {" · 비번 "}
+            <span className="mono" style={{ color: p.ink, userSelect: "all" }}>!12345qwertY</span>
+            <br />
             직원: <span className="mono" style={{ color: p.ink, userSelect: "all" }}>user001@exam.com</span>
             {" ~ "}
             <span className="mono" style={{ color: p.ink, userSelect: "all" }}>user038@exam.com</span>
             {" (뒤 3자리는 순번) · 비번 "}
             <span className="mono" style={{ color: p.ink, userSelect: "all" }}>1234</span>
-            <br />
-            관리자: <span className="mono" style={{ color: p.ink, userSelect: "all" }}>admin@timesoftcon.co.kr</span>
-            {" · 비번 "}
-            <span className="mono" style={{ color: p.ink, userSelect: "all" }}>!12345qwertY</span>
           </div>
         </form>
       </div>

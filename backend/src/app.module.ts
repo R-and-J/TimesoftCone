@@ -13,6 +13,7 @@ import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
 import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
+import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
@@ -86,6 +87,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     WelfarePointProvider,
     EzpassAuthProvider,
     LocalAuthProvider,
+    CompositeAuthProvider,
     MsaportalMemberDirectoryAdapter,
     NotificationObserver,
 
@@ -94,12 +96,13 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     { provide: AUCTION_REPOSITORY, useExisting: PrismaAuctionRepository },
     { provide: UNIT_OF_WORK, useExisting: PrismaUnitOfWork },
     { provide: BIDDING_CURRENCY, useExisting: WelfarePointProvider },
-    // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 자체 비번, 그 외 → ezpass 위임.
+    // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 순수 자체 비번,
+    // 그 외(기본 ezpass) → Composite(로컬 비번 보유 계정은 로컬 검증, 나머지는 ezpass 위임).
     {
       provide: AUTH_PROVIDER,
-      useFactory: (config: ConfigService, ezpass: EzpassAuthProvider, local: LocalAuthProvider) =>
-        config.get<string>("AUTH_MODE") === "local" ? local : ezpass,
-      inject: [ConfigService, EzpassAuthProvider, LocalAuthProvider],
+      useFactory: (config: ConfigService, composite: CompositeAuthProvider, local: LocalAuthProvider) =>
+        config.get<string>("AUTH_MODE") === "local" ? local : composite,
+      inject: [ConfigService, CompositeAuthProvider, LocalAuthProvider],
     },
     { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
 

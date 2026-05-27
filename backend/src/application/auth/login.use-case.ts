@@ -52,22 +52,27 @@ export class LoginUseCase {
     let user = await this.prisma.user.findUnique({ where: { email: identity.email } });
     let provisioned = false;
 
-    // role은 ezpass 관리자권한(mngrAuthorAt)으로 매 로그인 재동기화 (ADR-020).
-    const role: "EMPLOYEE" | "ADMIN" = identity.isAdmin ? "ADMIN" : "EMPLOYEE";
     const name = identity.name ?? identity.email.split("@")[0];
 
     if (!user) {
-      // 3. 없으면 자동 프로비저닝
+      // 3. 없으면 자동 프로비저닝. role 초기값만 ezpass 관리자권한에서 힌트로 가져온다 —
+      //    이후 role(EMP/ADM)은 우리 시스템이 소유하고 ezpass로 재동기화하지 않는다 (ADR-020 개정).
+      //    권한(authorization)은 앱 고유 관심사라, 신원(이름/부서/직급)만 ezpass가 정본.
       const empId = `EZP-${identity.externalUserNo ?? Date.now()}`;
       user = await this.prisma.user.create({
-        data: { empId, email: identity.email, name, role },
+        data: {
+          empId,
+          email: identity.email,
+          name,
+          role: identity.isAdmin ? "ADMIN" : "EMPLOYEE",
+        },
       });
       provisioned = true;
-    } else if (user.role !== role || user.name !== name) {
-      // 3-b. 기존 사용자는 role/이름을 ezpass 기준으로 재동기화.
+    } else if (user.name !== name) {
+      // 3-b. 이름(신원)만 ezpass 기준 동기화. role은 우리 DB가 소유 — 덮어쓰지 않음.
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { role, name },
+        data: { name },
       });
     }
 

@@ -25,10 +25,12 @@
 | | **모드 A — 위임형 (`AUTH_MODE=ezpass`, 기본)** | **모드 B — 자립형 (`AUTH_MODE=local`)** |
 |---|---|---|
 | 대상 | 이미 그룹웨어/SSO 있는 회사 | 그룹웨어 없는 회사 |
-| `AuthProvider` | `EzpassAuthProvider` (위임) | `LocalAuthProvider` (우리 DB + bcrypt) |
+| `AuthProvider` | `CompositeAuthProvider` (로컬 우선 → ezpass 위임) | `LocalAuthProvider` (우리 DB + bcrypt) |
 | 신원 정본 | ezpass (미러) | 우리 `users` 테이블 |
 | 회원관리 탭 | **읽기 전용 + 「지금 동기화」** | **CRUD** (추가/수정/비번/비활성) |
-| 외부 의존 | ezpass dev 서버 | **없음** (단독 동작) |
+| 외부 의존 | ezpass dev 서버 (단, 로컬 비번 계정은 예외) | **없음** (단독 동작) |
+
+> **로컬 우선 합성 인증 (2026-05-27 추가)**: 위임형의 기본 `AuthProvider`는 순수 `EzpassAuthProvider`가 아니라 **`CompositeAuthProvider`** 다 — `users.password_hash`가 있는 계정은 우리가 bcrypt로 로컬 검증하고, 그 외는 ezpass에 위임. 덕분에 **단일 ezpass 데모를 유지하면서도 외부 IdP에 의존하지 않는 전용 관리자**(`admin@timesoftcon.co.kr`)를 우리 쪽에서 운용한다. role도 우리 DB 소유([[ADR-020]] 개정)라, 외부 ezpass admin 데이터가 깨져도 우리 관리자 로그인은 영향 없음. (실제로 ezpass admin 인증이 외부 사유로 깨진 사고가 이 설계의 계기.)
 
 **핵심**: 두 모드 모두 본체는 그대로다. ezpass 연동은 "기존 인프라에 붙는다"의 *증명 사례*지 제품 전제가 아니다. 자립형은 "그룹웨어 0으로도 돈다"를 보장한다.
 

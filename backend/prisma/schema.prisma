@@ -41,7 +41,8 @@ model User {
   /// 사내 ezpass 로그인 계정(이메일)과 매핑하기 위한 키. 중앙 인증 위임 시
   /// ezpass의 user_id(이메일)로 이 사용자를 찾는다. (ADR-019)
   email           String?  @unique @map("email")
-  /// EMPLOYEE/ADMIN — ezpass 관리자권한(mngrAuthorAt)으로 매 로그인 재동기화 (ADR-020).
+  /// EMPLOYEE/ADMIN — 우리 시스템이 소유(ADR-020 개정). 최초 프로비저닝 때만 ezpass
+  /// mngrAuthorAt를 초기 힌트로 쓰고, 이후 로그인 시 재동기화하지 않는다.
   role            String   @default("EMPLOYEE")
   /// 자립형(AUTH_MODE=local) 배포 전용 bcrypt 비밀번호 해시. 위임형(ezpass)에선 null
   /// (비번 검증은 ezpass가 함). (ADR-022)
