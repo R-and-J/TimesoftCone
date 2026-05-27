@@ -2,8 +2,8 @@
 
 연차 경매 시스템 — NestJS + TypeScript + Prisma + SQLite.
 
-**현재 스코프**: Wallet/Ledger 기반 + Auction 도메인 + 입찰/낙찰 로직.
-잘라낸 항목은 [`scope-cuts.md`](../06_tech/scope-cuts.md) 참고.
+**현재 스코프**: Wallet/Ledger + Auction(입찰/낙찰/자동정산) + 낙찰 연차 가산 + 인증/RBAC + 알림 + 연말 배당 지급.
+구현 현황은 아래 [구현 현황 체크리스트](#구현-현황-체크리스트), 잘라낸 항목은 [`scope-cuts.md`](../06_tech/scope-cuts.md) 참고.
 
 ## 실행
 
@@ -89,17 +89,20 @@ git update-index --skip-worktree backend/prisma/dev.db
 | `GET`  | `/api/users/:userId/activity` | 거래 내역 + 요약 (내 활동 화면) |
 | `GET`  | `/api/users/:userId/balance`  | 현재 포인트 잔액 |
 
-### 인증 (데모)
+### 인증
 
 | 메서드 | 경로 | 용도 |
 |---|---|---|
-| `POST` | `/api/auth/login`             | 사번(`empId`)으로 로그인. 비밀번호 검증 없음 — [CUT-8](../06_tech/scope-cuts.md) |
+| `POST` | `/api/auth/login`             | 이메일+비밀번호 로그인. 성공 시 **JWT 발급**(`token`). ezpass 위임 / 로컬 bcrypt 합성 (ADR-019/022) |
 
-### 배당 (Dividend 화면용)
+> 이후 모든 보호 라우트는 `Authorization: Bearer <token>` 필요. RBAC는 [scope-cuts CUT-8 ✅](../06_tech/scope-cuts.md) 참고.
+
+### 배당 (Dividend)
 
 | 메서드 | 경로 | 용도 |
 |---|---|---|
-| `GET`  | `/api/dividend/me/:userId`    | 내 지분율 + 예상 배당금 + 상위 9명 stake 분포 |
+| `GET`  | `/api/dividend/me/:userId`    | 내 지분율 + 예상 배당금 + 상위 9명 stake 분포 (self/ADMIN) |
+| `POST` | `/api/admin/dividend/settle`  | **연말 배당 실지급 배치** (ADMIN). `?dryRun=true` 미리보기, 멱등(재호출 409) — ADR-008 |
 
 ### 관리자 — 통계 / 원장
 
@@ -115,7 +118,7 @@ git update-index --skip-worktree backend/prisma/dev.db
 | `POST` | `/api/admin/wallet/credit`    | 관리자 포인트 적립 (audit `reason` 필수) |
 | `GET`  | `/api/wallet/:userId`         | (legacy) 잔액 조회 |
 
-> ⚠️ 모든 `/api/admin/*` 라우트는 인증/권한 미적용 ([scope-cuts.md CUT-8](../06_tech/scope-cuts.md)). 데모 환경 전용.
+> 🔒 모든 `/api/admin/*` 라우트는 **ADMIN 토큰 필요**(JWT + `@Roles('ADMIN')`). 무토큰 401 / 비ADMIN 403 ([scope-cuts.md CUT-8 ✅](../06_tech/scope-cuts.md)).
 
 ## 자동 정산 스케줄러
 
@@ -239,22 +242,38 @@ npm test
 자세한 내역과 되돌리는 비용은 [`scope-cuts.md`](../06_tech/scope-cuts.md). 요약:
 
 - **CUT-1**: Redis 분산 락 → SQLite write 락(`lockAuction` no-op UPDATE)
-- **CUT-2**: in-process 도메인 이벤트 버스 → use case가 직접 호출
+- **CUT-2**: in-process 도메인 이벤트 버스 → ✅ **부활** (알림 Observer, `@nestjs/event-emitter`)
 - **CUT-3**: State Pattern → `AuctionStatus` enum + 가드 절
 - **CUT-4**: Outbox → 외부 호출 없으니 생략 (ADR-005 dormant)
 - **CUT-5**: Anti-snipe 마감 연장 → 미구현
 - **CUT-6**: WebSocket 실시간 → 프론트 폴링
-- **CUT-8**: 인증/RBAC → 별도 PR
+- **CUT-8**: 인증/RBAC → ✅ **완전 부활** (자체 JWT + RBAC/ABAC 가드)
 
-## 후속 PR
+## 구현 현황 체크리스트
+
+- [x] Wallet/Ledger (Insert-Only) + 입찰 단일 트랜잭션 + 패자 자동환불
+- [x] 경매 라이프사이클 (생성/목록/상세/입찰/정산) + 자동 정산 스케줄러
+- [x] 낙찰 시 AUCTION 연차 자동 가산 (`grantAuctionLeave`, 같은 tx — 인바리언트 #6)
+- [x] 도메인 이벤트 + 알림 Observer (ADR-013)
+- [x] 인증 (ezpass 위임 + 로컬 bcrypt 합성, ADR-019~022)
+- [x] **RBAC/ABAC 가드** (JWT + `@Roles`/`@SelfParam`, permission-matrix 1:1)
+- [x] 관리자 통계/원장/회원관리/엑셀 export
+- [x] 배당 예상치 (`GET /dividend/me/:id`)
+- [x] **연말 배당 실지급 배치** (`PayoutChannel` + `SettleYearEndDividend`, NFR-2 등식 검증, 멱등)
+- [ ] 배당 정산 관리자 UI 버튼 (현재는 API만)
+- [ ] 12/31 배당 자동 스케줄 (현재는 수동 트리거)
+- [ ] 어댑터 통합/E2E 테스트 (testcontainers)
+- [ ] CUT-5 Anti-snipe 마감 연장 / CUT-6 WebSocket 실시간
+- [ ] 완전한 LeavePool aggregate (기여 이벤트/만료 잡) — 현재 `contributed_days` 단일 컬럼
+
+## 후속 PR (남은 것)
 
 | PR | 내용 |
 |---|---|
-| Auth | 인증 + RBAC + admin 경로 보호 |
-| Leave | LeaveGrantPort + InternalLeaveAdapter ([ADR-016](../04_decisions/ADR-016-internal-leave-system.md)) |
-| LeavePool | 연말 배당 잡 + LeavePool 컨텍스트 ([ADR-008](../04_decisions/ADR-008-year-end-dividend.md), [ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |
+| Dividend UI | AdminOps에 "연말 배당 정산(미리보기→실행)" 버튼 |
 | Tests | 어댑터 통합 테스트 (testcontainers) |
-| CUT 부활 | WebSocket / Anti-snipe / 도메인 이벤트 |
+| CUT 부활 | WebSocket(CUT-6) / Anti-snipe(CUT-5) |
+| LeavePool | 완전한 LeavePool 컨텍스트 ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |
 
 ## 참고
 

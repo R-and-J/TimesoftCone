@@ -41,6 +41,7 @@ import { ManageMembersUseCase } from "./application/admin/manage-members.use-cas
 import { ListNotificationsUseCase } from "./application/notification/list-notifications.use-case";
 import { MarkNotificationsReadUseCase } from "./application/notification/mark-notifications-read.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
+import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 
 // HTTP
 import { WalletController } from "./interfaces/http/wallet.controller";
@@ -54,6 +55,7 @@ import { AdminExportController } from "./interfaces/http/admin-export.controller
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
+import { AdminDividendController } from "./interfaces/http/admin-dividend.controller";
 
 // RBAC guards (전역)
 import { JwtAuthGuard } from "./interfaces/http/auth/jwt-auth.guard";
@@ -68,6 +70,7 @@ import { AUCTION_REPOSITORY } from "./ports/auction-repository";
 import { UNIT_OF_WORK } from "./ports/unit-of-work";
 import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
+import { PAYOUT_CHANNEL } from "./ports/payout-channel";
 
 @Module({
   imports: [
@@ -93,6 +96,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     AdminMembersController,
     NotificationsController,
     DividendController,
+    AdminDividendController,
     MeController,
   ],
   providers: [
@@ -119,6 +123,8 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     { provide: AUCTION_REPOSITORY, useExisting: PrismaAuctionRepository },
     { provide: UNIT_OF_WORK, useExisting: PrismaUnitOfWork },
     { provide: BIDDING_CURRENCY, useExisting: WelfarePointProvider },
+    // 배당 지급 경로(ADR-008) — 입찰 통화와 같은 구현체가 ISP로 분리된 포트 제공.
+    { provide: PAYOUT_CHANNEL, useExisting: WelfarePointProvider },
     // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 순수 자체 비번,
     // 그 외(기본 ezpass) → Composite(로컬 비번 보유 계정은 로컬 검증, 나머지는 ezpass 위임).
     {
@@ -149,6 +155,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     ListNotificationsUseCase,
     MarkNotificationsReadUseCase,
     GetMyDividendUseCase,
+    SettleYearEndDividendUseCase,
 
     SettleDueAuctionsScheduler,
   ],

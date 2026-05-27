@@ -11,6 +11,7 @@ import { PrismaService } from "../persistence/prisma.service";
 import { PrismaWalletRepository } from "../persistence/prisma-wallet.repository";
 import { PrismaLedgerRepository } from "../persistence/prisma-ledger.repository";
 import type { BiddingCurrency } from "@/ports/bidding-currency";
+import type { PayoutChannel, DividendPayout } from "@/ports/payout-channel";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import { Point } from "@/domain/shared/value-objects/point";
 import { Currency } from "@/domain/shared/value-objects/currency";
@@ -22,9 +23,12 @@ import {
 } from "@/domain/ledger/ledger-action-type";
 import type { TransactionRef } from "@/domain/ledger/transaction-ref";
 
+// 통화 추상화(ADR-010, invariant #8): 입찰 결제(BiddingCurrency)와 배당 지급
+// (PayoutChannel)을 같은 한 구현체가 제공한다(현재 단일 구현 WELFARE_POINT).
 @Injectable()
-export class WelfarePointProvider implements BiddingCurrency {
+export class WelfarePointProvider implements BiddingCurrency, PayoutChannel {
   readonly currencyCode = "WELFARE_POINT";
+  readonly channelCode = "WELFARE_POINT";
   private readonly currency = Currency.WELFARE_POINT;
 
   constructor(
@@ -103,6 +107,34 @@ export class WelfarePointProvider implements BiddingCurrency {
           refNote: ref.reason,
         }),
       );
+    });
+  }
+
+  // ── PayoutChannel (ADR-008 연말 배당) ─────────────────────────────
+  // 전체 배당을 단일 트랜잭션에서 지급한다: 각 수혜자 지갑 credit + DIVIDEND 원장
+  // INSERT. NFR-2 등식상 부분 지급이 남으면 안 되므로 all-or-nothing.
+  async payout(payouts: DividendPayout[]): Promise<void> {
+    if (payouts.length === 0) return;
+    await this.prisma.$transaction(async (tx) => {
+      for (const p of payouts) {
+        const wallet =
+          (await this.wallets.find(p.userId, this.currency)) ??
+          Wallet.openEmpty(p.userId, this.currency);
+        wallet.credit(p.amount);
+        await this.wallets.saveWith(tx, wallet);
+
+        await this.ledger.appendWith(
+          tx,
+          LedgerEntry.create({
+            userId: p.userId,
+            currency: this.currency,
+            actionType: "DIVIDEND",
+            amount: p.amount.toBigInt(),
+            balanceAfter: wallet.balance,
+            refNote: p.refNote,
+          }),
+        );
+      }
     });
   }
 }
