@@ -63,6 +63,7 @@
 - [DB 스키마 DDL](06_tech/db-schema.sql)
 - [Git 워크플로우](06_tech/git-workflow.md)
 - [개발 환경 설정](06_tech/dev-setup.md)
+- [이벤트 버스(Observer) 사용 가이드](06_tech/event-bus-guide.md)
 
 ### 07. 프로젝트 관리 (Plan)
 - [WBS 및 일정](07_plan/wbs.md)
