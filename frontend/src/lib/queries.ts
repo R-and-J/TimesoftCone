@@ -271,3 +271,27 @@ export function createMember(input: CreateMemberInput) {
 export function updateMember(userId: string, input: UpdateMemberInput) {
   return apiPatch<MemberRow>(`/admin/members/${userId}`, input);
 }
+
+// ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
+export type NotificationItem = {
+  id: string;
+  type: "OUTBID" | "AUCTION_WON";
+  title: string;
+  message: string;
+  auctionId: string | null;
+  read: boolean;
+  createdAt: string;
+};
+
+export type NotificationListResponse = {
+  unread: number;
+  items: NotificationItem[];
+};
+
+export function listNotifications(userId: string | number) {
+  return apiGet<NotificationListResponse>(`/users/${userId}/notifications`);
+}
+
+export function markNotificationsRead(userId: string | number, ids?: string[]) {
+  return apiPost<{ updated: number }>(`/users/${userId}/notifications/read`, ids ? { ids } : {});
+}

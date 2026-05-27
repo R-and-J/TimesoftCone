@@ -11,16 +11,19 @@
 // not balance change.
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { UNIT_OF_WORK, type UnitOfWork } from "@/ports/unit-of-work";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { Currency } from "@/domain/shared/value-objects/currency";
 import { LedgerEntry } from "@/domain/ledger/ledger-entry";
+import { AUCTION_EVENTS, AuctionWonEvent } from "@/application/events/auction-events";
 
 export type SettleAuctionResult = {
   auctionId: string;
   outcome: "AWARDED" | "UNSOLD";
   winnerId?: bigint;
   amount?: bigint;
+  leaveDays?: number;
 };
 
 @Injectable()
@@ -29,12 +32,13 @@ export class SettleAuctionUseCase {
 
   constructor(
     @Inject(UNIT_OF_WORK) private readonly uow: UnitOfWork,
+    private readonly events: EventEmitter2,
   ) {}
 
   async execute(idRaw: string): Promise<SettleAuctionResult> {
     const auctionId = AuctionId.of(idRaw);
 
-    return this.uow.run(async (tx) => {
+    const result = await this.uow.run(async (tx) => {
       await tx.lockAuction(auctionId);
 
       const auction = await tx.auctions.findById(auctionId);
@@ -75,8 +79,24 @@ export class SettleAuctionUseCase {
             outcome: "AWARDED" as const,
             winnerId: outcome.winner.toBigInt(),
             amount: outcome.amount.toBigInt(),
+            leaveDays: auction.leaveDays,
           }
         : { auctionId: auctionId.toString(), outcome: "UNSOLD" as const };
     });
+
+    // 커밋 후 낙찰 이벤트 발행 (수동/스케줄러 정산 모두 이 경로). 구독자가 알림 적재.
+    if (result.outcome === "AWARDED" && result.winnerId != null) {
+      this.events.emit(
+        AUCTION_EVENTS.WON,
+        new AuctionWonEvent(
+          result.auctionId,
+          result.winnerId,
+          result.amount ?? 0n,
+          result.leaveDays ?? 0,
+        ),
+      );
+    }
+
+    return result;
   }
 }

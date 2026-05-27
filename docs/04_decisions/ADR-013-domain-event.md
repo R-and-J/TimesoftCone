@@ -152,6 +152,20 @@ class BidMetricsHandler { ... }
 - 핸들러는 **각자의 트랜잭션** — 부수효과 핸들러 실패가 본 트랜잭션 롤백 유발 금지
 - **외부 시스템 호출은 본 이벤트 버스로 트리거하지 않음** — Outbox 사용 ([[ADR-005]])
 
+## 구현 현황 (2026-05-27)
+
+원안은 [scope-cuts](../06_tech/scope-cuts.md) **CUT-2**로 보류됐었다("구독자 0개 = 추상화 비용만"). **알림 기능이 첫 실구독자가 되면서 부활** — 이제 EventBus가 값을 한다.
+
+**실제로 구현된 것**:
+- `@nestjs/event-emitter`(`EventEmitterModule.forRoot()`).
+- `PlaceBidUseCase` → 커밋 후 `BidPlacedEvent`(이전 최고가자 포함) emit. `SettleAuctionUseCase` → 커밋 후 `AuctionWonEvent` emit (수동·스케줄러 정산 공통 경로).
+- `NotificationObserver`(`@OnEvent`)가 구독: 밀림 → 직전 최고가자에게 OUTBID 알림, 낙찰 → 낙찰자에게 AUCTION_WON 알림. `notification` 테이블 적재. 핸들러는 throw 안 함(본 트랜잭션 무영향).
+- 검증: 입찰 밀림/낙찰 → 알림 생성, 조회·읽음 API, 종 아이콘 피드.
+
+**원안과의 의도적 차이**:
+- 이벤트 클래스를 **도메인이 아니라 `application/events/`에 배치**. 원안 🛡️제약("도메인 코어 위치 + EventBus 인터페이스 경유")과 다름 — 도메인 순수성(`domain/` 외부의존 0)을 지키고 EventEmitter2를 use case에서 직접 쓰는 게 학교 스코프에 단순. 진짜 외부 확장(Kafka) 시 EventBus 포트로 승격하면 됨.
+- 아직 구독자는 알림 1종뿐. WebSocket 브로드캐스트는 [scope-cuts](../06_tech/scope-cuts.md) CUT-6로 여전히 보류, 메트릭/Slack도 미구현 — **같은 이벤트에 핸들러만 추가**하면 되고 Use Case는 안 건드린다(OCP 입증).
+
 ## 관련 문서
 
 - [[ADR-005]] HR API 호출 시점 (Outbox) — 외부 신뢰성 발행

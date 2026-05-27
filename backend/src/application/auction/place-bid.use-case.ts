@@ -20,7 +20,9 @@
 // stay consistent (CLAUDE.md hard invariant #6).
 
 import { Inject, Injectable } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { UNIT_OF_WORK, type UnitOfWork } from "@/ports/unit-of-work";
+import { AUCTION_EVENTS, BidPlacedEvent } from "@/application/events/auction-events";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import { Point } from "@/domain/shared/value-objects/point";
@@ -49,6 +51,7 @@ export class PlaceBidUseCase {
 
   constructor(
     @Inject(UNIT_OF_WORK) private readonly uow: UnitOfWork,
+    private readonly events: EventEmitter2,
   ) {}
 
   async execute(input: PlaceBidInput): Promise<PlaceBidResult> {
@@ -56,7 +59,7 @@ export class PlaceBidUseCase {
     const bidder = UserId.of(input.userId);
     const amount = Point.of(input.amount);
 
-    return this.uow.run(async (tx) => {
+    const result = await this.uow.run(async (tx) => {
       await tx.lockAuction(auctionId);
 
       const auction = await tx.auctions.findById(auctionId);
@@ -122,5 +125,19 @@ export class PlaceBidUseCase {
         refundedAmount: previous?.amount.toBigInt() ?? null,
       };
     });
+
+    // 커밋 성공 후 발행 (롤백 시 헛알림 방지). 구독자 = NotificationObserver 등.
+    this.events.emit(
+      AUCTION_EVENTS.BID_PLACED,
+      new BidPlacedEvent(
+        result.auctionId,
+        bidder.toBigInt(),
+        amount.toBigInt(),
+        result.refundedTo,
+        result.refundedAmount,
+      ),
+    );
+
+    return result;
   }
 }

@@ -60,8 +60,32 @@ model User {
   bids          BidEvent[]
   wonAuctions   Auction[]      @relation("AuctionWinner")
   leaveBalances LeaveBalance[]
+  notifications Notification[]
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTIFICATION — Observer/Domain-Event 구독 결과물 (ADR-013).
+// PlaceBid/SettleAuction이 발행한 이벤트를 NotificationObserver가 받아 적재.
+// 핫패스(입찰/정산)는 이 테이블을 직접 모름 — 이벤트 핸들러가 쓴다.
+// ─────────────────────────────────────────────────────────────
+model Notification {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  /// OUTBID(입찰 밀림) | AUCTION_WON(낙찰).
+  type      String
+  title     String
+  message   String
+  auctionId String?  @map("auction_id")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@map("notification")
 }
 
 // ─────────────────────────────────────────────────────────────

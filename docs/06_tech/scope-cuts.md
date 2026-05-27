@@ -58,6 +58,8 @@
 
 **되돌리는 비용**: 낮음. Use Case 끝에 `await this.events.publish(new BidPlacedEvent(...))` 한 줄 추가.
 
+**↩️ 부분 부활 (2026-05-27)**: **알림 기능이 첫 실구독자가 되어 EventBus를 되살림**(예상대로 ~1시간). `@nestjs/event-emitter` 도입, `PlaceBid`/`SettleAuction`이 커밋 후 `BidPlacedEvent`/`AuctionWonEvent` emit → `NotificationObserver`가 구독해 `notification` 행 적재(밀림/낙찰). "구독자 0 → 추상화 비용만"이 더는 아님. 단 WebSocket 브로드캐스트(CUT-6)·메트릭·Slack 구독자는 여전히 없음 — 같은 이벤트에 핸들러만 더 붙이면 됨(Use Case 무수정). 이벤트 클래스는 도메인이 아니라 `application/events/`에 둠(도메인 순수성 유지) — ADR-013 원안의 "도메인 코어 위치" 제약과는 의도적으로 다름. 상세 [[ADR-013]] 구현 현황.
+
 ---
 
 ### CUT-3. 경매 State Pattern ([ADR-014](../04_decisions/ADR-014-auction-state-pattern.md))

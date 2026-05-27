@@ -2,6 +2,7 @@
 
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 
 // Adapters
 import { PrismaService } from "./adapters/persistence/prisma.service";
@@ -13,6 +14,7 @@ import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
 import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
+import { NotificationObserver } from "./adapters/notification/notification.observer";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 
 // Use cases
@@ -33,6 +35,8 @@ import { ExportSettlementUseCase } from "./application/admin/export-settlement.u
 import { ListMembersUseCase } from "./application/admin/list-members.use-case";
 import { SyncMembersUseCase } from "./application/admin/sync-members.use-case";
 import { ManageMembersUseCase } from "./application/admin/manage-members.use-case";
+import { ListNotificationsUseCase } from "./application/notification/list-notifications.use-case";
+import { MarkNotificationsReadUseCase } from "./application/notification/mark-notifications-read.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 
 // HTTP
@@ -45,6 +49,7 @@ import { AuthController } from "./interfaces/http/auth.controller";
 import { AdminController } from "./interfaces/http/admin.controller";
 import { AdminExportController } from "./interfaces/http/admin-export.controller";
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
+import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 
 // Port symbols
@@ -57,7 +62,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), EventEmitterModule.forRoot()],
   controllers: [
     AuthController,
     WalletController,
@@ -67,6 +72,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     AdminController,
     AdminExportController,
     AdminMembersController,
+    NotificationsController,
     DividendController,
     MeController,
   ],
@@ -81,6 +87,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     EzpassAuthProvider,
     LocalAuthProvider,
     MsaportalMemberDirectoryAdapter,
+    NotificationObserver,
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
     { provide: LEDGER_REPOSITORY, useExisting: PrismaLedgerRepository },
@@ -113,6 +120,8 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
     ListMembersUseCase,
     SyncMembersUseCase,
     ManageMembersUseCase,
+    ListNotificationsUseCase,
+    MarkNotificationsReadUseCase,
     GetMyDividendUseCase,
 
     SettleDueAuctionsScheduler,

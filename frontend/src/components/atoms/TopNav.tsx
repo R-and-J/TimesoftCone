@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Palette } from "@/lib/tokens";
 import { Brand } from "./Brand";
 import { Avatar } from "./Avatar";
 import { Icon } from "../icons";
 import { useCurrentUser } from "@/lib/current-user";
+import {
+  listNotifications,
+  markNotificationsRead,
+  type NotificationItem,
+} from "@/lib/queries";
 
 type Props = {
   p: Palette;
@@ -26,6 +31,44 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
   const navigate = useNavigate();
   const { user: current, logout } = useCurrentUser();
   const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState<NotificationItem[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [bellOpen, setBellOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await listNotifications(current.id);
+        if (!cancelled) {
+          setNotifs(r.items);
+          setUnread(r.unread);
+        }
+      } catch {
+        /* 알림 실패는 무시 — 핵심 흐름 아님 */
+      }
+    };
+    void load();
+    const t = setInterval(load, 20000); // 20초 폴링 (WebSocket은 CUT-6)
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [current.id]);
+
+  const toggleBell = async () => {
+    const next = !bellOpen;
+    setBellOpen(next);
+    if (next && unread > 0) {
+      try {
+        await markNotificationsRead(current.id);
+        setUnread(0);
+        setNotifs((xs) => xs.map((n) => ({ ...n, read: true })));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
 
   const displayName = user ?? current.name;
   // 직급(ezpass clsf_nm)을 우선 표시. 없으면 role 라벨로 폴백. (ADR-020)
@@ -81,9 +124,102 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
         <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <Icon.search />
         </div>
-        <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
-          <Icon.bell />
-          <div style={{ position: "absolute", top: 8, right: 8, width: 7, height: 7, background: p.danger, borderRadius: "50%" }} />
+        <div style={{ position: "relative" }}>
+          <div
+            onClick={toggleBell}
+            style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative", background: bellOpen ? p.bg : "transparent" }}
+          >
+            <Icon.bell />
+            {unread > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 4,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  background: p.danger,
+                  color: "#fff",
+                  borderRadius: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxSizing: "border-box",
+                }}
+              >
+                {unread > 9 ? "9+" : unread}
+              </div>
+            )}
+          </div>
+          {bellOpen && (
+            <div
+              onMouseLeave={() => setBellOpen(false)}
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
+                width: 340,
+                background: p.surface,
+                borderRadius: 12,
+                boxShadow: "0 1px 0 rgba(11,25,41,0.04), 0 14px 32px rgba(11,25,41,0.12)",
+                padding: 6,
+                zIndex: 100,
+              }}
+            >
+              <div style={{ padding: "8px 10px", fontSize: 13, fontWeight: 700, color: p.ink }}>
+                알림
+              </div>
+              <div style={{ height: 1, background: p.line, margin: "2px 0 4px" }} />
+              {notifs.length === 0 ? (
+                <div style={{ padding: "18px 10px", fontSize: 12, color: p.inkMuted, textAlign: "center" }}>
+                  새 알림이 없습니다.
+                </div>
+              ) : (
+                <div style={{ maxHeight: 360, overflow: "auto" }}>
+                  {notifs.map((n) => (
+                    <div
+                      key={n.id}
+                      style={{
+                        padding: "10px",
+                        borderRadius: 8,
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          marginTop: 6,
+                          flexShrink: 0,
+                          background: n.type === "AUCTION_WON" ? p.success : p.warn,
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: p.ink }}>{n.title}</div>
+                        <div style={{ fontSize: 11, color: p.inkSoft, lineHeight: 1.4, marginTop: 2 }}>
+                          {n.message}
+                        </div>
+                        <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 3 }}>
+                          {new Date(n.createdAt).toLocaleString("ko-KR", {
+                            month: "numeric",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ position: "relative" }}>
           <div
