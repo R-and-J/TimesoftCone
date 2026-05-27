@@ -28,7 +28,8 @@ export class CompositeAuthProvider implements AuthProvider {
       select: { passwordHash: true },
     });
     // 로컬 비번을 가진 계정 → 우리가 검증(정본). 그 외 → ezpass 위임.
-    if (u?.passwordHash) return this.local.authenticate(id, password, cmpnyNo);
+    // (LocalAuthProvider는 cmpnyNo를 쓰지 않음 — 외부 회사 식별 불필요.)
+    if (u?.passwordHash) return this.local.authenticate(id, password);
     return this.ezpass.authenticate(id, password, cmpnyNo);
   }
 }

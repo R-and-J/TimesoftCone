@@ -4,7 +4,7 @@ import { PALETTES, FONT } from "@/lib/tokens";
 import { Brand, BrandGlyph, Btn } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { login } from "@/lib/queries";
-import { ApiError } from "@/lib/api";
+import { ApiError, setAuthToken } from "@/lib/api";
 import { useAuth } from "@/lib/current-user";
 import { useToast } from "@/lib/toast";
 
@@ -73,6 +73,8 @@ function useLoginForm() {
     setSubmitting(true);
     try {
       const r = await login(email, password);
+      // RBAC: 이후 요청 인증용 토큰을 먼저 저장(프로필 setUser 전에).
+      setAuthToken(r.token);
       setUser({
         id: Number(r.userId),
         name: r.name,

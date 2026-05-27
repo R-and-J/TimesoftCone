@@ -112,6 +112,8 @@ export type LoginResponse = {
   jobTitle: string | null;
   email: string | null;
   provisioned: boolean;
+  /** 자체 발급 JWT(RBAC) — 이후 모든 요청에 Bearer로 붙인다. */
+  token: string;
 };
 
 export function login(id: string, password: string, cmpnyNo?: string) {

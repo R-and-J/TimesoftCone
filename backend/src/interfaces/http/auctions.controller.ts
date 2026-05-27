@@ -17,10 +17,11 @@ import { GetAuctionDetailUseCase } from "@/application/auction/get-auction-detai
 import { PlaceBidUseCase } from "@/application/auction/place-bid.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
+import { CurrentUser, type AuthUser } from "./auth/auth.decorators";
 import type { AuctionStatus } from "@/domain/auction/auction-status";
 
+// 입찰자는 토큰 주체로 고정 — body의 userId는 받지 않는다(타인 명의 입찰 차단, AC-3).
 const placeBidSchema = z.object({
-  userId: z.union([z.string(), z.number()]),
   amount: z
     .union([z.string(), z.number()])
     .refine((v) => {
@@ -52,6 +53,7 @@ export class AuctionsController {
   @Post(":id/bids")
   async placeBid(
     @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
     // Pipe is bound to @Body (NOT the method) on purpose: a method-level
     // @UsePipes would also run this object schema against the :id string param.
     @Body(new ZodValidationPipe(placeBidSchema)) body: z.infer<typeof placeBidSchema>,
@@ -59,7 +61,7 @@ export class AuctionsController {
     try {
       return await this.placeBidUC.execute({
         auctionId: id,
-        userId: body.userId,
+        userId: user.userId, // 토큰 주체 = 입찰자 (body 신뢰 안 함)
         amount: body.amount,
       });
     } catch (e) {

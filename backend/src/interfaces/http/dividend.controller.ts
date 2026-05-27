@@ -1,7 +1,9 @@
 import { BadRequestException, Controller, Get, Param } from "@nestjs/common";
 import { GetMyDividendUseCase } from "@/application/dividend/get-my-dividend.use-case";
 import { DomainError } from "@/domain/shared/errors";
+import { SelfParam } from "./auth/auth.decorators";
 
+@SelfParam("userId")
 @Controller("api/dividend")
 export class DividendController {
   constructor(private readonly getMyDividend: GetMyDividendUseCase) {}
