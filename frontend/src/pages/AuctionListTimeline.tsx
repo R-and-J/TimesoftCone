@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PALETTES, FONT } from "@/lib/tokens";
-import { Card, TopNav } from "@/components/atoms";
+import { Btn, Card, TopNav } from "@/components/atoms";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { ListVariantSwitcher } from "@/components/ListVariantSwitcher";
 import { YearSelect } from "@/components/YearSelect";
@@ -17,8 +17,22 @@ export default function AuctionListTimelinePage() {
   const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
   const q = useQuery(() => listAuctions(undefined, year), [year]);
 
-  const days = buildWeek();
+  // 5일 주간 뷰 앵커. 연도 바뀌면 그 해의 1/1로 점프해 LeavePool 생성 매물도 즉시 보이게.
+  // (anchor 기준이 오늘 고정이면 익년 매물은 화면 밖 — 그래서 useEffect로 동기화.)
+  const [anchor, setAnchor] = useState<Date>(() => atMidnight(new Date()));
+  useEffect(() => {
+    const todayYear = new Date().getFullYear();
+    if (year !== undefined && year !== todayYear) setAnchor(new Date(year, 0, 1));
+    else setAnchor(atMidnight(new Date()));
+  }, [year]);
+
+  const days = buildWeek(anchor);
   const colWidth = `repeat(${HOURS.length}, 1fr)`;
+  const shiftWeek = (deltaDays: number) => {
+    const next = new Date(anchor);
+    next.setDate(next.getDate() + deltaDays);
+    setAnchor(next);
+  };
 
   return (
     <ScreenFrame>
@@ -55,8 +69,17 @@ export default function AuctionListTimelinePage() {
               >
                 주간 경매 일정
               </div>
+              <div className="mono" style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
+                {days[0].start.getFullYear()}-
+                {String(days[0].start.getMonth() + 1).padStart(2, "0")}-
+                {String(days[0].start.getDate()).padStart(2, "0")} ~ {String(days[days.length - 1].start.getMonth() + 1).padStart(2, "0")}-
+                {String(days[days.length - 1].start.getDate()).padStart(2, "0")}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Btn p={p} variant="ghost" size="sm" onClick={() => shiftWeek(-5)}>‹ 이전 주</Btn>
+              <Btn p={p} variant="ghost" size="sm" onClick={() => setAnchor(atMidnight(new Date()))}>오늘</Btn>
+              <Btn p={p} variant="ghost" size="sm" onClick={() => shiftWeek(5)}>다음 주 ›</Btn>
               <YearSelect p={p} value={year} onChange={setYear} />
               <ListVariantSwitcher p={p} active="timeline" />
             </div>
@@ -181,12 +204,17 @@ export default function AuctionListTimelinePage() {
 type Day = { start: Date; end: Date };
 type Bar = { auction: AuctionListItem; startPct: number; endPct: number };
 
-function buildWeek(): Day[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+function atMidnight(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function buildWeek(anchor: Date): Day[] {
+  const start0 = atMidnight(anchor);
   return Array.from({ length: 5 }).map((_, i) => {
-    const start = new Date(today);
-    start.setDate(today.getDate() + i);
+    const start = new Date(start0);
+    start.setDate(start0.getDate() + i);
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     return { start, end };
