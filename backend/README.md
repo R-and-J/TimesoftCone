@@ -130,6 +130,16 @@ git update-index --skip-worktree backend/prisma/dev.db
 
 scope-cuts.md CUT-5 (anti-snipe)는 여전히 미구현이라, 마감 시각 이후 들어오는 입찰은 다음 tick에서 그대로 거부됩니다.
 
+### 연말 배당 자동 지급 스케줄러
+
+`YearEndDividendScheduler`가 **컷오프(기본 올해 12/31 23:59) 이후** 첫 tick에서 배당 배치를
+자동 1회 실행합니다 (수동 `POST /api/admin/dividend/settle`와 동일 use case, 멱등). 한 번 지급되면
+다음 tick에서 409를 감지하고 스스로 타이머를 멈춥니다.
+
+- 활성화: `.env`에 `DIVIDEND_AUTO_ENABLED=true` (기본 비활성 — 실지급은 신중히)
+- 체크 주기: `DIVIDEND_CHECK_INTERVAL_MS` (기본 3600000=1시간)
+- 데모/테스트: `DIVIDEND_CUTOFF=2026-01-01T00:00:00` 처럼 과거 시각으로 오버라이드하면 즉시 발동
+
 ## 시나리오: 입찰 → 자동 환불 → 자동 낙찰
 
 ```powershell
@@ -261,7 +271,7 @@ npm test
 - [x] 배당 예상치 (`GET /dividend/me/:id`)
 - [x] **연말 배당 실지급 배치** (`PayoutChannel` + `SettleYearEndDividend`, NFR-2 등식 검증, 멱등)
 - [x] **배당 정산 관리자 UI 버튼** (AdminOps "연말 배당 정산" → 미리보기 모달 → 실지급)
-- [ ] 12/31 배당 자동 스케줄 (현재는 수동 트리거)
+- [x] **12/31 배당 자동 스케줄** (`YearEndDividendScheduler`, 컷오프 이후 자동 1회 지급, 멱등 정지)
 - [ ] 어댑터 통합/E2E 테스트 (testcontainers)
 - [ ] CUT-5 Anti-snipe 마감 연장 / CUT-6 WebSocket 실시간
 - [ ] 완전한 LeavePool aggregate (기여 이벤트/만료 잡) — 현재 `contributed_days` 단일 컬럼

@@ -19,6 +19,7 @@ import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
+import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 
 // Use cases
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
@@ -158,6 +159,7 @@ import { PAYOUT_CHANNEL } from "./ports/payout-channel";
     SettleYearEndDividendUseCase,
 
     SettleDueAuctionsScheduler,
+    YearEndDividendScheduler,
   ],
 })
 export class AppModule {}
