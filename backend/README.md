@@ -260,7 +260,7 @@ npm test
 - [x] 관리자 통계/원장/회원관리/엑셀 export
 - [x] 배당 예상치 (`GET /dividend/me/:id`)
 - [x] **연말 배당 실지급 배치** (`PayoutChannel` + `SettleYearEndDividend`, NFR-2 등식 검증, 멱등)
-- [ ] 배당 정산 관리자 UI 버튼 (현재는 API만)
+- [x] **배당 정산 관리자 UI 버튼** (AdminOps "연말 배당 정산" → 미리보기 모달 → 실지급)
 - [ ] 12/31 배당 자동 스케줄 (현재는 수동 트리거)
 - [ ] 어댑터 통합/E2E 테스트 (testcontainers)
 - [ ] CUT-5 Anti-snipe 마감 연장 / CUT-6 WebSocket 실시간
@@ -270,7 +270,6 @@ npm test
 
 | PR | 내용 |
 |---|---|
-| Dividend UI | AdminOps에 "연말 배당 정산(미리보기→실행)" 버튼 |
 | Tests | 어댑터 통합 테스트 (testcontainers) |
 | CUT 부활 | WebSocket(CUT-6) / Anti-snipe(CUT-5) |
 | LeavePool | 완전한 LeavePool 컨텍스트 ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |

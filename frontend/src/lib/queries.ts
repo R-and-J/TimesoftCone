@@ -145,6 +145,40 @@ export function getMyDividend(userId: string | number) {
   return apiGet<MyDividendResponse>(`/dividend/me/${userId}`);
 }
 
+// 연말 배당 실지급 배치(ADMIN) — dryRun=true면 미리보기(지급 안 함),
+// false면 실제 지급. 멱등: 이미 정산됐으면 백엔드가 409. (ADR-008)
+export type DividendLine = {
+  userId: string;
+  name: string;
+  contributedDays: number;
+  stakeRatio: number;
+  amount: string;
+  isTopStake: boolean;
+};
+
+export type SettleDividendResponse = {
+  year: number;
+  dryRun: boolean;
+  alreadySettled: boolean;
+  escrowBalance: string;
+  totalContributors: number;
+  totalDistributed: string;
+  remainder: string;
+  /** 0보다 큰 배당만(지급 대상). */
+  lines: DividendLine[];
+};
+
+export function settleDividend(opts?: { dryRun?: boolean; year?: number }) {
+  const qs = new URLSearchParams();
+  if (opts?.dryRun) qs.set("dryRun", "true");
+  if (opts?.year !== undefined) qs.set("year", String(opts.year));
+  const tail = qs.toString();
+  return apiPost<SettleDividendResponse>(
+    `/admin/dividend/settle${tail ? `?${tail}` : ""}`,
+    {},
+  );
+}
+
 // ── Admin ─────────────────────────────────────────────────────────
 export type AdminStatsResponse = {
   escrowBalance: string;

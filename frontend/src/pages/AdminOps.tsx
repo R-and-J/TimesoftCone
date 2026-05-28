@@ -6,7 +6,13 @@ import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useQuery } from "@/lib/use-query";
 import { apiPost } from "@/lib/api";
-import { getAdminStats, listAuctions, type AuctionListItem } from "@/lib/queries";
+import {
+  getAdminStats,
+  listAuctions,
+  settleDividend,
+  type AuctionListItem,
+  type SettleDividendResponse,
+} from "@/lib/queries";
 import { useToast } from "@/lib/toast";
 
 // 정산 데이터 export 다운로드 링크 베이스 (ADR-021). VITE_API_BASE 없으면 vite 프록시(/api).
@@ -53,6 +59,43 @@ export default function AdminOpsPage() {
     spending: true,
   });
   const [exportFmt, setExportFmt] = useState<string>("xlsx");
+  // 배당 정산 모달: 먼저 미리보기(dryRun) → 확인 후 실지급.
+  const [divOpen, setDivOpen] = useState(false);
+  const [divLoading, setDivLoading] = useState(false);
+  const [divPreview, setDivPreview] = useState<SettleDividendResponse | null>(null);
+
+  // 모달을 열면서 동시에 미리보기를 불러온다(지급은 안 함).
+  const openDividend = async () => {
+    setDivOpen(true);
+    setDivPreview(null);
+    setDivLoading(true);
+    try {
+      setDivPreview(await settleDividend({ dryRun: true }));
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+      setDivOpen(false);
+    } finally {
+      setDivLoading(false);
+    }
+  };
+
+  // 실지급 — 멱등이라 이미 정산됐으면 백엔드가 409로 막는다.
+  const runDividend = async () => {
+    setDivLoading(true);
+    try {
+      const r = await settleDividend({ dryRun: false });
+      toast.push(
+        "success",
+        `배당 지급 완료 — ${r.lines.length}명에게 ${fmt.point(Number(r.totalDistributed))}P (에스크로 전액)`,
+      );
+      setDivOpen(false);
+      await statsQ.refetch();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setDivLoading(false);
+    }
+  };
 
   const doExport = () => {
     const sel = EXPORT_SETS.filter((s) => exportSets[s.key]).map((s) => s.key);
@@ -418,6 +461,21 @@ export default function AdminOpsPage() {
                     </span>
                   </div>
                 </div>
+                <Btn
+                  p={p}
+                  variant="primary"
+                  size="md"
+                  style={{ width: "100%", marginTop: 14 }}
+                  onClick={openDividend}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Icon.bolt size={14} /> 연말 배당 정산
+                  </span>
+                </Btn>
+                <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
+                  에스크로 잔액을 기여 지분(stake)만큼 일괄 지급합니다. 미리보기 후 실행되며,
+                  1회만 지급됩니다. (ADR-008)
+                </div>
               </Card>
             </div>
           </div>
@@ -494,6 +552,150 @@ export default function AdminOpsPage() {
           </div>
         </div>
       )}
+      {divOpen && (
+        <div
+          onClick={() => !divLoading && setDivOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(11,25,41,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 520,
+              maxHeight: "82vh",
+              display: "flex",
+              flexDirection: "column",
+              background: p.surface,
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
+              연말 배당 정산 (미리보기)
+            </div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18 }}>
+              에스크로 잔액을 기여 지분만큼 일괄 지급합니다. 나머지 단수는 stake 1위에게 귀속되어
+              <b> 총 배당 = 에스크로</b>가 정확히 맞습니다 (NFR-2). 실행은 1회만 가능합니다.
+            </div>
+
+            {divLoading && !divPreview && (
+              <div style={{ padding: 40, textAlign: "center", color: p.inkMuted, fontSize: 14 }}>
+                미리보기 계산 중…
+              </div>
+            )}
+
+            {divPreview && (
+              <>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 10,
+                    marginBottom: 16,
+                  }}
+                >
+                  <MiniStat label="에스크로 잔액" value={`${fmt.point(Number(divPreview.escrowBalance))} P`} />
+                  <MiniStat label="지급 대상" value={`${divPreview.lines.length}명`} />
+                  <MiniStat
+                    label="1위 단수 귀속"
+                    value={`${fmt.point(Number(divPreview.remainder))} P`}
+                  />
+                </div>
+
+                {divPreview.alreadySettled && (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      background: `${p.danger}14`,
+                      color: p.danger,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      marginBottom: 14,
+                    }}
+                  >
+                    이미 배당이 정산되었습니다 — 재실행은 차단됩니다 (멱등).
+                  </div>
+                )}
+
+                {divPreview.lines.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 24,
+                      textAlign: "center",
+                      color: p.inkMuted,
+                      fontSize: 13,
+                    }}
+                  >
+                    지급 대상이 없습니다 (에스크로 0 또는 기여자 없음).
+                  </div>
+                ) : (
+                  <div style={{ overflow: "auto", flex: 1, marginBottom: 18 }}>
+                    {divPreview.lines.map((l) => (
+                      <div
+                        key={l.userId}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "10px 0",
+                          borderBottom: `1px solid ${p.line}`,
+                        }}
+                      >
+                        <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>
+                          {l.name}
+                          {l.isTopStake && (
+                            <Pill p={p} tone="success" size="sm" style={{ marginLeft: 8 }}>
+                              stake 1위
+                            </Pill>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: p.inkMuted, width: 90, textAlign: "right" }}>
+                          {l.contributedDays}일 ({(l.stakeRatio * 100).toFixed(1)}%)
+                        </div>
+                        <div
+                          className="mono"
+                          style={{ fontSize: 13, color: p.ink, fontWeight: 700, width: 110, textAlign: "right" }}
+                        >
+                          {fmt.point(Number(l.amount))} P
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={divLoading} onClick={() => setDivOpen(false)}>
+                취소
+              </Btn>
+              <Btn
+                p={p}
+                variant="primary"
+                size="md"
+                disabled={
+                  divLoading ||
+                  !divPreview ||
+                  divPreview.alreadySettled ||
+                  divPreview.lines.length === 0
+                }
+                onClick={runDividend}
+              >
+                {divLoading ? "처리 중…" : "실지급 실행"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenFrame>
   );
 }
@@ -529,6 +731,18 @@ function KpiCard({
       </div>
       <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 2 }}>{sub}</div>
     </Card>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  const p = PALETTES.cobalt;
+  return (
+    <div style={{ background: p.bg, borderRadius: 10, padding: "10px 12px" }}>
+      <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>{label}</div>
+      <div className="mono" style={{ fontSize: 16, color: p.ink, fontWeight: 800, marginTop: 2 }}>
+        {value}
+      </div>
+    </div>
   );
 }
 
