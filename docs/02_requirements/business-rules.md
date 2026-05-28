@@ -94,9 +94,22 @@ stake_ratio(user, year) = contributed_days(user, year) / Σ contributed_days(*, 
 
 ## 5. 미결 항목 (개발 전 팀 확정)
 
-- [ ] OP-3 최소 입찰 증분의 구체 금액 (초기 권장: 100 P)
-- [ ] OP-5 분산 오픈 주당 개수
-- [ ] OP-6 첫 해 시작가 모드 및 값
+> 코드에는 합리적 기본값이 들어가 데모는 그대로 돈다(아래 표 참고). 아래 체크박스는 *팀 공식 결정값*이 필요한 항목이지 *시스템이 안 돌아가는* 항목은 아님.
+
+| OP | 운영 knob | 코드/env 기본값 | 위치 |
+|---|---|---|---|
+| OP-1 | 개별 경매 기간 (기존 매물) | 운영자 입력(`POST /api/admin/auctions`) | `CreateAuctionUseCase` |
+| OP-1 | LeavePool 생성 매물 기간 | 7일 | `LEAVEPOOL_AUCTION_DAYS=7` |
+| OP-3 | 최소 입찰 증분 | 100 P | `schema.prisma` 기본값 + `LEAVEPOOL_MIN_INCREMENT=100` |
+| OP-5 | 분산 오픈 주당 개수 | 0 (= 익년도 1/1 전량 동시) | `LEAVEPOOL_WEEKLY_QTY=0` |
+| OP-6 | 첫 해 시작가 | 5,000 P (모드② 고정 최소가) | `LEAVEPOOL_START_PRICE=5000` |
+| OP-8 | 연말 배치 시각 | 12/31 23:59 (로컬) | `DIVIDEND_CUTOFF` / `LEAVEPOOL_CUTOFF` |
+| CUT-5 | anti-snipe 창/연장 | 5/5분 | `ANTISNIPE_WINDOW_MS=300000` / `ANTISNIPE_EXTEND_MS=300000` |
+
+팀 공식 확정이 남은 항목:
+- [ ] OP-3 최소 입찰 증분의 구체 금액 (코드 기본 100 P — 운영자 동의 필요)
+- [ ] OP-5 분산 오픈 주당 개수 (코드 기본 0 = 전량 동시)
+- [ ] OP-6 첫 해 시작가 모드 및 값 (코드 기본 모드②, 5,000 P)
 - [ ] KPI baseline 측정 방법 + 만족도 설문 문항
 - [ ] 최소 입찰 증분을 통화별로 다르게 둘지 (현재는 단일 통화라 보류)
 

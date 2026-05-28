@@ -70,9 +70,16 @@ Identity (who/role) comes from ezpass; **leave balances are owned internally** (
 
 ## Remaining open items
 
-- **Operational parameter values** — the *structure* is set in `docs/02_requirements/business-rules.md` but concrete numbers (min bid increment, weekly open quota, first-year starting price) are still ⚙️ team knobs; some have code defaults (e.g. `minIncrement` defaults to 100 in the schema).
+- **Operational parameter values** — all the ⚙️ knobs in `docs/02_requirements/business-rules.md §1` now have working code/env defaults (the team's *formal* values are still owed but the system runs end-to-end without them):
+  - OP-1 auction duration → `LEAVEPOOL_AUCTION_DAYS=7` (per generated auction).
+  - OP-3 min bid increment → `minIncrement` defaults to 100 in `schema.prisma`; LeavePool-generated auctions take `LEAVEPOOL_MIN_INCREMENT=100`.
+  - OP-5 weekly open quota → `LEAVEPOOL_WEEKLY_QTY=0` (0 = open all at targetYear 1/1; >0 spreads `startedAt` weekly).
+  - OP-6 first-year starting price → `LEAVEPOOL_START_PRICE=5000` (mode ② fixed minimum).
+  - OP-8 year-end batch time → `DIVIDEND_CUTOFF`/`LEAVEPOOL_CUTOFF` env (default `Dec 31 23:59` local); both auto-schedulers gate on this.
+  - Anti-snipe (CUT-5) → `ANTISNIPE_WINDOW_MS=300000`, `ANTISNIPE_EXTEND_MS=300000` (5/5 min); `WINDOW=0` disables.
+  - Auto-settle tick → `SETTLE_INTERVAL_MS=60000`; `0` disables.
 - **KPI measurement** — both KPIs (leave-utilization improvement, satisfaction survey) need out-of-system measurement setup (baseline data, survey instrument).
-- **Year-end Dividend / LeavePool batch** — both implemented. Dividend payout: `POST /api/admin/dividend/settle` (`PayoutChannel` + `SettleYearEndDividendUseCase`, idempotent, NFR-2 enforced; `GET /api/dividend/me/:userId` still computes the *projection* alongside). LeavePool collection: `POST /api/admin/leave-pool/collect` (`CollectLeavePoolUseCase` + `LeavePoolPort` → REGULAR remaining becomes next-year 1-day auctions + stake, single tx, `leave_pool_run.target_year` UNIQUE for idempotency, `AuctionInventoryCreatedEvent`). Auto-schedule: `YearEndDividendScheduler` (cutoff-gated, idempotent stop).
+- **Year-end Dividend / LeavePool batch** — both implemented end-to-end. Dividend payout: `POST /api/admin/dividend/settle` (`PayoutChannel` + `SettleYearEndDividendUseCase`, idempotent, NFR-2 enforced; `GET /api/dividend/me/:userId?year=` reads per-year `stake` rows). LeavePool collection: `POST /api/admin/leave-pool/collect` (`CollectLeavePoolUseCase` + `LeavePoolPort` → REGULAR remaining becomes next-year 1-day auctions + per-year `stake(userId, year)`, single tx, `leave_pool_run.target_year` UNIQUE for idempotency, `AuctionInventoryCreatedEvent` notifies ADMINs). Auto-schedules: `YearEndDividendScheduler` + `LeavePoolScheduler` (both cutoff-gated, idempotent self-stop). Stake is now properly year-partitioned (`stake` table); `user.contributedDays` remains as a legacy snapshot column kept in sync by the LeavePool adapter.
 
 Domain formulas are resolved in `docs/02_requirements/business-rules.md` (Stake formula, dividend remainder, operational params) and ADR-018 (loser-refund flow, bid cancellation). The canonical API spec is `docs/03_design/openapi.yaml` (`api-spec.md` is narrative-only and defers to the YAML on conflict).
 
