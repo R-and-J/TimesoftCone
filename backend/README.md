@@ -244,9 +244,19 @@ src/
 npm test
 ```
 
-도메인 단위 테스트 5개 — Point, UserId, AuctionId, Wallet, Auction. Prisma/DB 없이 순수 실행.
+**도메인 단위** (`npm test`, rootDir=`src`): Point·UserId·AuctionId·Wallet·Auction 등 37개. Prisma/DB 없이 순수 실행.
 
-어댑터 통합 테스트(testcontainers)는 별도 PR.
+**어댑터 통합** (`npm run test:e2e`, `test/*.e2e-spec.ts`):
+```powershell
+npm run test:e2e
+```
+실제 AppModule(실 Prisma 어댑터·`PrismaUnitOfWork`·이벤트버스)을 **임시 SQLite DB**에 대고 띄워 검증.
+`test/setup-e2e.ts`가 OS temp에 새 DB를 만들고 `prisma migrate deploy`로 트리거(insert-only)·CHECK까지
+포함한 깨끗한 스키마를 깐다(시드 dev.db에 의존하지 않음). 커버리지:
+- 입찰 단일 tx: 차감+BID 원장, 패자 자동환불(원 BID 유지 = Insert-Only), 잔액 부족 시 전체 롤백
+- anti-snipe(CUT-5): 마감 임박 입찰 → `endsAt` 연장이 DB에 영속화
+- 정산: 낙찰 AWARD + AUCTION 연차 적립(같은 tx) + WIN audit 원장(amount=0)
+- 연말 배당: 기여 지분 비례 분배, **Σ배당 = 에스크로(NFR-2)**, 지급 후 에스크로=0, 재호출 멱등(409)
 
 ## 자른 것들
 
@@ -274,7 +284,7 @@ npm test
 - [x] **배당 정산 관리자 UI 버튼** (AdminOps "연말 배당 정산" → 미리보기 모달 → 실지급)
 - [x] **12/31 배당 자동 스케줄** (`YearEndDividendScheduler`, 컷오프 이후 자동 1회 지급, 멱등 정지)
 - [x] **CUT-5 Anti-snipe** 마감 임박 입찰 시 자동 연장 (`extendIfSniped`, 단일 tx, 영속화)
-- [ ] 어댑터 통합/E2E 테스트 (testcontainers)
+- [x] **어댑터 통합/E2E 테스트** (`test/*.e2e-spec.ts` — 실 SQLite, 입찰/정산/배당 핫패스)
 - [ ] CUT-6 WebSocket 실시간 (현재 폴링)
 - [ ] 완전한 LeavePool aggregate (기여 이벤트/만료 잡) — 현재 `contributed_days` 단일 컬럼
 
@@ -282,8 +292,7 @@ npm test
 
 | PR | 내용 |
 |---|---|
-| Tests | 어댑터 통합 테스트 (testcontainers) |
-| CUT 부활 | WebSocket(CUT-6) / Anti-snipe(CUT-5) |
+| CUT 부활 | WebSocket(CUT-6) 실시간 |
 | LeavePool | 완전한 LeavePool 컨텍스트 ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |
 
 ## 참고
