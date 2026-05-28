@@ -22,6 +22,7 @@ import { NotificationObserver } from "./adapters/notification/notification.obser
 import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
+import { LeavePoolScheduler } from "./adapters/scheduling/leave-pool.scheduler";
 
 // Use cases
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
@@ -172,6 +173,7 @@ import { LEAVE_POOL } from "./ports/leave-pool.port";
 
     SettleDueAuctionsScheduler,
     YearEndDividendScheduler,
+    LeavePoolScheduler,
   ],
 })
 export class AppModule {}

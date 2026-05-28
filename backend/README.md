@@ -147,6 +147,16 @@ scope-cuts.md CUT-5 (anti-snipe)는 여전히 미구현이라, 마감 시각 이
 - 체크 주기: `DIVIDEND_CHECK_INTERVAL_MS` (기본 3600000=1시간)
 - 데모/테스트: `DIVIDEND_CUTOFF=2026-01-01T00:00:00` 처럼 과거 시각으로 오버라이드하면 즉시 발동
 
+### 연말 풀 수집 자동 스케줄러
+
+`LeavePoolScheduler`가 컷오프(기본 올해 12/31 23:59) 이후 첫 tick에서 `CollectLeavePoolUseCase`를
+자동 1회 실행합니다 (수동 `POST /api/admin/leave-pool/collect`와 동일 use case, 멱등). 한 번 수집되면
+다음 tick을 기다리지 않고 스스로 타이머를 멈춥니다.
+
+- 활성화: `.env`에 `LEAVEPOOL_AUTO_ENABLED=true` (기본 비활성)
+- 체크 주기: `LEAVEPOOL_CHECK_INTERVAL_MS` (기본 3600000=1시간)
+- 데모/테스트: `LEAVEPOOL_CUTOFF=2026-01-01T00:00:00` 으로 과거 시각 오버라이드
+
 ## 시나리오: 입찰 → 자동 환불 → 자동 낙찰
 
 ```powershell
