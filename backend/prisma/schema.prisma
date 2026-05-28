@@ -74,7 +74,7 @@ model User {
 model Notification {
   id        BigInt   @id @default(autoincrement())
   userId    BigInt   @map("user_id")
-  /// OUTBID(입찰 밀림) | AUCTION_WON(낙찰).
+  /// OUTBID(입찰 밀림) | AUCTION_WON(낙찰) | INVENTORY_CREATED(연말 풀 수집 — ADMIN 대상).
   type      String
   title     String
   message   String

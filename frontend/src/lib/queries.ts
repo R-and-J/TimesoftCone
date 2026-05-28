@@ -340,7 +340,7 @@ export function updateMember(userId: string, input: UpdateMemberInput) {
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
 export type NotificationItem = {
   id: string;
-  type: "OUTBID" | "AUCTION_WON";
+  type: "OUTBID" | "AUCTION_WON" | "INVENTORY_CREATED";
   title: string;
   message: string;
   auctionId: string | null;

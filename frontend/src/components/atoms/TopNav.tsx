@@ -197,7 +197,12 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
                           borderRadius: "50%",
                           marginTop: 6,
                           flexShrink: 0,
-                          background: n.type === "AUCTION_WON" ? p.success : p.warn,
+                          background:
+                            n.type === "AUCTION_WON"
+                              ? p.success
+                              : n.type === "INVENTORY_CREATED"
+                                ? p.accent
+                                : p.warn,
                         }}
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>

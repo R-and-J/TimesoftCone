@@ -12,6 +12,7 @@ import {
   AUCTION_EVENTS,
   type BidPlacedEvent,
   type AuctionWonEvent,
+  type AuctionInventoryCreatedEvent,
 } from "@/application/events/auction-events";
 
 const won = (n: bigint) => Number(n).toLocaleString("ko-KR");
@@ -38,6 +39,32 @@ export class NotificationObserver {
       });
     } catch (err) {
       this.logger.warn(`OUTBID 알림 적재 실패 (${e.auctionId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 연말 풀 수집 → 모든 ADMIN에게 운영 알림 (ADR-017). */
+  @OnEvent(AUCTION_EVENTS.INVENTORY_CREATED)
+  async onInventoryCreated(e: AuctionInventoryCreatedEvent): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: "ADMIN", active: true },
+        select: { id: true },
+      });
+      if (admins.length === 0) return;
+      const message = `${e.targetYear}년 경매 매물 ${e.auctionsCreated}개가 생성되었습니다 (기여자 ${e.contributorCount}명).`;
+      await this.prisma.notification.createMany({
+        data: admins.map((u) => ({
+          userId: u.id,
+          type: "INVENTORY_CREATED",
+          title: "연말 풀 수집 완료",
+          message,
+          auctionId: null,
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(
+        `INVENTORY_CREATED 알림 적재 실패 (${e.targetYear}): ${(err as Error).message}`,
+      );
     }
   }
 
