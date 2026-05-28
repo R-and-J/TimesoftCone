@@ -6,6 +6,8 @@ export const AUCTION_REPOSITORY = Symbol("AuctionRepository");
 
 export type AuctionListFilter = {
   status?: AuctionStatus | AuctionStatus[];
+  /** 경매가 속한 연도(id가 A-YYYY-NNN이므로 id prefix로 필터). */
+  year?: number;
   limit?: number;
 };
 

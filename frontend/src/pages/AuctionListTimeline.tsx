@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PALETTES, FONT } from "@/lib/tokens";
 import { Card, TopNav } from "@/components/atoms";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { ListVariantSwitcher } from "@/components/ListVariantSwitcher";
+import { YearSelect } from "@/components/YearSelect";
 import { useQuery } from "@/lib/use-query";
 import { listAuctions, type AuctionListItem } from "@/lib/queries";
 import type { CSSProperties } from "react";
@@ -12,7 +14,8 @@ const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] as const;
 export default function AuctionListTimelinePage() {
   const p = PALETTES.cobalt;
   const navigate = useNavigate();
-  const q = useQuery(() => listAuctions(), []);
+  const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
+  const q = useQuery(() => listAuctions(undefined, year), [year]);
 
   const days = buildWeek();
   const colWidth = `repeat(${HOURS.length}, 1fr)`;
@@ -53,7 +56,10 @@ export default function AuctionListTimelinePage() {
                 주간 경매 일정
               </div>
             </div>
-            <ListVariantSwitcher p={p} active="timeline" />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <YearSelect p={p} value={year} onChange={setYear} />
+              <ListVariantSwitcher p={p} active="timeline" />
+            </div>
           </div>
 
           {q.loading && <div style={{ color: p.inkMuted, padding: 24 }}>불러오는 중…</div>}

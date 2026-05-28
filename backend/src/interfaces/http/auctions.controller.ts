@@ -52,11 +52,18 @@ export class AuctionsController {
   }
 
   @Get()
-  async list(@Query("status") status?: string) {
+  async list(
+    @Query("status") status?: string,
+    @Query("year") year?: string,
+  ) {
     const parsed = status?.split(",").filter(Boolean) as
       | AuctionStatus[]
       | undefined;
-    return this.listUC.execute(parsed ? { status: parsed } : undefined);
+    const y = year ? Number(year) : undefined;
+    const opts: { status?: AuctionStatus[]; year?: number } = {};
+    if (parsed) opts.status = parsed;
+    if (y !== undefined && Number.isFinite(y)) opts.year = y;
+    return this.listUC.execute(Object.keys(opts).length > 0 ? opts : undefined);
   }
 
   @Get(":id")

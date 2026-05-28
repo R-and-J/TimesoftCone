@@ -55,9 +55,15 @@ export class PrismaAuctionRepository implements AuctionRepository {
       : filter.status
         ? { equals: filter.status }
         : undefined;
+    // id가 A-YYYY-NNN 형식이라 prefix 매칭으로 연도 필터(인덱스 활용).
+    const idFilter = filter.year !== undefined ? { startsWith: `A-${filter.year}-` } : undefined;
+
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (idFilter) where.id = idFilter;
 
     const rows = await this.prisma.auction.findMany({
-      where: status ? { status } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: [{ endsAt: "asc" }, { createdAt: "asc" }],
       take: filter.limit,
     });

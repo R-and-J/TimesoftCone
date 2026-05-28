@@ -4,6 +4,7 @@ import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
+import { YearSelect } from "@/components/YearSelect";
 import { useQuery } from "@/lib/use-query";
 import { apiPost } from "@/lib/api";
 import {
@@ -51,8 +52,11 @@ export default function AdminOpsPage() {
   const p = PALETTES.cobalt;
   const toast = useToast();
   const statsQ = useQuery(() => getAdminStats(), []);
-  const upcomingQ = useQuery(() => listAuctions(["CREATED"]), []);
-  const unsoldQ = useQuery(() => listAuctions(["UNSOLD"]), []);
+  // 오픈 예정·유찰 재고는 운영자가 보는 본 연도가 기본. LeavePool로 익년도 매물이
+  // 대량 생성돼도 기본 뷰가 안 망가지게 끊는다 — 셀렉터로 전환 가능.
+  const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
+  const upcomingQ = useQuery(() => listAuctions(["CREATED"], year), [year]);
+  const unsoldQ = useQuery(() => listAuctions(["UNSOLD"], year), [year]);
   const [running, setRunning] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportSets, setExportSets] = useState<Record<string, boolean>>({
@@ -209,7 +213,8 @@ export default function AdminOpsPage() {
                 운영 대시보드
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <YearSelect p={p} value={year} onChange={setYear} />
               <Btn p={p} variant="ghost" size="md" onClick={() => statsQ.refetch()}>
                 새로고침
               </Btn>

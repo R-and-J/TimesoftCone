@@ -23,7 +23,9 @@ export class ListAuctionsUseCase {
     @Inject(AUCTION_REPOSITORY) private readonly auctions: AuctionRepository,
   ) {}
 
-  async execute(filter?: { status?: AuctionStatus | AuctionStatus[]; limit?: number }): Promise<AuctionListItem[]> {
+  async execute(
+    filter?: { status?: AuctionStatus | AuctionStatus[]; year?: number; limit?: number },
+  ): Promise<AuctionListItem[]> {
     const auctions = await this.auctions.list(filter);
     return auctions.map((a) => {
       const s = a.snapshot();

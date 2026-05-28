@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { ListVariantSwitcher } from "@/components/ListVariantSwitcher";
+import { YearSelect } from "@/components/YearSelect";
 import type { Palette } from "@/lib/tokens";
 import { useQuery } from "@/lib/use-query";
 import { listAuctions, type AuctionListItem } from "@/lib/queries";
@@ -11,7 +13,9 @@ import { useNavigate } from "react-router-dom";
 export default function AuctionListGridPage() {
   const p = PALETTES.cobalt;
   const navigate = useNavigate();
-  const q = useQuery(() => listAuctions(), []);
+  // 연도 필터(CUT-9 이후 LeavePool 배치로 익년도 매물이 대량 생성되므로 기본 올해).
+  const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
+  const q = useQuery(() => listAuctions(undefined, year), [year]);
 
   const all = q.data ?? [];
   const open = all.filter((a) => a.status === "OPEN");
@@ -62,6 +66,7 @@ export default function AuctionListGridPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <YearSelect p={p} value={year} onChange={setYear} />
               <Btn p={p} variant="ghost" size="md">
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Icon.filter size={14} /> 필터

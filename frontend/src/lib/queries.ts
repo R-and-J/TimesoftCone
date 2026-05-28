@@ -63,9 +63,12 @@ export type BalanceResponse = {
   balance: string;
 };
 
-export function listAuctions(status?: AuctionStatus[]) {
-  const qs = status && status.length > 0 ? `?status=${status.join(",")}` : "";
-  return apiGet<AuctionListItem[]>(`/auctions${qs}`);
+export function listAuctions(status?: AuctionStatus[], year?: number) {
+  const qs = new URLSearchParams();
+  if (status && status.length > 0) qs.set("status", status.join(","));
+  if (year !== undefined) qs.set("year", String(year));
+  const tail = qs.toString();
+  return apiGet<AuctionListItem[]>(`/auctions${tail ? `?${tail}` : ""}`);
 }
 
 export function getAuction(id: string) {

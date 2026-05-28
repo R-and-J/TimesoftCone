@@ -70,7 +70,7 @@ git update-index --skip-worktree backend/prisma/dev.db
 
 | 메서드 | 경로 | 용도 |
 |---|---|---|
-| `GET`  | `/api/auctions?status=OPEN,CREATED` | 경매 목록 (Grid/Row/Timeline 화면) |
+| `GET`  | `/api/auctions?status=OPEN,CREATED&year=2026` | 경매 목록 (Grid/Row/Timeline). `year`는 id prefix `A-{year}-` 매칭 — LeavePool 익년도 매물 격리용 |
 | `GET`  | `/api/auctions/:id`                  | 경매 상세 + 최근 입찰 기록 (입찰 상세 화면) |
 | `GET`  | `/api/auctions/:id/stream`           | **실시간 업데이트 SSE** (입찰/정산 신호 push, `@Public`, CUT-6) |
 | `POST` | `/api/auctions/:id/bids`             | 입찰 (body: `userId`, `amount`) |

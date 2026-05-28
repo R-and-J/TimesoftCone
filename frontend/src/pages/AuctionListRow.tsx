@@ -1,15 +1,18 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Avatar, Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { ListVariantSwitcher } from "@/components/ListVariantSwitcher";
+import { YearSelect } from "@/components/YearSelect";
 import { useQuery } from "@/lib/use-query";
 import { listAuctions, type AuctionListItem } from "@/lib/queries";
 
 export default function AuctionListRowPage() {
   const p = PALETTES.cobalt;
   const navigate = useNavigate();
-  const q = useQuery(() => listAuctions(), []);
+  const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
+  const q = useQuery(() => listAuctions(undefined, year), [year]);
 
   const all = q.data ?? [];
   const open = all.filter((a) => a.status === "OPEN");
@@ -56,7 +59,10 @@ export default function AuctionListRowPage() {
                 건
               </div>
             </div>
-            <ListVariantSwitcher p={p} active="row" />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <YearSelect p={p} value={year} onChange={setYear} />
+              <ListVariantSwitcher p={p} active="row" />
+            </div>
           </div>
 
           {q.loading && (
