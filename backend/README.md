@@ -210,6 +210,7 @@ src/
 1. UPDATE auction SET id=id WHERE id = ?            ← write 락 선점, 동일 경매 동시 입찰 직렬화 (CUT-1)
 2. SELECT auction WHERE id = ?
 3. auction.placeBid(bidder, amount, now)           ← 도메인 검증
+   auction.extendIfSniped(now, window, extend)      ← 마감 임박이면 연장 (CUT-5)
 4. 이전 최고가 입찰자 있으면:
    - prev_wallet.balance += prev_amount            (REFUND)
    - INSERT ledger_entry (REFUND, +prev_amount, ...)
@@ -255,7 +256,7 @@ npm test
 - **CUT-2**: in-process 도메인 이벤트 버스 → ✅ **부활** (알림 Observer, `@nestjs/event-emitter`)
 - **CUT-3**: State Pattern → `AuctionStatus` enum + 가드 절
 - **CUT-4**: Outbox → 외부 호출 없으니 생략 (ADR-005 dormant)
-- **CUT-5**: Anti-snipe 마감 연장 → 미구현
+- **CUT-5**: Anti-snipe 마감 연장 → ✅ **부활** (`Auction.extendIfSniped` + `PlaceBid`, `ANTISNIPE_*` knob)
 - **CUT-6**: WebSocket 실시간 → 프론트 폴링
 - **CUT-8**: 인증/RBAC → ✅ **완전 부활** (자체 JWT + RBAC/ABAC 가드)
 
@@ -272,8 +273,9 @@ npm test
 - [x] **연말 배당 실지급 배치** (`PayoutChannel` + `SettleYearEndDividend`, NFR-2 등식 검증, 멱등)
 - [x] **배당 정산 관리자 UI 버튼** (AdminOps "연말 배당 정산" → 미리보기 모달 → 실지급)
 - [x] **12/31 배당 자동 스케줄** (`YearEndDividendScheduler`, 컷오프 이후 자동 1회 지급, 멱등 정지)
+- [x] **CUT-5 Anti-snipe** 마감 임박 입찰 시 자동 연장 (`extendIfSniped`, 단일 tx, 영속화)
 - [ ] 어댑터 통합/E2E 테스트 (testcontainers)
-- [ ] CUT-5 Anti-snipe 마감 연장 / CUT-6 WebSocket 실시간
+- [ ] CUT-6 WebSocket 실시간 (현재 폴링)
 - [ ] 완전한 LeavePool aggregate (기여 이벤트/만료 잡) — 현재 `contributed_days` 단일 컬럼
 
 ## 후속 PR (남은 것)

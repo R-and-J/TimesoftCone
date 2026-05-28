@@ -72,11 +72,15 @@ export default function AuctionDetailPage() {
     setSubmitting(true);
     try {
       const r = await placeBid(a.id, user.id, bidAmount);
+      const base = r.refundedTo
+        ? `${fmt.point(bidAmount)} P 입찰 성공 · 이전 최고가 자동 환불됨`
+        : `${fmt.point(bidAmount)} P 입찰 성공`;
+      // anti-snipe(CUT-5): 마감 임박 입찰이면 마감이 연장됐음을 알린다.
       toast.push(
         "success",
-        r.refundedTo
-          ? `${fmt.point(bidAmount)} P 입찰 성공 · 이전 최고가 자동 환불됨`
-          : `${fmt.point(bidAmount)} P 입찰 성공`,
+        r.extended
+          ? `${base} · 마감 임박 입찰 → 마감 ${new Date(r.endsAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}로 연장`
+          : base,
       );
       await Promise.all([auctionQ.refetch(), balanceQ.refetch()]);
     } catch (e) {

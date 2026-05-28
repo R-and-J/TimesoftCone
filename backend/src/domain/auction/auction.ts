@@ -56,7 +56,7 @@ export class Auction {
     private _bidCount: number,
     readonly minIncrement: Point,
     readonly startedAt: Date,
-    readonly endsAt: Date,
+    private _endsAt: Date,
     private _settledAt: Date | null,
     /** 낙찰자에게 부여할 AUCTION 연차 일수. */
     readonly leaveDays: number,
@@ -115,6 +115,7 @@ export class Auction {
   get highest(): Point { return this._highest; }
   get highestBidder(): UserId | null { return this._highestBidder; }
   get bidCount(): number { return this._bidCount; }
+  get endsAt(): Date { return this._endsAt; }
   get settledAt(): Date | null { return this._settledAt; }
 
   snapshot(): AuctionSnapshot {
@@ -197,6 +198,29 @@ export class Auction {
     this._highestBidder = bidder;
     this._bidCount += 1;
     return previous;
+  }
+
+  /**
+   * Anti-snipe (scope-cuts.md CUT-5): if a bid lands within `windowMs` of the
+   * deadline, push `endsAt` out so there's always at least `extendMs` left —
+   * preventing last-second snipes from denying others a counter-bid.
+   *
+   * Call this right after a successful placeBid, inside the same transaction.
+   * Returns true if the deadline was extended (so the caller can persist it /
+   * surface it). `windowMs <= 0` disables the feature. Only OPEN auctions
+   * extend (status-transition logic stays in the aggregate, invariant #11).
+   */
+  extendIfSniped(now: Date, windowMs: number, extendMs: number): boolean {
+    if (windowMs <= 0 || extendMs <= 0) return false;
+    if (this._status !== "OPEN") return false;
+    const remainingMs = this._endsAt.getTime() - now.getTime();
+    if (remainingMs > windowMs) return false; // not in the snipe window
+
+    // Reset the clock to `extendMs` from the bid moment, but never shrink it.
+    const candidate = now.getTime() + extendMs;
+    if (candidate <= this._endsAt.getTime()) return false;
+    this._endsAt = new Date(candidate);
+    return true;
   }
 
   /**

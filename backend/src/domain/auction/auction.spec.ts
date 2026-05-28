@@ -159,3 +159,50 @@ describe("Auction.settle", () => {
     );
   });
 });
+
+describe("Auction.extendIfSniped (anti-snipe, CUT-5)", () => {
+  const WIN = 5 * 60_000; // 5분 창
+  const EXT = 5 * 60_000; // 5분 연장
+  const ENDS = new Date("2026-04-03T09:00:00Z");
+
+  function openAuction() {
+    const a = freshAuction({ endsAt: ENDS });
+    a.open(new Date("2026-04-01T00:00:00Z"));
+    return a;
+  }
+
+  it("does not extend when the bid is well before the deadline", () => {
+    const a = openAuction();
+    const farBefore = new Date(ENDS.getTime() - 60 * 60_000); // 1시간 전
+    expect(a.extendIfSniped(farBefore, WIN, EXT)).toBe(false);
+    expect(a.endsAt.getTime()).toBe(ENDS.getTime());
+  });
+
+  it("extends to now + extendMs when a bid lands inside the window", () => {
+    const a = openAuction();
+    const sniped = new Date(ENDS.getTime() - 60_000); // 마감 1분 전
+    expect(a.extendIfSniped(sniped, WIN, EXT)).toBe(true);
+    expect(a.endsAt.getTime()).toBe(sniped.getTime() + EXT);
+  });
+
+  it("never shrinks the deadline (extend shorter than time remaining)", () => {
+    const a = openAuction();
+    const sniped = new Date(ENDS.getTime() - 4 * 60_000); // 창 안(4분 전)
+    // extend가 2분이면 now+2분 < endsAt → 당겨질 일 없으니 연장 안 함.
+    expect(a.extendIfSniped(sniped, WIN, 2 * 60_000)).toBe(false);
+    expect(a.endsAt.getTime()).toBe(ENDS.getTime());
+  });
+
+  it("is disabled when windowMs <= 0", () => {
+    const a = openAuction();
+    const sniped = new Date(ENDS.getTime() - 60_000);
+    expect(a.extendIfSniped(sniped, 0, EXT)).toBe(false);
+    expect(a.endsAt.getTime()).toBe(ENDS.getTime());
+  });
+
+  it("does not extend a non-OPEN auction", () => {
+    const a = freshAuction({ endsAt: ENDS }); // CREATED
+    const sniped = new Date(ENDS.getTime() - 60_000);
+    expect(a.extendIfSniped(sniped, WIN, EXT)).toBe(false);
+  });
+});

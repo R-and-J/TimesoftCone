@@ -20,6 +20,7 @@
 // stay consistent (CLAUDE.md hard invariant #6).
 
 import { Inject, Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { UNIT_OF_WORK, type UnitOfWork } from "@/ports/unit-of-work";
 import { AUCTION_EVENTS, BidPlacedEvent } from "@/application/events/auction-events";
@@ -43,16 +44,33 @@ export type PlaceBidResult = {
   newBidCount: number;
   refundedTo: bigint | null;
   refundedAmount: bigint | null;
+  /** anti-snipe(CUT-5)로 마감이 연장됐으면 true. */
+  extended: boolean;
+  /** (연장 여부와 무관하게) 현재 마감 시각. */
+  endsAt: Date;
 };
+
+// anti-snipe 정책 파라미터 (운영 knob — business-rules.md). 기본 5분/5분.
+const DEFAULT_WINDOW_MS = 5 * 60_000;
+const DEFAULT_EXTEND_MS = 5 * 60_000;
 
 @Injectable()
 export class PlaceBidUseCase {
   private readonly currency = Currency.WELFARE_POINT;
+  private readonly snipeWindowMs: number;
+  private readonly snipeExtendMs: number;
 
   constructor(
     @Inject(UNIT_OF_WORK) private readonly uow: UnitOfWork,
     private readonly events: EventEmitter2,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    // ANTISNIPE_WINDOW_MS=0 이면 기능 비활성 (마감 도달 시 즉시 종료).
+    const w = Number(this.config.get<string>("ANTISNIPE_WINDOW_MS"));
+    const e = Number(this.config.get<string>("ANTISNIPE_EXTEND_MS"));
+    this.snipeWindowMs = Number.isFinite(w) && w >= 0 ? w : DEFAULT_WINDOW_MS;
+    this.snipeExtendMs = Number.isFinite(e) && e > 0 ? e : DEFAULT_EXTEND_MS;
+  }
 
   async execute(input: PlaceBidInput): Promise<PlaceBidResult> {
     const auctionId = AuctionId.of(input.auctionId);
@@ -69,8 +87,12 @@ export class PlaceBidUseCase {
         throw new (class extends DomainError {})(`Auction ${input.auctionId} not found`);
       }
 
+      // 입찰 검증과 anti-snipe 판정에 동일한 시각을 써야 일관적.
+      const now = new Date();
       // Domain validates status / time / amount and returns the previous leader.
-      const previous = auction.placeBid(bidder, amount, new Date());
+      const previous = auction.placeBid(bidder, amount, now);
+      // 입찰 수락 후 마감 임박이면 연장 (CUT-5). 도메인이 OPEN/창 판단.
+      const extended = auction.extendIfSniped(now, this.snipeWindowMs, this.snipeExtendMs);
 
       // 1) Refund the previous leader if there was one.
       if (previous !== null) {
@@ -123,6 +145,8 @@ export class PlaceBidUseCase {
         newBidCount: auction.bidCount,
         refundedTo: previous?.bidder.toBigInt() ?? null,
         refundedAmount: previous?.amount.toBigInt() ?? null,
+        extended,
+        endsAt: auction.endsAt,
       };
     });
 

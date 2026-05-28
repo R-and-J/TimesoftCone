@@ -34,6 +34,10 @@ export type PlaceBidResponse = {
   newBidCount: number;
   refundedTo: string | null;
   refundedAmount: string | null;
+  /** anti-snipe(CUT-5)로 마감이 연장됐으면 true. */
+  extended: boolean;
+  /** 현재(연장 반영) 마감 시각 ISO. */
+  endsAt: string;
 };
 
 export type ActivityResponse = {

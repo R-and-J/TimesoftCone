@@ -80,6 +80,8 @@ export class PrismaAuctionRepository implements AuctionRepository {
         highest: s.highest.toBigInt(),
         highestBidder: s.highestBidder?.toBigInt() ?? null,
         bidCount: s.bidCount,
+        // anti-snipe(CUT-5)로 연장될 수 있으므로 update에도 포함.
+        endsAt: s.endsAt,
         settledAt: s.settledAt,
       },
       create: {
