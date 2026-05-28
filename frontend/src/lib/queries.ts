@@ -172,6 +172,31 @@ export type SettleDividendResponse = {
   lines: DividendLine[];
 };
 
+// 연말 풀 수집(ADMIN, ADR-017) — REGULAR 미사용 연차를 익년도 1일권 매물로.
+// dryRun=true면 미리보기, false면 실제 수집(멱등: 이미 수집됐으면 409).
+export type CollectLeavePoolResponse = {
+  sourceYear: number;
+  targetYear: number;
+  dryRun: boolean;
+  alreadyCollected: boolean;
+  contributorCount: number;
+  daysCollected: number;
+  auctionsCreated: number;
+  startPrice: string;
+  topContributors: { userId: string; name: string; days: number }[];
+};
+
+export function collectLeavePool(opts?: { dryRun?: boolean; sourceYear?: number }) {
+  const qs = new URLSearchParams();
+  if (opts?.dryRun) qs.set("dryRun", "true");
+  if (opts?.sourceYear !== undefined) qs.set("sourceYear", String(opts.sourceYear));
+  const tail = qs.toString();
+  return apiPost<CollectLeavePoolResponse>(
+    `/admin/leave-pool/collect${tail ? `?${tail}` : ""}`,
+    {},
+  );
+}
+
 export function settleDividend(opts?: { dryRun?: boolean; year?: number }) {
   const qs = new URLSearchParams();
   if (opts?.dryRun) qs.set("dryRun", "true");

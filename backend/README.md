@@ -2,7 +2,7 @@
 
 연차 경매 시스템 — NestJS + TypeScript + Prisma + SQLite.
 
-**현재 스코프**: Wallet/Ledger + Auction(입찰/낙찰/자동정산) + 낙찰 연차 가산 + 인증/RBAC + 알림 + 연말 배당 지급 + 실시간(SSE).
+**현재 스코프**: Wallet/Ledger + Auction(입찰/낙찰/자동정산) + 낙찰 연차 가산 + 인증/RBAC + 알림 + 연말 배당 지급 + 실시간(SSE) + 연말 풀 수집(LeavePool).
 구현 현황은 아래 [구현 현황 체크리스트](#구현-현황-체크리스트), 잘라낸 항목은 [`scope-cuts.md`](../06_tech/scope-cuts.md) 참고.
 
 ## 실행
@@ -104,6 +104,12 @@ git update-index --skip-worktree backend/prisma/dev.db
 |---|---|---|
 | `GET`  | `/api/dividend/me/:userId`    | 내 지분율 + 예상 배당금 + 상위 9명 stake 분포 (self/ADMIN) |
 | `POST` | `/api/admin/dividend/settle`  | **연말 배당 실지급 배치** (ADMIN). `?dryRun=true` 미리보기, 멱등(재호출 409) — ADR-008 |
+
+### 풀 수집 (LeavePool — ADR-017)
+
+| 메서드 | 경로 | 용도 |
+|---|---|---|
+| `POST` | `/api/admin/leave-pool/collect` | **연말 풀 수집 배치** (ADMIN). REGULAR 미사용 → 익년도 1일권 매물 + Stake. `?dryRun=true` 미리보기, `?sourceYear=`, 멱등(`leave_pool_run.target_year` UNIQUE → 재호출 409) |
 
 ### 관리자 — 통계 / 원장
 
@@ -287,13 +293,11 @@ npm run test:e2e
 - [x] **CUT-5 Anti-snipe** 마감 임박 입찰 시 자동 연장 (`extendIfSniped`, 단일 tx, 영속화)
 - [x] **어댑터 통합/E2E 테스트** (`test/*.e2e-spec.ts` — 실 SQLite, 입찰/정산/배당 핫패스)
 - [x] **CUT-6 실시간** (SSE — `GET /auctions/:id/stream`, 입찰/정산 push → 프론트 즉시 갱신)
-- [ ] 완전한 LeavePool aggregate (기여 이벤트/만료 잡) — 현재 `contributed_days` 단일 컬럼
+- [x] **LeavePool 바운디드 컨텍스트** (ADR-017 — `CollectLeavePool` 배치: REGULAR 미사용 → 익년도 1일권 매물 + Stake, `leave_pool_run`으로 멱등, AdminOps UI)
 
-## 후속 PR (남은 것)
+## 후속 PR
 
-| PR | 내용 |
-|---|---|
-| LeavePool | 완전한 LeavePool 컨텍스트 ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |
+scope-cuts CUT-1~9는 사실상 모두 정리됐습니다. 추가 작업이 생기면 이 섹션에 기록.
 
 ## 참고
 

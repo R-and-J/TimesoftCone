@@ -72,7 +72,7 @@ Identity (who/role) comes from ezpass; **leave balances are owned internally** (
 
 - **Operational parameter values** — the *structure* is set in `docs/02_requirements/business-rules.md` but concrete numbers (min bid increment, weekly open quota, first-year starting price) are still ⚙️ team knobs; some have code defaults (e.g. `minIncrement` defaults to 100 in the schema).
 - **KPI measurement** — both KPIs (leave-utilization improvement, satisfaction survey) need out-of-system measurement setup (baseline data, survey instrument).
-- **Year-end Dividend / LeavePool batch** — designed (ADR-008, ADR-017) but the actual payout job is a follow-up; `GET /api/dividend/me/:userId` computes the *projection* from `contributedDays`.
+- **Year-end Dividend / LeavePool batch** — both implemented. Dividend payout: `POST /api/admin/dividend/settle` (`PayoutChannel` + `SettleYearEndDividendUseCase`, idempotent, NFR-2 enforced; `GET /api/dividend/me/:userId` still computes the *projection* alongside). LeavePool collection: `POST /api/admin/leave-pool/collect` (`CollectLeavePoolUseCase` + `LeavePoolPort` → REGULAR remaining becomes next-year 1-day auctions + stake, single tx, `leave_pool_run.target_year` UNIQUE for idempotency, `AuctionInventoryCreatedEvent`). Auto-schedule: `YearEndDividendScheduler` (cutoff-gated, idempotent stop).
 
 Domain formulas are resolved in `docs/02_requirements/business-rules.md` (Stake formula, dividend remainder, operational params) and ADR-018 (loser-refund flow, bid cancellation). The canonical API spec is `docs/03_design/openapi.yaml` (`api-spec.md` is narrative-only and defers to the YAML on conflict).
 

@@ -7,10 +7,12 @@ import { AdminTabs } from "@/components/AdminTabs";
 import { useQuery } from "@/lib/use-query";
 import { apiPost } from "@/lib/api";
 import {
+  collectLeavePool,
   getAdminStats,
   listAuctions,
   settleDividend,
   type AuctionListItem,
+  type CollectLeavePoolResponse,
   type SettleDividendResponse,
 } from "@/lib/queries";
 import { useToast } from "@/lib/toast";
@@ -76,6 +78,42 @@ export default function AdminOpsPage() {
       setDivOpen(false);
     } finally {
       setDivLoading(false);
+    }
+  };
+
+  // 연말 풀 수집 모달: 미리보기(dryRun) → 확인 후 실제 수집.
+  const [poolOpen, setPoolOpen] = useState(false);
+  const [poolLoading, setPoolLoading] = useState(false);
+  const [poolPreview, setPoolPreview] = useState<CollectLeavePoolResponse | null>(null);
+
+  const openPool = async () => {
+    setPoolOpen(true);
+    setPoolPreview(null);
+    setPoolLoading(true);
+    try {
+      setPoolPreview(await collectLeavePool({ dryRun: true }));
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+      setPoolOpen(false);
+    } finally {
+      setPoolLoading(false);
+    }
+  };
+
+  const runPool = async () => {
+    setPoolLoading(true);
+    try {
+      const r = await collectLeavePool({ dryRun: false });
+      toast.push(
+        "success",
+        `풀 수집 완료 — ${r.targetYear}년 1일권 ${r.auctionsCreated}개 생성 (기여자 ${r.contributorCount}명)`,
+      );
+      setPoolOpen(false);
+      await Promise.all([statsQ.refetch(), upcomingQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setPoolLoading(false);
     }
   };
 
@@ -240,6 +278,24 @@ export default function AdminOpsPage() {
               <Btn p={p} variant="dark" size="md" onClick={() => setExportOpen(true)}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Icon.bolt size={14} /> 내보내기
+                </span>
+              </Btn>
+            </div>
+          </Card>
+
+          <Card p={p} padding={0} style={{ marginBottom: 16 }}>
+            <div style={{ padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: p.ink, letterSpacing: "-0.01em" }}>
+                  연말 풀 수집
+                </div>
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
+                  올해 REGULAR 미사용 연차를 취합해 익년도 1일권 경매 매물 생성 + Stake 기록 (ADR-017) · 연도당 1회
+                </div>
+              </div>
+              <Btn p={p} variant="dark" size="md" onClick={openPool}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon.bolt size={14} /> 풀 수집
                 </span>
               </Btn>
             </div>
@@ -691,6 +747,126 @@ export default function AdminOpsPage() {
                 onClick={runDividend}
               >
                 {divLoading ? "처리 중…" : "실지급 실행"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+      {poolOpen && (
+        <div
+          onClick={() => !poolLoading && setPoolOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(11,25,41,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 520,
+              maxHeight: "82vh",
+              display: "flex",
+              flexDirection: "column",
+              background: p.surface,
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
+              연말 풀 수집 (미리보기)
+            </div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18 }}>
+              올해 <b>REGULAR</b> 미사용 연차를 전량 취합(1:1)해 익년도 1일권 경매 매물을 만들고
+              기여자별 Stake(지분)를 기록합니다. 연도당 1회만 실행됩니다 (ADR-017).
+            </div>
+
+            {poolLoading && !poolPreview && (
+              <div style={{ padding: 40, textAlign: "center", color: p.inkMuted, fontSize: 14 }}>
+                미리보기 계산 중…
+              </div>
+            )}
+
+            {poolPreview && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+                  <MiniStat label="기여자" value={`${poolPreview.contributorCount}명`} />
+                  <MiniStat label="수집 일수" value={`${poolPreview.daysCollected}일`} />
+                  <MiniStat
+                    label={`${poolPreview.targetYear} 매물`}
+                    value={`${poolPreview.auctionsCreated}개`}
+                  />
+                </div>
+
+                {poolPreview.alreadyCollected && (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      background: `${p.danger}14`,
+                      color: p.danger,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {poolPreview.targetYear}년 풀이 이미 수집되었습니다 — 재실행은 차단됩니다 (멱등).
+                  </div>
+                )}
+
+                {poolPreview.auctionsCreated === 0 ? (
+                  <div style={{ padding: 24, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
+                    수집할 기여(REGULAR 미사용 연차)가 없습니다.
+                  </div>
+                ) : (
+                  <div style={{ overflow: "auto", flex: 1, marginBottom: 18 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 8 }}>
+                      상위 기여자
+                    </div>
+                    {poolPreview.topContributors.map((c) => (
+                      <div
+                        key={c.userId}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "10px 0",
+                          borderBottom: `1px solid ${p.line}`,
+                        }}
+                      >
+                        <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>{c.name}</div>
+                        <div className="mono" style={{ fontSize: 13, color: p.ink, fontWeight: 700 }}>
+                          {c.days}일
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={poolLoading} onClick={() => setPoolOpen(false)}>
+                취소
+              </Btn>
+              <Btn
+                p={p}
+                variant="primary"
+                size="md"
+                disabled={
+                  poolLoading ||
+                  !poolPreview ||
+                  poolPreview.alreadyCollected ||
+                  poolPreview.auctionsCreated === 0
+                }
+                onClick={runPool}
+              >
+                {poolLoading ? "처리 중…" : "수집 실행"}
               </Btn>
             </div>
           </div>

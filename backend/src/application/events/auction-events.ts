@@ -5,6 +5,7 @@
 export const AUCTION_EVENTS = {
   BID_PLACED: "auction.bid_placed",
   WON: "auction.won",
+  INVENTORY_CREATED: "auction.inventory_created",
 } as const;
 
 /** 입찰이 수락됨. previousHighBidderId가 있으면 그 사람은 "밀린" 것. */
@@ -25,5 +26,14 @@ export class AuctionWonEvent {
     public readonly winnerId: bigint,
     public readonly amount: bigint,
     public readonly leaveDays: number,
+  ) {}
+}
+
+/** 연말 풀 수집으로 익년도 경매 인벤토리가 생성됨 (ADR-017). */
+export class AuctionInventoryCreatedEvent {
+  constructor(
+    public readonly targetYear: number,
+    public readonly auctionsCreated: number,
+    public readonly contributorCount: number,
   ) {}
 }

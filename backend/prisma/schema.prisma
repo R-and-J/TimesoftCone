@@ -206,3 +206,23 @@ model LeaveBalance {
   @@index([userId, year])
   @@map("leave_balance")
 }
+
+// ─────────────────────────────────────────────────────────────
+// LEAVE_POOL_RUN — 연말 풀 수집 배치(ADR-017)의 멱등성/감사 마커.
+// 한 targetYear에 대해 1행만 존재(UNIQUE) → 중복 수집 시 매물·Stake 중복 생성 차단.
+// id는 BigInt 대신 INTEGER(SQLite autoincrement BigInt 마이그레이션 drift 회피 — 본 파일 상단 주석).
+// ─────────────────────────────────────────────────────────────
+model LeavePoolRun {
+  id               Int      @id @default(autoincrement())
+  /// 수집 대상 연도(이 해의 REGULAR 미사용을 취합).
+  sourceYear       Int      @map("source_year")
+  /// 생성된 매물이 속한 연도(= sourceYear + 1). 멱등 키.
+  targetYear       Int      @unique @map("target_year")
+  contributorCount Int      @map("contributor_count")
+  daysCollected    Int      @map("days_collected")
+  auctionsCreated  Int      @map("auctions_created")
+  status           String   @default("DONE")
+  ranAt            DateTime @default(now()) @map("ran_at")
+
+  @@map("leave_pool_run")
+}

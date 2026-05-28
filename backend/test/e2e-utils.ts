@@ -29,6 +29,7 @@ export async function resetDb(prisma: PrismaService): Promise<void> {
     await prisma.bidEvent.deleteMany();
     await prisma.ledgerEntry.deleteMany();
     await prisma.leaveBalance.deleteMany();
+    await prisma.leavePoolRun.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.wallet.deleteMany();
     await prisma.auction.deleteMany();
@@ -94,6 +95,29 @@ export async function createAuction(
       leaveDays: opts.leaveDays ?? 1,
       startedAt: opts.startedAt ?? new Date(Date.now() - 3_600_000),
       endsAt: opts.endsAt,
+    },
+  });
+}
+
+export async function createLeave(
+  prisma: PrismaService,
+  opts: {
+    userId: number | bigint;
+    year: number;
+    leaveType?: string;
+    granted?: number;
+    adjusted?: number;
+    used?: number;
+  },
+): Promise<void> {
+  await prisma.leaveBalance.create({
+    data: {
+      userId: BigInt(opts.userId),
+      year: opts.year,
+      leaveType: opts.leaveType ?? "REGULAR",
+      grantedDays: opts.granted ?? 0,
+      adjustedDays: opts.adjusted ?? 0,
+      usedDays: opts.used ?? 0,
     },
   });
 }

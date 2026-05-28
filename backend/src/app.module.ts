@@ -12,6 +12,7 @@ import { PrismaWalletRepository } from "./adapters/persistence/prisma-wallet.rep
 import { PrismaLedgerRepository } from "./adapters/persistence/prisma-ledger.repository";
 import { PrismaAuctionRepository } from "./adapters/persistence/prisma-auction.repository";
 import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
+import { PrismaLeavePoolAdapter } from "./adapters/persistence/prisma-leave-pool.adapter";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
 import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
@@ -44,6 +45,7 @@ import { ListNotificationsUseCase } from "./application/notification/list-notifi
 import { MarkNotificationsReadUseCase } from "./application/notification/mark-notifications-read.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
+import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
 
 // HTTP
 import { WalletController } from "./interfaces/http/wallet.controller";
@@ -58,6 +60,7 @@ import { AdminMembersController } from "./interfaces/http/admin-members.controll
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 import { AdminDividendController } from "./interfaces/http/admin-dividend.controller";
+import { AdminLeavePoolController } from "./interfaces/http/admin-leave-pool.controller";
 
 // RBAC guards (전역)
 import { JwtAuthGuard } from "./interfaces/http/auth/jwt-auth.guard";
@@ -74,6 +77,7 @@ import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
 import { PAYOUT_CHANNEL } from "./ports/payout-channel";
 import { AUCTION_STREAM } from "./ports/auction-stream.port";
+import { LEAVE_POOL } from "./ports/leave-pool.port";
 
 @Module({
   imports: [
@@ -100,6 +104,7 @@ import { AUCTION_STREAM } from "./ports/auction-stream.port";
     NotificationsController,
     DividendController,
     AdminDividendController,
+    AdminLeavePoolController,
     MeController,
   ],
   providers: [
@@ -114,6 +119,7 @@ import { AUCTION_STREAM } from "./ports/auction-stream.port";
     PrismaLedgerRepository,
     PrismaAuctionRepository,
     PrismaUnitOfWork,
+    PrismaLeavePoolAdapter,
     WelfarePointProvider,
     EzpassAuthProvider,
     LocalAuthProvider,
@@ -130,6 +136,7 @@ import { AUCTION_STREAM } from "./ports/auction-stream.port";
     { provide: BIDDING_CURRENCY, useExisting: WelfarePointProvider },
     // 배당 지급 경로(ADR-008) — 입찰 통화와 같은 구현체가 ISP로 분리된 포트 제공.
     { provide: PAYOUT_CHANNEL, useExisting: WelfarePointProvider },
+    { provide: LEAVE_POOL, useExisting: PrismaLeavePoolAdapter },
     // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 순수 자체 비번,
     // 그 외(기본 ezpass) → Composite(로컬 비번 보유 계정은 로컬 검증, 나머지는 ezpass 위임).
     {
@@ -161,6 +168,7 @@ import { AUCTION_STREAM } from "./ports/auction-stream.port";
     MarkNotificationsReadUseCase,
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
+    CollectLeavePoolUseCase,
 
     SettleDueAuctionsScheduler,
     YearEndDividendScheduler,
