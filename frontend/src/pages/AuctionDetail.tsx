@@ -29,6 +29,24 @@ export default function AuctionDetailPage() {
   const [bidAmount, setBidAmount] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [live, setLive] = useState(false);
+  // anti-snipe(CUT-5) 시각적 트레이스: endsAt이 자라면 "연장됨" 배너를 잠깐 띄움.
+  // ref로 직전 endsAt을 기억 → 자기 입찰/SSE로 본 남의 연장 모두 잡힘.
+  const [extendedAt, setExtendedAt] = useState<number | null>(null);
+  const prevEndsAtRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cur = auctionQ.data?.endsAt;
+    if (!cur) return;
+    const prev = prevEndsAtRef.current;
+    if (prev && new Date(cur).getTime() > new Date(prev).getTime() + 1000) {
+      setExtendedAt(Date.now());
+    }
+    prevEndsAtRef.current = cur;
+  }, [auctionQ.data?.endsAt]);
+  useEffect(() => {
+    if (extendedAt === null) return;
+    const t = setTimeout(() => setExtendedAt(null), 12_000);
+    return () => clearTimeout(t);
+  }, [extendedAt]);
 
   // 실시간 구독(CUT-6): 남의 입찰/정산 신호가 오면 정본을 다시 읽는다(SSE 푸시 →
   // 인증된 refetch). 최신 refetch를 ref로 잡아 경매 id가 바뀔 때만 재구독.
@@ -292,6 +310,11 @@ export default function AuctionDetailPage() {
                       <span className="mono" style={{ color: p.ink, fontWeight: 700, marginLeft: 2 }}>
                         <Countdown endsAt={endsAt} />
                       </span>
+                      {extendedAt !== null && (
+                        <Pill p={p} tone="warn" size="sm" style={{ marginLeft: 8 }}>
+                          <Icon.bolt size={11} /> 마감 임박 입찰로 연장됨
+                        </Pill>
+                      )}
                     </>
                   )}
                 </div>
