@@ -111,6 +111,14 @@ git update-index --skip-worktree backend/prisma/dev.db
 |---|---|---|
 | `POST` | `/api/admin/leave-pool/collect` | **연말 풀 수집 배치** (ADMIN). REGULAR 미사용 → 익년도 1일권 매물 + Stake. `?dryRun=true` 미리보기, `?sourceYear=`, 멱등(`leave_pool_run.target_year` UNIQUE → 재호출 409) |
 
+### 휴가 사용 / 유찰 재고 처리 (FR-3.1 / FR-4.2)
+
+| 메서드 | 경로 | 용도 |
+|---|---|---|
+| `POST` | `/api/admin/leave/use` | **휴가 사용 — 우선순위 차감** (ADMIN, FR-3.1). body: `{userId, days, year?}`. 도메인 규칙 AUCTION→EVENT→REGULAR로 강제. 잔여 부족 시 409 |
+| `POST` | `/api/admin/auctions/:id/grant-event` | **UNSOLD → EVENT 변환** (ADMIN, FR-4.2). body: `{userId}`. 경매 행은 삭제(인벤토리 소진), 수령자 EVENT 잔액 +leaveDays. 비-UNSOLD면 409 |
+| `POST` | `/api/admin/auctions/purge-unsold?upToYear=` | **유찰 재고 영구 삭제** (ADMIN, FR-4.2). 자동 스케줄은 `PURGE_UNSOLD_AUTO_ENABLED=true` |
+
 ### 관리자 — 통계 / 원장
 
 | 메서드 | 경로 | 용도 |
@@ -156,6 +164,15 @@ scope-cuts.md CUT-5 (anti-snipe)는 여전히 미구현이라, 마감 시각 이
 - 활성화: `.env`에 `LEAVEPOOL_AUTO_ENABLED=true` (기본 비활성)
 - 체크 주기: `LEAVEPOOL_CHECK_INTERVAL_MS` (기본 3600000=1시간)
 - 데모/테스트: `LEAVEPOOL_CUTOFF=2026-01-01T00:00:00` 으로 과거 시각 오버라이드
+
+### 연말 유찰 재고 청산 스케줄러
+
+`PurgeUnsoldAuctionsScheduler`가 컷오프(기본 올해 12/31 23:59) 이후 첫 tick에서 `PurgeUnsoldAuctionsUseCase`를
+자동 1회 실행합니다(FR-4.2 "익년 이월 회계상 원천 차단"). 한 번 비우면 자체 정지.
+
+- 활성화: `.env`에 `PURGE_UNSOLD_AUTO_ENABLED=true` (기본 비활성 — 영구 삭제는 신중히)
+- 체크 주기: `PURGE_UNSOLD_CHECK_INTERVAL_MS` (기본 1시간)
+- 데모/테스트: `PURGE_UNSOLD_CUTOFF=2026-01-01T00:00:00`
 
 ## 시나리오: 입찰 → 자동 환불 → 자동 낙찰
 
@@ -304,6 +321,8 @@ npm run test:e2e
 - [x] **어댑터 통합/E2E 테스트** (`test/*.e2e-spec.ts` — 실 SQLite, 입찰/정산/배당 핫패스)
 - [x] **CUT-6 실시간** (SSE — `GET /auctions/:id/stream`, 입찰/정산 push → 프론트 즉시 갱신)
 - [x] **LeavePool 바운디드 컨텍스트** (ADR-017 — `CollectLeavePool` 배치: REGULAR 미사용 → 익년도 1일권 매물 + Stake, `leave_pool_run`으로 멱등, AdminOps UI)
+- [x] **FR-3.1 휴가 차감 우선순위** (`UseLeaveUseCase`, 도메인 `planLeaveDeduction` 순수, ADMIN 엔드포인트 — 외부 그룹웨어 통합 전까지 디버그/시연용)
+- [x] **FR-4.2 유찰 재고 처리** (`GrantEventFromUnsoldUseCase` + `PurgeUnsoldAuctionsUseCase` + 12/31 자동 스케줄러)
 
 ## 후속 PR
 

@@ -13,6 +13,7 @@ import { PrismaLedgerRepository } from "./adapters/persistence/prisma-ledger.rep
 import { PrismaAuctionRepository } from "./adapters/persistence/prisma-auction.repository";
 import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
 import { PrismaLeavePoolAdapter } from "./adapters/persistence/prisma-leave-pool.adapter";
+import { PrismaLeaveAdminAdapter } from "./adapters/persistence/prisma-leave-admin.adapter";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
 import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
@@ -23,6 +24,7 @@ import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 import { LeavePoolScheduler } from "./adapters/scheduling/leave-pool.scheduler";
+import { PurgeUnsoldAuctionsScheduler } from "./adapters/scheduling/purge-unsold.scheduler";
 
 // Use cases
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
@@ -47,6 +49,9 @@ import { MarkNotificationsReadUseCase } from "./application/notification/mark-no
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
+import { UseLeaveUseCase } from "./application/leave/use-leave.use-case";
+import { GrantEventFromUnsoldUseCase } from "./application/leave/grant-event-from-unsold.use-case";
+import { PurgeUnsoldAuctionsUseCase } from "./application/leave/purge-unsold-auctions.use-case";
 
 // HTTP
 import { WalletController } from "./interfaces/http/wallet.controller";
@@ -62,6 +67,7 @@ import { NotificationsController } from "./interfaces/http/notifications.control
 import { DividendController } from "./interfaces/http/dividend.controller";
 import { AdminDividendController } from "./interfaces/http/admin-dividend.controller";
 import { AdminLeavePoolController } from "./interfaces/http/admin-leave-pool.controller";
+import { AdminLeaveController } from "./interfaces/http/admin-leave.controller";
 
 // RBAC guards (전역)
 import { JwtAuthGuard } from "./interfaces/http/auth/jwt-auth.guard";
@@ -79,6 +85,7 @@ import { MEMBER_DIRECTORY } from "./ports/member-directory";
 import { PAYOUT_CHANNEL } from "./ports/payout-channel";
 import { AUCTION_STREAM } from "./ports/auction-stream.port";
 import { LEAVE_POOL } from "./ports/leave-pool.port";
+import { LEAVE_ADMIN } from "./ports/leave-admin.port";
 
 @Module({
   imports: [
@@ -106,6 +113,7 @@ import { LEAVE_POOL } from "./ports/leave-pool.port";
     DividendController,
     AdminDividendController,
     AdminLeavePoolController,
+    AdminLeaveController,
     MeController,
   ],
   providers: [
@@ -121,6 +129,7 @@ import { LEAVE_POOL } from "./ports/leave-pool.port";
     PrismaAuctionRepository,
     PrismaUnitOfWork,
     PrismaLeavePoolAdapter,
+    PrismaLeaveAdminAdapter,
     WelfarePointProvider,
     EzpassAuthProvider,
     LocalAuthProvider,
@@ -138,6 +147,7 @@ import { LEAVE_POOL } from "./ports/leave-pool.port";
     // 배당 지급 경로(ADR-008) — 입찰 통화와 같은 구현체가 ISP로 분리된 포트 제공.
     { provide: PAYOUT_CHANNEL, useExisting: WelfarePointProvider },
     { provide: LEAVE_POOL, useExisting: PrismaLeavePoolAdapter },
+    { provide: LEAVE_ADMIN, useExisting: PrismaLeaveAdminAdapter },
     // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 순수 자체 비번,
     // 그 외(기본 ezpass) → Composite(로컬 비번 보유 계정은 로컬 검증, 나머지는 ezpass 위임).
     {
@@ -170,10 +180,14 @@ import { LEAVE_POOL } from "./ports/leave-pool.port";
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
     CollectLeavePoolUseCase,
+    UseLeaveUseCase,
+    GrantEventFromUnsoldUseCase,
+    PurgeUnsoldAuctionsUseCase,
 
     SettleDueAuctionsScheduler,
     YearEndDividendScheduler,
     LeavePoolScheduler,
+    PurgeUnsoldAuctionsScheduler,
   ],
 })
 export class AppModule {}
