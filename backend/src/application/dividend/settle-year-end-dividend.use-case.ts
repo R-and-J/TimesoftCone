@@ -55,16 +55,22 @@ export class SettleYearEndDividendUseCase {
     const year = opts?.year ?? new Date().getFullYear();
     const dryRun = opts?.dryRun ?? false;
 
-    const [{ escrowBalance }, contributors, dividendCount] = await Promise.all([
+    const [{ escrowBalance }, stakeRows, dividendCount] = await Promise.all([
       this.stats.execute(),
-      // stake 1위 결정 순서: 기여일 내림차순, 동률 시 userId 오름차순.
-      this.prisma.user.findMany({
-        where: { contributedDays: { gt: 0 } },
-        orderBy: [{ contributedDays: "desc" }, { id: "asc" }],
-        select: { id: true, name: true, contributedDays: true },
+      // 연도별 stake 행을 읽는다(ADR-017). stake 1위 결정 순서: days 내림차순,
+      // 동률 시 userId 오름차순(EC-7 결정적 타이브레이크).
+      this.prisma.stake.findMany({
+        where: { year, days: { gt: 0 } },
+        orderBy: [{ days: "desc" }, { userId: "asc" }],
+        include: { user: { select: { name: true } } },
       }),
       this.prisma.ledgerEntry.count({ where: { actionType: "DIVIDEND" } }),
     ]);
+    const contributors = stakeRows.map((s) => ({
+      id: s.userId,
+      name: s.user.name,
+      contributedDays: s.days,
+    }));
 
     const alreadySettled = dividendCount > 0;
     // 멱등성: 실제 지급은 한 번만. (단일 연도 스코프 — 연도별 분리는 후속.)

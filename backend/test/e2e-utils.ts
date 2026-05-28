@@ -30,6 +30,7 @@ export async function resetDb(prisma: PrismaService): Promise<void> {
     await prisma.ledgerEntry.deleteMany();
     await prisma.leaveBalance.deleteMany();
     await prisma.leavePoolRun.deleteMany();
+    await prisma.stake.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.wallet.deleteMany();
     await prisma.auction.deleteMany();
@@ -119,6 +120,15 @@ export async function createLeave(
       adjustedDays: opts.adjusted ?? 0,
       usedDays: opts.used ?? 0,
     },
+  });
+}
+
+export async function createStake(
+  prisma: PrismaService,
+  opts: { userId: number | bigint; year: number; days: number },
+): Promise<void> {
+  await prisma.stake.create({
+    data: { userId: BigInt(opts.userId), year: opts.year, days: opts.days },
   });
 }
 

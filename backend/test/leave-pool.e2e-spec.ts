@@ -53,7 +53,17 @@ describe("CollectLeavePool (integration, real SQLite)", () => {
     expect(auctions[0].id).toBe("A-2027-001");
     expect(auctions[5].id).toBe("A-2027-006");
 
-    // Stake(contributedDays)가 기여자에 기록됨(배당이 소비).
+    // Stake(targetYear) 행이 기여자별로 적재됨(ADR-017) — 배당이 이걸 읽는다.
+    const stakes = await prisma.stake.findMany({
+      where: { year: 2027 },
+      orderBy: { userId: "asc" },
+      select: { userId: true, days: true },
+    });
+    expect(stakes).toEqual([
+      { userId: 1n, days: 3 },
+      { userId: 2n, days: 3 },
+    ]);
+    // legacy 스냅샷 contributedDays도 sync 유지.
     const u1 = await prisma.user.findUnique({ where: { id: 1n } });
     const u2 = await prisma.user.findUnique({ where: { id: 2n } });
     const u3 = await prisma.user.findUnique({ where: { id: 3n } });

@@ -11,9 +11,12 @@ import {
   balanceOf,
   bootstrapE2E,
   createAuction,
+  createStake,
   createUser,
   resetDb,
 } from "./e2e-utils";
+
+const THIS_YEAR = new Date().getFullYear();
 
 describe("Settle → Year-end Dividend (integration, real SQLite)", () => {
   let moduleRef: TestingModule;
@@ -46,8 +49,11 @@ describe("Settle → Year-end Dividend (integration, real SQLite)", () => {
     // 구매자 2명(입찰), 기여자 2명(연차 풀 기여 → 배당 대상).
     await createUser(prisma, { id: 1, name: "구매A", balance: 10_000 });
     await createUser(prisma, { id: 2, name: "구매B", balance: 10_000 });
-    await createUser(prisma, { id: 11, name: "기여S1", balance: 0, contributedDays: 3 });
-    await createUser(prisma, { id: 12, name: "기여S2", balance: 0, contributedDays: 1 });
+    await createUser(prisma, { id: 11, name: "기여S1", balance: 0 });
+    await createUser(prisma, { id: 12, name: "기여S2", balance: 0 });
+    // 배당은 stake(year) 테이블을 읽음(ADR-017). 올해(=배당 대상 연도) stake를 깐다.
+    await createStake(prisma, { userId: 11, year: THIS_YEAR, days: 3 });
+    await createStake(prisma, { userId: 12, year: THIS_YEAR, days: 1 });
 
     await createAuction(prisma, {
       id: "A-2026-911",
@@ -102,7 +108,8 @@ describe("Settle → Year-end Dividend (integration, real SQLite)", () => {
 
   it("is idempotent — a second settlement is rejected (no double payout)", async () => {
     await createUser(prisma, { id: 1, balance: 10_000 });
-    await createUser(prisma, { id: 11, balance: 0, contributedDays: 5 });
+    await createUser(prisma, { id: 11, balance: 0 });
+    await createStake(prisma, { userId: 11, year: THIS_YEAR, days: 5 });
     await createAuction(prisma, { id: "A-2026-912", startPrice: 5_000, endsAt: far() });
     await placeBid.execute({ auctionId: "A-2026-912", userId: 1, amount: 5_200 });
 

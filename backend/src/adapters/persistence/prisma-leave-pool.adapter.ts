@@ -67,8 +67,14 @@ export class PrismaLeavePoolAdapter implements LeavePoolPort {
       });
       if (data.length > 0) await tx.auction.createMany({ data });
 
-      // Stake 기록 — 기여자의 contributedDays(배당 지분)에 반영(ADR-008이 소비).
+      // Stake 기록 — (userId, targetYear)별로 1행 업서트. 배당(ADR-008)이 이 행을 읽음.
+      // user.contributedDays는 legacy 디스플레이 스냅샷으로 sync 유지(전체 코드베이스 정리는 별건).
       for (const s of c.stakes) {
+        await tx.stake.upsert({
+          where: { uq_stake_user_year: { userId: s.userId, year: c.targetYear } },
+          update: { days: s.days },
+          create: { userId: s.userId, year: c.targetYear, days: s.days },
+        });
         await tx.user.update({
           where: { id: s.userId },
           data: { contributedDays: s.days },

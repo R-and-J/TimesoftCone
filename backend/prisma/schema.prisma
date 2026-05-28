@@ -62,6 +62,7 @@ model User {
   wonAuctions   Auction[]      @relation("AuctionWinner")
   leaveBalances LeaveBalance[]
   notifications Notification[]
+  stakes        Stake[]
 
   @@map("users")
 }
@@ -212,6 +213,28 @@ model LeaveBalance {
 // 한 targetYear에 대해 1행만 존재(UNIQUE) → 중복 수집 시 매물·Stake 중복 생성 차단.
 // id는 BigInt 대신 INTEGER(SQLite autoincrement BigInt 마이그레이션 drift 회피 — 본 파일 상단 주석).
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// STAKE — 연도별 배당 지분 스냅샷(ADR-017). LeavePool 수집이 (userId, year)당
+// 1행을 적재 → 배당(ADR-008)이 해당 연도의 stake를 읽어 분배.
+// 단일 컬럼 user.contributedDays는 legacy 디스플레이 스냅샷으로만 남는다.
+// id는 INTEGER(autoincrement BigInt drift 회피 — schema 상단 주석).
+// ─────────────────────────────────────────────────────────────
+model Stake {
+  id        Int      @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  /// 이 stake가 받는 배당의 연도(= LeavePool 수집의 targetYear).
+  year      Int
+  days      Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, year], name: "uq_stake_user_year")
+  @@index([year])
+  @@map("stake")
+}
+
 model LeavePoolRun {
   id               Int      @id @default(autoincrement())
   /// 수집 대상 연도(이 해의 REGULAR 미사용을 취합).

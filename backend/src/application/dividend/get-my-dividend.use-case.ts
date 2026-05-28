@@ -40,23 +40,35 @@ export class GetMyDividendUseCase {
     private readonly stats: GetAdminStatsUseCase,
   ) {}
 
-  async execute(userIdRaw: string | bigint | number): Promise<MyDividendResult> {
+  async execute(
+    userIdRaw: string | bigint | number,
+    year?: number,
+  ): Promise<MyDividendResult> {
     const myId = UserId.of(userIdRaw).toBigInt();
+    const targetYear = year ?? new Date().getFullYear();
 
-    const [me, contributors, { escrowBalance }] = await Promise.all([
+    const [me, stakeRows, { escrowBalance }] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: myId } }),
-      this.prisma.user.findMany({
-        where: { contributedDays: { gt: 0 } },
-        orderBy: { contributedDays: "desc" },
-        select: { id: true, name: true, contributedDays: true },
+      // 연도별 stake 행을 읽는다(ADR-017). user.contributedDays는 더 이상 권위 아님.
+      this.prisma.stake.findMany({
+        where: { year: targetYear, days: { gt: 0 } },
+        orderBy: { days: "desc" },
+        include: { user: { select: { name: true } } },
       }),
       this.stats.execute(),
     ]);
 
     if (!me) throw new NotFoundException(`User ${userIdRaw} not found`);
 
+    const contributors = stakeRows.map((s) => ({
+      id: s.userId,
+      name: s.user.name,
+      contributedDays: s.days,
+    }));
+    const myStakeDays = contributors.find((c) => c.id === myId)?.contributedDays ?? 0;
+
     const totalDays = contributors.reduce((sum, c) => sum + c.contributedDays, 0);
-    const stakeRatio = totalDays > 0 ? me.contributedDays / totalDays : 0;
+    const stakeRatio = totalDays > 0 ? myStakeDays / totalDays : 0;
     const myDividend =
       totalDays > 0
         ? BigInt(Math.floor(Number(escrowBalance) * stakeRatio))
@@ -78,7 +90,7 @@ export class GetMyDividendUseCase {
       topStakes.push({
         userId: me.id,
         name: me.name,
-        days: me.contributedDays,
+        days: myStakeDays,
         ratio: stakeRatio,
         isMe: true,
       });
@@ -87,7 +99,7 @@ export class GetMyDividendUseCase {
     return {
       userId: me.id,
       name: me.name,
-      contributedDays: me.contributedDays,
+      contributedDays: myStakeDays,
       stakeRatio,
       rank,
       totalContributors: contributors.length,
