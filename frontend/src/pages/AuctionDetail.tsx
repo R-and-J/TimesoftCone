@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import type { Palette } from "@/lib/tokens";
@@ -7,6 +7,7 @@ import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { useQuery } from "@/lib/use-query";
 import { getAuction, getBalance, placeBid } from "@/lib/queries";
+import { subscribeAuction } from "@/lib/auction-stream";
 import { useCurrentUser } from "@/lib/current-user";
 import { useToast } from "@/lib/toast";
 import { ApiError } from "@/lib/api";
@@ -27,6 +28,19 @@ export default function AuctionDetailPage() {
 
   const [bidAmount, setBidAmount] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [live, setLive] = useState(false);
+
+  // 실시간 구독(CUT-6): 남의 입찰/정산 신호가 오면 정본을 다시 읽는다(SSE 푸시 →
+  // 인증된 refetch). 최신 refetch를 ref로 잡아 경매 id가 바뀔 때만 재구독.
+  const refetchRef = useRef<() => void>(() => {});
+  refetchRef.current = () => {
+    void auctionQ.refetch();
+    void balanceQ.refetch();
+  };
+  useEffect(() => {
+    const unsub = subscribeAuction(id, () => refetchRef.current(), setLive);
+    return unsub;
+  }, [id]);
 
   useEffect(() => {
     if (auctionQ.data) {
@@ -239,6 +253,20 @@ export default function AuctionDetailPage() {
                     />
                     {a.status === "OPEN" ? "진행 중" : a.status}
                   </Pill>
+                  {live && a.status === "OPEN" && (
+                    <Pill p={p} tone="live" size="sm">
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          background: "#fff",
+                          borderRadius: "50%",
+                          marginRight: 2,
+                        }}
+                      />
+                      실시간
+                    </Pill>
+                  )}
                   <span style={{ fontSize: 12, color: p.inkMuted }}>
                     <span className="mono" style={{ color: p.inkSoft, fontWeight: 600 }}>
                       {a.bidCount}

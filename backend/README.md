@@ -2,7 +2,7 @@
 
 연차 경매 시스템 — NestJS + TypeScript + Prisma + SQLite.
 
-**현재 스코프**: Wallet/Ledger + Auction(입찰/낙찰/자동정산) + 낙찰 연차 가산 + 인증/RBAC + 알림 + 연말 배당 지급.
+**현재 스코프**: Wallet/Ledger + Auction(입찰/낙찰/자동정산) + 낙찰 연차 가산 + 인증/RBAC + 알림 + 연말 배당 지급 + 실시간(SSE).
 구현 현황은 아래 [구현 현황 체크리스트](#구현-현황-체크리스트), 잘라낸 항목은 [`scope-cuts.md`](../06_tech/scope-cuts.md) 참고.
 
 ## 실행
@@ -72,6 +72,7 @@ git update-index --skip-worktree backend/prisma/dev.db
 |---|---|---|
 | `GET`  | `/api/auctions?status=OPEN,CREATED` | 경매 목록 (Grid/Row/Timeline 화면) |
 | `GET`  | `/api/auctions/:id`                  | 경매 상세 + 최근 입찰 기록 (입찰 상세 화면) |
+| `GET`  | `/api/auctions/:id/stream`           | **실시간 업데이트 SSE** (입찰/정산 신호 push, `@Public`, CUT-6) |
 | `POST` | `/api/auctions/:id/bids`             | 입찰 (body: `userId`, `amount`) |
 
 ### 경매 — 관리자
@@ -267,7 +268,7 @@ npm run test:e2e
 - **CUT-3**: State Pattern → `AuctionStatus` enum + 가드 절
 - **CUT-4**: Outbox → 외부 호출 없으니 생략 (ADR-005 dormant)
 - **CUT-5**: Anti-snipe 마감 연장 → ✅ **부활** (`Auction.extendIfSniped` + `PlaceBid`, `ANTISNIPE_*` knob)
-- **CUT-6**: WebSocket 실시간 → 프론트 폴링
+- **CUT-6**: WebSocket 실시간 → ✅ **부활 (SSE)** (`AuctionStream` + `GET /auctions/:id/stream`, socket.io 무의존)
 - **CUT-8**: 인증/RBAC → ✅ **완전 부활** (자체 JWT + RBAC/ABAC 가드)
 
 ## 구현 현황 체크리스트
@@ -285,14 +286,13 @@ npm run test:e2e
 - [x] **12/31 배당 자동 스케줄** (`YearEndDividendScheduler`, 컷오프 이후 자동 1회 지급, 멱등 정지)
 - [x] **CUT-5 Anti-snipe** 마감 임박 입찰 시 자동 연장 (`extendIfSniped`, 단일 tx, 영속화)
 - [x] **어댑터 통합/E2E 테스트** (`test/*.e2e-spec.ts` — 실 SQLite, 입찰/정산/배당 핫패스)
-- [ ] CUT-6 WebSocket 실시간 (현재 폴링)
+- [x] **CUT-6 실시간** (SSE — `GET /auctions/:id/stream`, 입찰/정산 push → 프론트 즉시 갱신)
 - [ ] 완전한 LeavePool aggregate (기여 이벤트/만료 잡) — 현재 `contributed_days` 단일 컬럼
 
 ## 후속 PR (남은 것)
 
 | PR | 내용 |
 |---|---|
-| CUT 부활 | WebSocket(CUT-6) 실시간 |
 | LeavePool | 완전한 LeavePool 컨텍스트 ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) |
 
 ## 참고

@@ -7,17 +7,22 @@ import {
   ConflictException,
   Controller,
   Get,
+  Inject,
+  type MessageEvent,
   Param,
   Post,
   Query,
+  Sse,
 } from "@nestjs/common";
+import type { Observable } from "rxjs";
 import { z } from "zod";
 import { ListAuctionsUseCase } from "@/application/auction/list-auctions.use-case";
 import { GetAuctionDetailUseCase } from "@/application/auction/get-auction-detail.use-case";
 import { PlaceBidUseCase } from "@/application/auction/place-bid.use-case";
+import { AUCTION_STREAM, type AuctionStreamPort } from "@/ports/auction-stream.port";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
-import { CurrentUser, type AuthUser } from "./auth/auth.decorators";
+import { CurrentUser, Public, type AuthUser } from "./auth/auth.decorators";
 import type { AuctionStatus } from "@/domain/auction/auction-status";
 
 // 입찰자는 토큰 주체로 고정 — body의 userId는 받지 않는다(타인 명의 입찰 차단, AC-3).
@@ -35,7 +40,16 @@ export class AuctionsController {
     private readonly listUC: ListAuctionsUseCase,
     private readonly detailUC: GetAuctionDetailUseCase,
     private readonly placeBidUC: PlaceBidUseCase,
+    @Inject(AUCTION_STREAM) private readonly stream: AuctionStreamPort,
   ) {}
+
+  // 실시간 경매 업데이트 스트림(CUT-6). EventSource는 헤더를 못 실으므로 @Public —
+  // 단 "신호"만 보낸다(민감정보 없음). 프론트는 신호 수신 시 인증된 상세를 다시 읽음.
+  @Public()
+  @Sse(":id/stream")
+  liveStream(@Param("id") id: string): Observable<MessageEvent> {
+    return this.stream.streamFor(id);
+  }
 
   @Get()
   async list(@Query("status") status?: string) {

@@ -18,6 +18,7 @@ import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
 import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
+import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 
@@ -72,6 +73,7 @@ import { UNIT_OF_WORK } from "./ports/unit-of-work";
 import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
 import { PAYOUT_CHANNEL } from "./ports/payout-channel";
+import { AUCTION_STREAM } from "./ports/auction-stream.port";
 
 @Module({
   imports: [
@@ -118,6 +120,8 @@ import { PAYOUT_CHANNEL } from "./ports/payout-channel";
     CompositeAuthProvider,
     MsaportalMemberDirectoryAdapter,
     NotificationObserver,
+    AuctionStream,
+    { provide: AUCTION_STREAM, useExisting: AuctionStream },
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
     { provide: LEDGER_REPOSITORY, useExisting: PrismaLedgerRepository },
