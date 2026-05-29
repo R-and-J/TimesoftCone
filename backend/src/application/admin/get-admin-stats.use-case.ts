@@ -14,7 +14,7 @@ export type AdminStats = {
   upcomingAuctions: number;
   unsoldAuctions: number;
   awardedToday: number;
-  dlqDepth: number; // always 0 — Outbox is dormant (scope-cuts.md CUT-4)
+  dlqDepth: number; // Outbox DEAD 행 수 (ADR-005 relay 사후, CUT-4·7 부활)
 };
 
 @Injectable()
@@ -22,7 +22,7 @@ export class GetAdminStatsUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(): Promise<AdminStats> {
-    const [bidWinSum, refundDividendSum, statusCounts, awardedToday] =
+    const [bidWinSum, refundDividendSum, statusCounts, awardedToday, dlqDepth] =
       await Promise.all([
         // Σ(BID + WIN): BID amounts are negative, so use |amount|. WIN is 0.
         // Equivalent: sum of all BID amount absolutes.
@@ -44,6 +44,7 @@ export class GetAdminStatsUseCase {
             settledAt: { gte: startOfToday() },
           },
         }),
+        this.prisma.outboxMessage.count({ where: { status: "DEAD" } }),
       ]);
 
     const bidSum = bidWinSum._sum.amount ?? 0n; // negative
@@ -61,7 +62,7 @@ export class GetAdminStatsUseCase {
       upcomingAuctions: byStatus.get("CREATED") ?? 0,
       unsoldAuctions: byStatus.get("UNSOLD") ?? 0,
       awardedToday,
-      dlqDepth: 0,
+      dlqDepth,
     };
   }
 }

@@ -20,11 +20,13 @@ import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
 import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
+import { HrLeaveClientAdapter } from "./adapters/hr/hr-leave.client";
 import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 import { LeavePoolScheduler } from "./adapters/scheduling/leave-pool.scheduler";
 import { PurgeUnsoldAuctionsScheduler } from "./adapters/scheduling/purge-unsold.scheduler";
+import { OutboxRelayScheduler } from "./adapters/scheduling/outbox-relay.scheduler";
 
 // Use cases
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
@@ -82,6 +84,7 @@ import { AUCTION_REPOSITORY } from "./ports/auction-repository";
 import { UNIT_OF_WORK } from "./ports/unit-of-work";
 import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
+import { HR_LEAVE_CLIENT } from "./ports/hr-leave-client.port";
 import { PAYOUT_CHANNEL } from "./ports/payout-channel";
 import { AUCTION_STREAM } from "./ports/auction-stream.port";
 import { LEAVE_POOL } from "./ports/leave-pool.port";
@@ -136,6 +139,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     CompositeAuthProvider,
     MsaportalMemberDirectoryAdapter,
     NotificationObserver,
+    HrLeaveClientAdapter,
     AuctionStream,
     { provide: AUCTION_STREAM, useExisting: AuctionStream },
 
@@ -157,6 +161,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
       inject: [ConfigService, CompositeAuthProvider, LocalAuthProvider],
     },
     { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
+    { provide: HR_LEAVE_CLIENT, useExisting: HrLeaveClientAdapter },
 
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
@@ -188,6 +193,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     YearEndDividendScheduler,
     LeavePoolScheduler,
     PurgeUnsoldAuctionsScheduler,
+    OutboxRelayScheduler,
   ],
 })
 export class AppModule {}

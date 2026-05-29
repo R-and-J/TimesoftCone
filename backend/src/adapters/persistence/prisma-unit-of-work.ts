@@ -148,6 +148,13 @@ export class PrismaUnitOfWork implements UnitOfWork {
           create: { userId, year, leaveType: "AUCTION", grantedDays: 0, adjustedDays: days, usedDays: 0 },
         });
       },
+      enqueueOutbox: async ({ topic, payload }) => {
+        // 트랜잭션 아웃박스(ADR-005/013): 도메인 변경과 같은 tx에 메시지 적재.
+        // 커밋돼야 메시지도 남음 → relay가 나중에 외부로 전송(재시도/DLQ).
+        await tx.outboxMessage.create({
+          data: { topic, payload: JSON.stringify(payload) },
+        });
+      },
     };
   }
 }

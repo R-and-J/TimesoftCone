@@ -249,3 +249,27 @@ model LeavePoolRun {
 
   @@map("leave_pool_run")
 }
+
+// ─────────────────────────────────────────────────────────────
+// OUTBOX — 트랜잭션 아웃박스 (ADR-005 / ADR-013 외부호출 경로, CUT-4·7 부활).
+// 낙찰 등 도메인 변경과 *같은 트랜잭션*에서 "외부 HR로 보낼 메시지"를 적재한다.
+// OutboxRelayScheduler가 PENDING을 polling → HrLeaveClient로 전송, 실패 시
+// 지수 백오프 재시도, maxAttempts 초과 시 DEAD(=DLQ). 외부 시스템 호출은 이
+// 경로로만 (in-process EventBus는 프로세스 내부 fan-out 전용 — ADR-013).
+// id는 INTEGER(autoincrement BigInt drift 회피 — 본 파일 상단 주석).
+// ─────────────────────────────────────────────────────────────
+model OutboxMessage {
+  id            Int       @id @default(autoincrement())
+  topic         String                              // 예: HR_LEAVE_GRANT
+  payload       String                              // JSON 문자열
+  status        String    @default("PENDING")       // PENDING | SENT | DEAD
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(5) @map("max_attempts")
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  sentAt        DateTime? @map("sent_at")
+
+  @@index([status, nextAttemptAt])
+  @@map("outbox")
+}

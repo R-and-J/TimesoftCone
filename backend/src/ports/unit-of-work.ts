@@ -31,6 +31,12 @@ export interface TxContext {
    * leave_balance(userId, year, AUCTION).adjustedDays += days.
    */
   grantAuctionLeave(input: { userId: bigint; year: number; days: number }): Promise<void>;
+  /**
+   * Append a transactional Outbox message in the SAME transaction as the
+   * domain change (ADR-005/013). A relay worker delivers it to the external
+   * system later, with retry/DLQ. External calls go through here, never inline.
+   */
+  enqueueOutbox(input: { topic: string; payload: unknown }): Promise<void>;
 }
 
 export interface UnitOfWork {

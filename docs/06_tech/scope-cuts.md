@@ -92,6 +92,8 @@
 
 **되돌리는 비용**: 중간. 외부 어댑터를 도입하는 시점에 Outbox 테이블 + relay 워커 추가.
 
+**✅ 부활 (2026-05-29)**: 외부 HR 연동(`LEAVE_GRANT_MODE=groupware`)을 도입하며 트랜잭션 아웃박스를 실제 구현. `outbox` 테이블 + `UnitOfWork.enqueueOutbox`(낙찰 정산과 *같은 tx*에 적재) + `OutboxRelayScheduler`(PENDING polling → `HrLeaveClient` 전송 → 성공 SENT / 실패 지수백오프 재시도 / maxAttempts 초과 DEAD=DLQ). DLQ 깊이는 관리자 stats `dlqDepth`로 노출(더는 하드코딩 0 아님). **우리 leave_balance가 마스터**이고 외부 통지는 *추가*일 뿐 — ezpass 연차 테이블엔 직접 쓰지 않음(읽기전용 정책 유지, ADR-016/020). HR 대상은 설정형(`HR_API_URL`, 없으면 Mock 로그). 기본은 `internal`(아웃박스 미적재).
+
 ---
 
 ### CUT-5. Anti-snipe (마감 5분 내 입찰 시 자동 연장)
@@ -131,6 +133,8 @@
 ### CUT-7. 도메인 이벤트 → Outbox 연결 ([ADR-013](../04_decisions/ADR-013-domain-event.md) + [ADR-005](../04_decisions/ADR-005-hr-api-timing.md))
 
 CUT-2 + CUT-4 결합. *외부 시스템 트리거*는 결국 없으므로 둘 다 자르고 후속 PR에서 같이 부활.
+
+**✅ 부활 (2026-05-29)**: 외부 HR 트리거가 생기며(낙찰→HR 연차 통지) 완성. 다만 역할 분리는 ADR-013대로 — **in-process EventBus(알림·SSE)와 Outbox(외부 HR)는 별개 경로**다. 낙찰 시: ① EventBus로 `AuctionWonEvent`(프로세스 내부 알림/실시간) ② Outbox로 `HR_LEAVE_GRANT`(외부 시스템, 신뢰성 발행). "외부 호출은 Outbox로, 내부 fan-out은 EventBus로"가 코드로 실현됨.
 
 ---
 

@@ -11,6 +11,7 @@
 // not balance change.
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { UNIT_OF_WORK, type UnitOfWork } from "@/ports/unit-of-work";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
@@ -33,6 +34,7 @@ export class SettleAuctionUseCase {
   constructor(
     @Inject(UNIT_OF_WORK) private readonly uow: UnitOfWork,
     private readonly events: EventEmitter2,
+    @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
   async execute(idRaw: string): Promise<SettleAuctionResult> {
@@ -64,11 +66,27 @@ export class SettleAuctionUseCase {
           }),
         );
         // 낙찰자에게 AUCTION 연차 적립 (ADR-002/020/CUT-9) — 같은 트랜잭션.
+        const year = new Date().getFullYear();
         await tx.grantAuctionLeave({
           userId: outcome.winner.toBigInt(),
-          year: new Date().getFullYear(),
+          year,
           days: auction.leaveDays,
         });
+        // 자립형이 아니라 groupware 모드면, 외부 HR에도 "연차 부여"를 통지(ADR-005 Outbox).
+        // 우리 leave_balance가 마스터이고, 이건 *추가* 통지일 뿐. 같은 tx에 적재돼야
+        // 정산이 롤백되면 통지도 안 나간다(원자성). ezpass엔 직접 안 씀(정책).
+        if ((this.config.get<string>("LEAVE_GRANT_MODE") ?? "internal") === "groupware") {
+          await tx.enqueueOutbox({
+            topic: "HR_LEAVE_GRANT",
+            payload: {
+              userId: String(outcome.winner.toBigInt()),
+              year,
+              days: auction.leaveDays,
+              leaveType: "AUCTION",
+              auctionId: auctionId.toString(),
+            },
+          });
+        }
       }
 
       await tx.auctions.save(auction);
