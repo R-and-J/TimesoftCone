@@ -71,5 +71,6 @@
 - [[ADR-019]] 중앙 인증 위임 — `AuthProvider`/`EzpassAuthProvider` (모드 A)
 - [[ADR-020]] 신원=ezpass / 연차·경매금=우리 DB
 - [[ADR-021]] 이식형 핸드오프 export — 같은 "어느 회사나 도입" 철학
+- [[ADR-023]] 자립형 배포 — 내부 포인트 소모처 — 본 ADR의 *재화 측면* 확장(같은 모드 분기 철학)
 - [[ADR-012]] Hexagonal — 신원을 포트 뒤로 격리
 - 코드: `backend/src/ports/{auth-provider,member-directory}.ts`, `backend/src/adapters/auth/{ezpass-auth,local-auth}.provider.ts`, `backend/src/adapters/directory/msaportal-member-directory.adapter.ts`, `backend/src/application/admin/manage-members.use-case.ts`
