@@ -56,13 +56,14 @@ model User {
   contributedDays  Int      @default(0)  @map("contributed_days")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  wallets       Wallet[]
-  ledger        LedgerEntry[]
-  bids          BidEvent[]
-  wonAuctions   Auction[]      @relation("AuctionWinner")
-  leaveBalances LeaveBalance[]
-  notifications Notification[]
-  stakes        Stake[]
+  wallets          Wallet[]
+  ledger           LedgerEntry[]
+  bids             BidEvent[]
+  wonAuctions      Auction[]         @relation("AuctionWinner")
+  leaveBalances    LeaveBalance[]
+  notifications    Notification[]
+  stakes           Stake[]
+  redemptionOrders RedemptionOrder[]
 
   @@map("users")
 }
@@ -272,4 +273,56 @@ model OutboxMessage {
 
   @@index([status, nextAttemptAt])
   @@map("outbox")
+}
+
+// ─────────────────────────────────────────────────────────────
+// REDEMPTION_ITEM — 자립형 배포의 포인트 소모처 상품 카탈로그 (ADR-023).
+// 위임형(기본)에선 미사용. AI 구독권/식권/카페 상품권 등.
+// id는 INTEGER(autoincrement BigInt drift 회피 — 본 파일 상단 주석).
+// ─────────────────────────────────────────────────────────────
+model RedemptionItem {
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique
+  name        String
+  description String?
+  /// 1개 교환 시 차감되는 포인트.
+  priceP      BigInt   @map("price_p")
+  /// 재고. null이면 무제한.
+  stock       Int?
+  active      Boolean  @default(true)
+  /// UI 카테고리 라벨(예: "디지털 구독", "식권", "상품권").
+  category    String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  orders RedemptionOrder[]
+
+  @@index([active, category])
+  @@map("redemption_item")
+}
+
+// ─────────────────────────────────────────────────────────────
+// REDEMPTION_ORDER — 교환 1건 (사용자가 상품 1개를 포인트로 받음).
+// 같은 트랜잭션에서 redemption_item.stock - 1, wallet 차감, ledger(REDEEM) INSERT,
+// 그리고 이 행 INSERT가 한꺼번에 일어남. status는 발송 진행을 추적
+// (PENDING → FULFILLED|FAILED|REFUNDED). 내부 카탈로그는 즉시 FULFILLED.
+// ─────────────────────────────────────────────────────────────
+model RedemptionOrder {
+  id             Int      @id @default(autoincrement())
+  userId         BigInt   @map("user_id")
+  itemId         Int      @map("item_id")
+  /// 교환 시점의 가격 스냅샷(상품 가격이 나중에 바뀌어도 주문엔 그대로).
+  pricePAtRedeem BigInt   @map("price_p_at_redeem")
+  /// PENDING | FULFILLED | FAILED | REFUNDED.
+  status         String   @default("PENDING")
+  /// 발송 채널 참조(예: 쿠폰 코드, 외부 API tx id).
+  deliveryRef    String?  @map("delivery_ref")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User           @relation(fields: [userId], references: [id])
+  item RedemptionItem @relation(fields: [itemId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("redemption_order")
 }

@@ -21,6 +21,7 @@ import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
 import { HrLeaveClientAdapter } from "./adapters/hr/hr-leave.client";
+import { InternalCatalogRedemption } from "./adapters/redemption/internal-catalog-redemption.adapter";
 import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
@@ -48,6 +49,9 @@ import { SyncMembersUseCase } from "./application/admin/sync-members.use-case";
 import { ManageMembersUseCase } from "./application/admin/manage-members.use-case";
 import { ListNotificationsUseCase } from "./application/notification/list-notifications.use-case";
 import { MarkNotificationsReadUseCase } from "./application/notification/mark-notifications-read.use-case";
+import { ListRedemptionItemsUseCase } from "./application/redemption/list-redemption-items.use-case";
+import { RedeemItemUseCase } from "./application/redemption/redeem-item.use-case";
+import { ListMyRedemptionOrdersUseCase } from "./application/redemption/list-my-redemption-orders.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
@@ -66,6 +70,7 @@ import { AdminController } from "./interfaces/http/admin.controller";
 import { AdminExportController } from "./interfaces/http/admin-export.controller";
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { NotificationsController } from "./interfaces/http/notifications.controller";
+import { RedemptionController, UserRedemptionOrdersController } from "./interfaces/http/redemption.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 import { AdminDividendController } from "./interfaces/http/admin-dividend.controller";
 import { AdminLeavePoolController } from "./interfaces/http/admin-leave-pool.controller";
@@ -85,6 +90,7 @@ import { UNIT_OF_WORK } from "./ports/unit-of-work";
 import { AUTH_PROVIDER } from "./ports/auth-provider";
 import { MEMBER_DIRECTORY } from "./ports/member-directory";
 import { HR_LEAVE_CLIENT } from "./ports/hr-leave-client.port";
+import { REDEMPTION_CHANNEL } from "./ports/redemption-channel.port";
 import { PAYOUT_CHANNEL } from "./ports/payout-channel";
 import { AUCTION_STREAM } from "./ports/auction-stream.port";
 import { LEAVE_POOL } from "./ports/leave-pool.port";
@@ -113,6 +119,8 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     AdminExportController,
     AdminMembersController,
     NotificationsController,
+    RedemptionController,
+    UserRedemptionOrdersController,
     DividendController,
     AdminDividendController,
     AdminLeavePoolController,
@@ -140,6 +148,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     MsaportalMemberDirectoryAdapter,
     NotificationObserver,
     HrLeaveClientAdapter,
+    InternalCatalogRedemption,
     AuctionStream,
     { provide: AUCTION_STREAM, useExisting: AuctionStream },
 
@@ -162,6 +171,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     },
     { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
     { provide: HR_LEAVE_CLIENT, useExisting: HrLeaveClientAdapter },
+    { provide: REDEMPTION_CHANNEL, useExisting: InternalCatalogRedemption },
 
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
@@ -182,6 +192,9 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     ManageMembersUseCase,
     ListNotificationsUseCase,
     MarkNotificationsReadUseCase,
+    ListRedemptionItemsUseCase,
+    RedeemItemUseCase,
+    ListMyRedemptionOrdersUseCase,
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
     CollectLeavePoolUseCase,

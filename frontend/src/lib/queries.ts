@@ -340,6 +340,49 @@ export function updateMember(userId: string, input: UpdateMemberInput) {
   return apiPatch<MemberRow>(`/admin/members/${userId}`, input);
 }
 
+// ── Redemption (복지몰 — ADR-023 자립형 포인트 소모처) ──────────────
+export type RedemptionItem = {
+  id: number;
+  sku: string;
+  name: string;
+  description: string | null;
+  priceP: string;
+  stock: number | null; // null = 무제한
+  category: string | null;
+};
+
+export type RedemptionOrder = {
+  id: number;
+  itemName: string;
+  itemSku: string;
+  pricePAtRedeem: string;
+  status: "PENDING" | "FULFILLED" | "FAILED" | "REFUNDED";
+  deliveryRef: string | null;
+  createdAt: string;
+};
+
+export type RedeemResult = {
+  orderId: number;
+  itemId: number;
+  itemName: string;
+  pricePAtRedeem: string;
+  status: "FULFILLED" | "PENDING" | "FAILED";
+  deliveryRef: string | null;
+  newBalance: string;
+};
+
+export function listRedemptionItems() {
+  return apiGet<RedemptionItem[]>("/redemption/items");
+}
+
+export function redeemItem(itemId: number) {
+  return apiPost<RedeemResult>("/redemption/orders", { itemId });
+}
+
+export function listMyRedemptionOrders(userId: string | number) {
+  return apiGet<RedemptionOrder[]>(`/users/${userId}/redemption-orders`);
+}
+
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
 export type NotificationItem = {
   id: string;

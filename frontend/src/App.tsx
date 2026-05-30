@@ -9,6 +9,7 @@ import AuctionDetailPage from "@/pages/AuctionDetail";
 import BidInteractionsPage from "@/pages/BidInteractions";
 import MyActivityPage from "@/pages/MyActivity";
 import DividendPage from "@/pages/Dividend";
+import RedemptionPage from "@/pages/Redemption";
 import AdminOpsPage from "@/pages/AdminOps";
 import AdminLedgerPage from "@/pages/AdminLedger";
 import AdminMembersPage from "@/pages/AdminMembers";
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/auction/bid-variants" element={<RequireAuth><BidInteractionsPage /></RequireAuth>} />
         <Route path="/activity" element={<RequireAuth><MyActivityPage /></RequireAuth>} />
         <Route path="/dividend" element={<RequireAuth><DividendPage /></RequireAuth>} />
+        <Route path="/redemption" element={<RequireAuth><RedemptionPage /></RequireAuth>} />
         <Route path="/admin/ops" element={<RequireAuth><AdminOpsPage /></RequireAuth>} />
         <Route path="/admin/ledger" element={<RequireAuth><AdminLedgerPage /></RequireAuth>} />
         <Route path="/admin/members" element={<RequireAuth><AdminMembersPage /></RequireAuth>} />

@@ -13,7 +13,7 @@ import {
 
 type Props = {
   p: Palette;
-  active?: "dashboard" | "auction" | "activity" | "dividend" | "admin";
+  active?: "dashboard" | "auction" | "activity" | "dividend" | "redemption" | "admin";
   /** Override the displayed user (admin screens use this for "박부장"). */
   user?: string;
   role?: string;
@@ -24,6 +24,7 @@ const NAV_ROUTES: Record<NonNullable<Props["active"]>, string> = {
   auction: "/auction",
   activity: "/activity",
   dividend: "/dividend",
+  redemption: "/redemption",
   admin: "/admin/ops",
 };
 
@@ -80,6 +81,7 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
     { id: "auction", label: "경매장" },
     { id: "activity", label: "내 활동" },
     { id: "dividend", label: "연말 배당" },
+    { id: "redemption", label: "복지몰" },
     { id: "admin", label: "관리" },
   ];
 

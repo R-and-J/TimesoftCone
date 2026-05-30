@@ -1,8 +1,9 @@
 // The ledger action types (stored as a TEXT column on SQLite — no DB enum).
 // Each action type also implies a sign convention that the adapter can verify:
-//   credit (positive amount): REFUND, WIN-payout, DIVIDEND, CREDIT_ADMIN
-//   debit  (negative amount): BID, EXPIRE
+//   credit (positive amount): REFUND, WIN-payout, DIVIDEND, CREDIT_ADMIN, REDEEM_REFUND
+//   debit  (negative amount): BID, EXPIRE, REDEEM
 // WIN is special — see ADR-018 for the settlement rules.
+// REDEEM/REDEEM_REFUND — 자립형 배포 포인트 소모(ADR-023).
 
 export const LEDGER_ACTION_TYPES = [
   "BID",
@@ -11,14 +12,16 @@ export const LEDGER_ACTION_TYPES = [
   "DIVIDEND",
   "CREDIT_ADMIN",
   "EXPIRE",
+  "REDEEM",
+  "REDEEM_REFUND",
 ] as const;
 
 export type LedgerActionType = (typeof LEDGER_ACTION_TYPES)[number];
 
 export function isCreditAction(t: LedgerActionType): boolean {
-  return t === "REFUND" || t === "DIVIDEND" || t === "CREDIT_ADMIN";
+  return t === "REFUND" || t === "DIVIDEND" || t === "CREDIT_ADMIN" || t === "REDEEM_REFUND";
 }
 
 export function isDebitAction(t: LedgerActionType): boolean {
-  return t === "BID" || t === "EXPIRE";
+  return t === "BID" || t === "EXPIRE" || t === "REDEEM";
 }

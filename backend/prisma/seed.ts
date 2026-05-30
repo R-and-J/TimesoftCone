@@ -216,6 +216,28 @@ async function seedActivity() {
  *  소유하게 하고(ADR-020 개정) admin@에 *로컬 비번*을 부여한다. CompositeAuthProvider가
  *  로컬 비번 보유 계정을 로컬 검증하므로, ezpass와 무관하게 admin@로 로그인 가능(ADR-022).
  *  데모 비번이라 평문 주석 OK. */
+/** 복지몰 카탈로그(ADR-023) — 자립형 배포 데모용 상품 시드. sku로 멱등 upsert. */
+async function seedRedemptionCatalog() {
+  const items = [
+    { sku: "AI-SUB-1M", name: "AI 구독권 (1개월)", description: "ChatGPT/Claude Pro 등 1개월 구독", priceP: 30000n, stock: null, category: "디지털 구독" },
+    { sku: "AI-SUB-1Y", name: "AI 구독권 (1년)", description: "ChatGPT/Claude Pro 등 1년 구독", priceP: 300000n, stock: 10, category: "디지털 구독" },
+    { sku: "MEAL-1", name: "사내 식권 1매", description: "구내식당/제휴 식당", priceP: 5000n, stock: null, category: "식권" },
+    { sku: "MEAL-10", name: "사내 식권 10매 묶음", description: "10매 묶음 할인가", priceP: 45000n, stock: 50, category: "식권" },
+    { sku: "STARBUCKS-ICED-AME", name: "스타벅스 아이스 아메리카노 Tall", description: "스타벅스 기프티콘", priceP: 5000n, stock: null, category: "카페 상품권" },
+    { sku: "TWOSOME-CAKE-SET", name: "투썸 아메리카노 + 조각케익 세트", description: "투썸 기프티콘", priceP: 12000n, stock: 30, category: "카페 상품권" },
+    { sku: "KAKAO-GIFT-10K", name: "카카오톡 선물하기 10,000원권", description: "원하는 상품 자유 선택", priceP: 10000n, stock: null, category: "기프티콘" },
+    { sku: "KAKAO-GIFT-30K", name: "카카오톡 선물하기 30,000원권", description: "원하는 상품 자유 선택", priceP: 30000n, stock: null, category: "기프티콘" },
+  ];
+  for (const it of items) {
+    await prisma.redemptionItem.upsert({
+      where: { sku: it.sku },
+      update: { name: it.name, description: it.description, priceP: it.priceP, stock: it.stock, category: it.category, active: true },
+      create: it,
+    });
+  }
+  console.log(`  카탈로그 ${items.length}종 (AI 구독권/식권/카페/기프티콘)`);
+}
+
 async function setupDemoAdmin() {
   const ADMIN_EMAIL = "admin@timesoftcon.co.kr";
   const DEMO_PW = "!12345qwertY"; // 데모 전용
@@ -232,6 +254,8 @@ async function main() {
   await syncMembersAndLeave();
   console.log("== 1b) 데모 관리자 (로컬 비번) ==");
   await setupDemoAdmin();
+  console.log("== 1c) 복지몰 카탈로그 (ADR-023) ==");
+  await seedRedemptionCatalog();
   console.log("== 2) 회원 펀딩 ==");
   await fundMembers();
   console.log("== 3) 경매 데모 활동 ==");
