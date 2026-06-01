@@ -216,7 +216,7 @@ async function seedActivity() {
  *  소유하게 하고(ADR-020 개정) admin@에 *로컬 비번*을 부여한다. CompositeAuthProvider가
  *  로컬 비번 보유 계정을 로컬 검증하므로, ezpass와 무관하게 admin@로 로그인 가능(ADR-022).
  *  데모 비번이라 평문 주석 OK. */
-/** 복지몰 카탈로그(ADR-023) — 자립형 배포 데모용 상품 시드. sku로 멱등 upsert. */
+/** 스토어 카탈로그(ADR-023) — 자립형 배포 데모용 상품 시드. sku로 멱등 upsert. */
 async function seedRedemptionCatalog() {
   const items = [
     { sku: "AI-SUB-1M", name: "AI 구독권 (1개월)", description: "ChatGPT/Claude Pro 등 1개월 구독", priceP: 30000n, stock: null, category: "디지털 구독" },
@@ -254,7 +254,7 @@ async function main() {
   await syncMembersAndLeave();
   console.log("== 1b) 데모 관리자 (로컬 비번) ==");
   await setupDemoAdmin();
-  console.log("== 1c) 복지몰 카탈로그 (ADR-023) ==");
+  console.log("== 1c) 스토어 카탈로그 (ADR-023) ==");
   await seedRedemptionCatalog();
   console.log("== 2) 회원 펀딩 ==");
   await fundMembers();

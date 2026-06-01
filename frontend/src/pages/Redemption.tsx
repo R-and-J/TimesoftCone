@@ -1,4 +1,5 @@
-// 복지몰 — 자립형 배포 포인트 소모처(ADR-023).
+// 스토어 — 자립형 배포 포인트 소모처(ADR-023). UI 표시명은 "스토어",
+// 외부 "복지몰(회사 기존 복지몰)"과 헷갈리지 않게 분리.
 // 상품 카탈로그 + 교환 + 내 주문 내역.
 
 import { useState } from "react";
@@ -82,13 +83,13 @@ export default function RedemptionPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon.bolt size={14} /> 복지몰 · 포인트 교환
+                <Icon.bolt size={14} /> 스토어 · 포인트 교환
               </div>
               <div style={{ fontSize: 28, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em", marginTop: 4 }}>
                 내 포인트로 교환
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                자립형 배포 보완(ADR-023) · 복지몰 없는 회사를 위한 내부 소모처
+                자립형 배포 보완(ADR-023) · 회사 복지몰 없이도 포인트 가치 있도록
               </div>
             </div>
             <Card p={p} padding={16} style={{ minWidth: 220 }}>

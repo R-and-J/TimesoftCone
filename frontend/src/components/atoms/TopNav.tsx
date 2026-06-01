@@ -81,7 +81,7 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
     { id: "auction", label: "경매장" },
     { id: "activity", label: "내 활동" },
     { id: "dividend", label: "연말 배당" },
-    { id: "redemption", label: "복지몰" },
+    { id: "redemption", label: "스토어" },
     { id: "admin", label: "관리" },
   ];
 

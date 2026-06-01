@@ -83,7 +83,7 @@ export class RedeemItemUseCase {
           actionType: "REDEEM",
           amount: -item.priceP,
           balanceAfter: newBalance,
-          refNote: `복지몰 교환: ${item.name}`,
+          refNote: `스토어 교환: ${item.name}`,
         },
       });
 

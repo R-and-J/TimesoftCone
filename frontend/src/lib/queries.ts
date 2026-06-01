@@ -340,7 +340,7 @@ export function updateMember(userId: string, input: UpdateMemberInput) {
   return apiPatch<MemberRow>(`/admin/members/${userId}`, input);
 }
 
-// ── Redemption (복지몰 — ADR-023 자립형 포인트 소모처) ──────────────
+// ── Redemption (스토어 — ADR-023 자립형 포인트 소모처) ──────────────
 export type RedemptionItem = {
   id: number;
   sku: string;

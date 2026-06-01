@@ -1,4 +1,4 @@
-// 복지몰 — 자립형 배포 포인트 소모처 (ADR-023).
+// 스토어 — 자립형 배포 포인트 소모처 (ADR-023).
 //   GET  /api/redemption/items           — 인증 사용자: 카탈로그 조회
 //   POST /api/redemption/orders          — 인증 사용자: 자기 토큰으로 교환(body.userId 무시)
 //   GET  /api/users/:userId/redemption-orders — 본인 또는 ADMIN

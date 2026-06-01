@@ -47,7 +47,7 @@
 | [020](ADR-020-member-identity-ezpass-leave-internal.md) | 신원=ezpass / 연차·경매금=우리 DB | ✅ Accepted | 회원 신원·조직·role은 ezpass, 연차·지갑은 우리 마스터 |
 | [021](ADR-021-portable-handoff-export.md) | 이식형 핸드오프 export | ✅ Accepted | 정산 데이터를 CSV/MD/JSON/xlsx로 내보내 각 사 HR가 반영 |
 | [022](ADR-022-identity-adapter-deployment-modes.md) | 신원 어댑터화 & 배포 모드 (위임형/자립형) | ✅ Accepted | AUTH_MODE로 ezpass 위임↔LocalAuthProvider 자립 전환, 회원관리 탭 모드별 |
-| [023](ADR-023-internal-redemption-channels.md) | 자립형 배포 — 내부 포인트 소모처 | 🟡 Proposed | 복지몰 없는 회사용 상품 카탈로그·교환(REDEEM)·`RedemptionChannel` 포트 — 자립형 재화 측 보완 |
+| [023](ADR-023-internal-redemption-channels.md) | 자립형 배포 — 내부 포인트 소모처(스토어) | ✅ Accepted | UI는 "스토어"로 표기. 카탈로그·교환(REDEEM)·`RedemptionChannel` 포트 MVP 구현. 회사 복지몰 없는 환경용 |
 
 ## 의존 관계
 
