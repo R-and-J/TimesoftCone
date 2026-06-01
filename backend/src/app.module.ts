@@ -22,7 +22,8 @@ import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
 import { HrLeaveClientAdapter } from "./adapters/hr/hr-leave.client";
-import { MsaportalHrLeaveClient } from "./adapters/hr/msaportal-hr-leave.client";
+import { EzpassHrLeaveClient } from "./adapters/hr/ezpass-hr-leave.client";
+import { EzpassAdminTokenService } from "./adapters/auth/ezpass-admin-token.service";
 import { InternalCatalogRedemption } from "./adapters/redemption/internal-catalog-redemption.adapter";
 import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
@@ -39,6 +40,9 @@ import { CreateAuctionUseCase } from "./application/auction/create-auction.use-c
 import { OpenAuctionUseCase } from "./application/auction/open-auction.use-case";
 import { ScheduleAuctionUseCase } from "./application/auction/schedule-auction.use-case";
 import { OpenDueAuctionsUseCase } from "./application/auction/open-due-auctions.use-case";
+import { CancelAuctionsUseCase } from "./application/auction/cancel-auctions.use-case";
+import { GetAuctionsSummaryUseCase } from "./application/auction/get-auctions-summary.use-case";
+import { GetNextAuctionIdUseCase } from "./application/auction/get-next-auction-id.use-case";
 import { ListAuctionsUseCase } from "./application/auction/list-auctions.use-case";
 import { GetAuctionDetailUseCase } from "./application/auction/get-auction-detail.use-case";
 import { PlaceBidUseCase } from "./application/auction/place-bid.use-case";
@@ -67,7 +71,6 @@ import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
 import { GetReleasePolicyUseCase } from "./application/leave-pool/get-release-policy.use-case";
 import { UpdateReleasePolicyUseCase } from "./application/leave-pool/update-release-policy.use-case";
-import { RedistributeUpcomingAuctionsUseCase } from "./application/leave-pool/redistribute-upcoming-auctions.use-case";
 import { UseLeaveUseCase } from "./application/leave/use-leave.use-case";
 import { GrantEventFromUnsoldUseCase } from "./application/leave/grant-event-from-unsold.use-case";
 import { PurgeUnsoldAuctionsUseCase } from "./application/leave/purge-unsold-auctions.use-case";
@@ -169,7 +172,8 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     MsaportalMemberDirectoryAdapter,
     NotificationObserver,
     HrLeaveClientAdapter,
-    MsaportalHrLeaveClient,
+    EzpassAdminTokenService,
+    EzpassHrLeaveClient,
     InternalCatalogRedemption,
     AuctionStream,
     { provide: AUCTION_STREAM, useExisting: AuctionStream },
@@ -193,17 +197,17 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
       inject: [ConfigService, CompositeAuthProvider, LocalAuthProvider],
     },
     { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
-    // HR_LEAVE_CLIENT_KIND env로 어댑터 스왑 (ADR-025).
-    //   msaportal → MsaportalHrLeaveClient (mysql2로 tbl_user_yryc.mdat += N)
-    //   그 외       → HrLeaveClientAdapter (mock 로그 OR HR_API_URL POST)
+    // HR_LEAVE_CLIENT_KIND env로 어댑터 스왑 (ADR-025 개정).
+    //   ezpass → EzpassHrLeaveClient (정식 REST: selectUserYrycInfo + streYryc)
+    //   그 외   → HrLeaveClientAdapter (mock 로그 OR HR_API_URL POST)
     {
       provide: HR_LEAVE_CLIENT,
       useFactory: (
         config: ConfigService,
         mock: HrLeaveClientAdapter,
-        msa: MsaportalHrLeaveClient,
-      ) => (config.get<string>("HR_LEAVE_CLIENT_KIND") === "msaportal" ? msa : mock),
-      inject: [ConfigService, HrLeaveClientAdapter, MsaportalHrLeaveClient],
+        ezp: EzpassHrLeaveClient,
+      ) => (config.get<string>("HR_LEAVE_CLIENT_KIND") === "ezpass" ? ezp : mock),
+      inject: [ConfigService, HrLeaveClientAdapter, EzpassHrLeaveClient],
     },
     { provide: REDEMPTION_CHANNEL, useExisting: InternalCatalogRedemption },
 
@@ -211,6 +215,11 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     CreditWalletAdminUseCase,
     CreateAuctionUseCase,
     OpenAuctionUseCase,
+    ScheduleAuctionUseCase,
+    OpenDueAuctionsUseCase,
+    CancelAuctionsUseCase,
+    GetAuctionsSummaryUseCase,
+    GetNextAuctionIdUseCase,
     ListAuctionsUseCase,
     GetAuctionDetailUseCase,
     PlaceBidUseCase,
@@ -239,12 +248,12 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     CollectLeavePoolUseCase,
     GetReleasePolicyUseCase,
     UpdateReleasePolicyUseCase,
-    RedistributeUpcomingAuctionsUseCase,
     UseLeaveUseCase,
     GrantEventFromUnsoldUseCase,
     PurgeUnsoldAuctionsUseCase,
 
     SettleDueAuctionsScheduler,
+    OpenDueAuctionsScheduler,
     YearEndDividendScheduler,
     LeavePoolScheduler,
     PurgeUnsoldAuctionsScheduler,

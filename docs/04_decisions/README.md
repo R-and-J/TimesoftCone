@@ -49,7 +49,7 @@
 | [022](ADR-022-identity-adapter-deployment-modes.md) | 신원 어댑터화 & 배포 모드 (위임형/자립형) | ✅ Accepted | AUTH_MODE로 ezpass 위임↔LocalAuthProvider 자립 전환, 회원관리 탭 모드별 |
 | [023](ADR-023-internal-redemption-channels.md) | 자립형 배포 — 내부 포인트 소모처(스토어) | ✅ Accepted | UI는 "스토어"로 표기. 카탈로그·교환(REDEEM)·`RedemptionChannel` 포트 MVP 구현. 회사 복지몰 없는 환경용 |
 | [024](ADR-024-user-initiated-charge-request.md) | 사용자 주도 충전 요청 — 관리자 매개 | ✅ Accepted | "후불 느낌"을 관리자 매개로 — P2P 회피 + 인바리언트 0 깨짐. EventBus가 첫 다회 구독자 |
-| [025](ADR-025-ezpass-leave-write-relaxation.md) | ezpass 연차 테이블 쓰기 — 정책 완화 | ✅ Accepted | ADR-020 §4 완화: 낙찰 시 mdat_yryc_day_qty에 단일 카운트 +N (Outbox 경유, cmpny 7 한정). type 구분 없음 |
+| [025](ADR-025-ezpass-leave-write-relaxation.md) | ezpass 연차 테이블 쓰기 — 정책 완화 | ✅ Accepted (개정) | ADR-020 §4 완화: 낙찰 시 mdat_yryc_day_qty +N (Outbox 경유). 정식 REST API(`AdmDlz0070M/streYryc` + `CmnDlz0020P/selectUserYrycInfo`)로 호출. cmpny 가드는 시스템 토큰 자동 |
 
 ## 의존 관계
 
