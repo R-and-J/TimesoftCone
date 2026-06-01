@@ -178,10 +178,9 @@ export default function AdminAuctionsPage() {
             </div>
           </div>
 
-          {/* 카운터 — 총 / 보류 / 오픈 예정 / 진행 중 / 종료 */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
+          {/* 카운터 — 총 / 오픈 예정 / 진행 중 / 종료 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
             <KpiCard k="총 매물" v={summaryQ.data?.total ?? "—"} sub="모든 상태" />
-            <KpiCard k="보류" v={summaryQ.data?.draft ?? "—"} sub="DRAFT · 오픈 미정" />
             <KpiCard k="오픈 예정" v={summaryQ.data?.upcoming ?? "—"} sub="CREATED · 자동 OPEN" />
             <KpiCard k="진행 중" v={summaryQ.data?.open ?? "—"} sub="OPEN" />
             <KpiCard
@@ -265,10 +264,10 @@ export default function AdminAuctionsPage() {
       {createOpen && (
         <CreateAuctionModal
           onClose={() => setCreateOpen(false)}
-          onCreated={async (n, mode) => {
+          onCreated={async (n) => {
             setCreateOpen(false);
             await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
-            toast.push("success", `1일권 ${n}개 ${mode === "draft" ? "보류" : "예약"} 추가 완료`);
+            toast.push("success", `1일권 ${n}개 추가 완료`);
           }}
           onError={(m) => toast.push("error", m)}
         />
@@ -385,7 +384,7 @@ function PolicyModal({
       >
         <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>분산 오픈 정책</div>
         <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
-          풀 수집 시 새 매물의 시작 시각 분산 방식. <b>배치 미사용</b>이면 모두 즉시 시작.
+          풀 수집 시 새 매물의 시작 시각 분산 방식. <b>배치 미사용</b>이면 수집 즉시 모두 오픈 예정에 들어감.
         </div>
 
         <FieldBlock p={p} label="주기">
@@ -438,11 +437,10 @@ function CreateAuctionModal({
   onClose, onCreated, onError,
 }: {
   onClose: () => void;
-  onCreated: (created: number, mode: "draft" | "scheduled") => void;
+  onCreated: (created: number) => void;
   onError: (m: string) => void;
 }) {
   const p = PALETTES.cobalt;
-  const [mode, setMode] = useState<"draft" | "scheduled">("draft");
   const [startedAt, setStartedAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 3600_000))));
   const [endsAt, setEndsAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 8 * 3600_000))));
   const [startPrice, setStartPrice] = useState("5000");
@@ -455,27 +453,21 @@ function CreateAuctionModal({
       onError("발행 수량은 1~1000 사이 정수여야 합니다");
       return;
     }
-    if (mode === "scheduled") {
-      const sa = new Date(startedAt);
-      const ea = new Date(endsAt);
-      if (!(ea > sa)) {
-        onError("마감 시각이 시작 시각보다 늦어야 합니다");
-        return;
-      }
+    const sa = new Date(startedAt);
+    const ea = new Date(endsAt);
+    if (!(ea > sa)) {
+      onError("마감 시각이 시작 시각보다 늦어야 합니다");
+      return;
     }
     setCreating(true);
     try {
-      const body =
-        mode === "draft"
-          ? { quantity: n, startPrice, asDraft: true }
-          : {
-              quantity: n,
-              startPrice,
-              startedAt: new Date(startedAt).toISOString(),
-              endsAt: new Date(endsAt).toISOString(),
-            };
-      const r = await createAuction(body);
-      onCreated(r.created, mode);
+      const r = await createAuction({
+        quantity: n,
+        startPrice,
+        startedAt: sa.toISOString(),
+        endsAt: ea.toISOString(),
+      });
+      onCreated(r.created);
     } catch (e) {
       onError((e as Error).message);
     } finally {
@@ -494,15 +486,7 @@ function CreateAuctionModal({
       >
         <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>매물 수동 추가</div>
         <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
-          <b>1일권</b>을 N개 만듭니다 (ADR-007). ID는 자동 채번.
-        </div>
-
-        {/* 모드 선택 */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <ModeChip p={p} active={mode === "draft"} onClick={() => setMode("draft")}
-            title="보류로 만들기" sub="시간 미정 · 나중에 결정" />
-          <ModeChip p={p} active={mode === "scheduled"} onClick={() => setMode("scheduled")}
-            title="예약하기" sub="시간 정해서 자동 OPEN" />
+          <b>1일권</b>을 N개 만듭니다 (ADR-007). ID는 자동 채번 · 시간 되면 자동 OPEN.
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -514,49 +498,20 @@ function CreateAuctionModal({
           </FieldBlock>
         </div>
 
-        {mode === "scheduled" && (
-          <>
-            <FieldBlock p={p} label="오픈 시각">
-              <input type="datetime-local" value={startedAt} onChange={(e) => setStartedAt(e.target.value)} style={inputStyle(p)} />
-            </FieldBlock>
-            <FieldBlock p={p} label="마감 시각">
-              <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={inputStyle(p)} />
-            </FieldBlock>
-          </>
-        )}
+        <FieldBlock p={p} label="오픈 시각">
+          <input type="datetime-local" value={startedAt} onChange={(e) => setStartedAt(e.target.value)} style={inputStyle(p)} />
+        </FieldBlock>
+        <FieldBlock p={p} label="마감 시각">
+          <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={inputStyle(p)} />
+        </FieldBlock>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
           <Btn p={p} variant="ghost" size="md" disabled={creating} onClick={onClose}>취소</Btn>
           <Btn p={p} variant="primary" size="md" disabled={creating} onClick={create}>
-            {creating ? "추가 중…" : `${quantity}개 ${mode === "draft" ? "보류 추가" : "예약 추가"}`}
+            {creating ? "추가 중…" : `${quantity}개 추가`}
           </Btn>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ModeChip({
-  p, active, onClick, title, sub,
-}: {
-  p: typeof PALETTES.cobalt;
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        flex: 1, padding: "10px 12px", borderRadius: 10, cursor: "pointer",
-        background: active ? p.ink : p.bg,
-        color: active ? p.surface : p.ink,
-        border: `1px solid ${active ? p.ink : p.line}`,
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700 }}>{title}</div>
-      <div style={{ fontSize: 11, marginTop: 2, color: active ? "rgba(255,255,255,0.7)" : p.inkMuted }}>{sub}</div>
     </div>
   );
 }

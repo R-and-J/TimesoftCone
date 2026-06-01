@@ -105,8 +105,7 @@ export class CollectLeavePoolUseCase {
       stakes: plan.stakes,
       items: plan.items,
       summary: plan.summary,
-      // 정책 none = "분산 자동 안 함" → 매물도 보류로 만들어 관리자 수동 운영.
-      asDraft: policy.cadence === "none",
+      // 풀 매물은 항상 CREATED — 정책=none이면 모두 baseDate에서 즉시 시작.
     });
 
     // 커밋 후 발행 — 구독자(메트릭/알림 등)가 붙을 수 있음(Use Case는 무지, ADR-013).
