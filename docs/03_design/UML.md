@@ -26,7 +26,9 @@
 
 ---
 
-## 📚 4개 다이어그램 (파일 분리)
+## 📚 8개 다이어그램 (파일 분리) — 기본 4종 + 심화 4종
+
+> 과제 요구는 "3종 이상". 기본 4종(①~④)에 더해 **우리 프로젝트의 핵심**(에스크로→배당 흐름·헥사고날 구조·재무 정합성·강제 차감)을 드러내는 심화 4종(⑤~⑧)을 추가했다. UML 표기법 기준 **7종**(유스케이스·클래스·순차·상태·활동·컴포넌트·객체).
 
 | # | 문서 | 이미지 | 대상 / 시나리오 | 핵심 UML 요소 |
 |---|---|---|---|---|
@@ -34,6 +36,10 @@
 | ② | **[클래스](uml/02-class.md)** | [`class.png`](uml/class.png) | 정적 구조 | Generalization 5, Realization 1, Composition/Aggregation, 가시성, 다중도, 스테레오타입 5종 |
 | ③ | **[순차](uml/03-sequence.md)** | [`sequence.png`](uml/sequence.png) | 입찰 → 낙찰 → HR 연동 | 동기/비동기/반환, activate/deactivate, `alt`/`par`/`opt`, Outbox Pattern |
 | ④ | **[상태](uml/04-state.md)** | [`state.png`](uml/state.png) | Auction 객체 생애주기 | Composite 4, `<<choice>>`, entry/do/exit, `trigger [guard] / action` |
+| ⑤ | **[활동·연말배치](uml/05-activity-year-end.md)** | [`activity-year-end.png`](uml/activity-year-end.png) | 12/31 정산·배당 배치 | 결정·분기·병렬(Fork), 정합성 검증 예외 흐름 |
+| ⑥ | **[컴포넌트·헥사고날](uml/06-component-hexagonal.md)** | [`component-hexagonal.png`](uml/component-hexagonal.png) | 정적 구조 (Ports & Adapters) | «component», «interface» 포트, 실체화, 의존 방향, 5 컨텍스트 |
+| ⑦ | **[객체·정합성](uml/07-object-integrity.md)** | [`object-integrity.png`](uml/object-integrity.png) | 배당 시점 인스턴스 스냅샷 | 인스턴스+값, NFR-2 등식 증명, 나머지 처리 |
+| ⑧ | **[활동·차감우선순위](uml/08-activity-deduction.md)** | [`activity-deduction.png`](uml/activity-deduction.png) | 휴가 강제 차감 | 결정 4·자기루프, 가드, 예외(부족) |
 
 ---
 
@@ -52,6 +58,18 @@
 
 ### ④ 상태 다이어그램
 ![State Diagram](uml/state.png)
+
+### ⑤ 활동 다이어그램 — 연말 배치 (에스크로 → 배당)
+![Activity Diagram - Year End](uml/activity-year-end.png)
+
+### ⑥ 컴포넌트 다이어그램 — Hexagonal Ports & Adapters
+![Component Diagram](uml/component-hexagonal.png)
+
+### ⑦ 객체 다이어그램 — 수익적립금 정합성 스냅샷
+![Object Diagram](uml/object-integrity.png)
+
+### ⑧ 활동 다이어그램 — 휴가 차감 우선순위
+![Activity Diagram - Deduction](uml/activity-deduction.png)
 
 ---
 
@@ -86,10 +104,18 @@
 │   ├── 02-class.md                 ← ② 클래스
 │   ├── 03-sequence.md              ← ③ 순차
 │   ├── 04-state.md                 ← ④ 상태
+│   ├── 05-activity-year-end.md     ← ⑤ 활동(연말 배치)
+│   ├── 06-component-hexagonal.md   ← ⑥ 컴포넌트(헥사고날)
+│   ├── 07-object-integrity.md      ← ⑦ 객체(정합성 스냅샷)
+│   ├── 08-activity-deduction.md    ← ⑧ 활동(차감 우선순위)
 │   ├── usecase.png                 ← 렌더링 결과 (4K PNG)
 │   ├── class.png
 │   ├── sequence.png
-│   └── state.png
+│   ├── state.png
+│   ├── activity-year-end.png       ← ⑤ 렌더 완료 (2026-05-27)
+│   ├── component-hexagonal.png     ← ⑥ 렌더 완료
+│   ├── object-integrity.png        ← ⑦ 렌더 완료
+│   └── activity-deduction.png      ← ⑧ 렌더 완료
 ├── architecture.md
 ├── erd.md
 └── api-spec.md

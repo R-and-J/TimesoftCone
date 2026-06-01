@@ -24,7 +24,7 @@ import { ExtendAuctionDeadlineUseCase } from "@/application/auction/extend-aucti
 import { CloseAuctionImmediatelyUseCase } from "@/application/auction/close-auction-immediately.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
   message: "Must be an ISO timestamp",
@@ -62,7 +62,7 @@ const openSchema = z.object({
   force: z.boolean().optional(),
 });
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/auctions")
 export class AdminAuctionsController {
   constructor(

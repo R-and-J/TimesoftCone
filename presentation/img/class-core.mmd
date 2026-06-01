@@ -1,0 +1,68 @@
+classDiagram
+  direction LR
+
+  class Employee {
+    +empId: String
+    +role: UserRole
+    +getWallet(currency) Wallet
+    +getBidableBalance() Point
+  }
+
+  class Auction {
+    -status: AuctionStatus
+    -highest_bid: Point
+    -winner_id: UserId
+    -end_time: datetime
+    +placeBid(user, amt) BidResult
+    +close() void
+    +settle() SettleOutcome
+  }
+
+  class Wallet {
+    -currency: Currency
+    -balance: Point
+    +debit(amt) void
+    +credit(amt) void
+    +getBalance() Point
+  }
+
+  class Escrow {
+    <<service>>
+    -year: int
+    -balance: Point
+    +accumulate(amt) void
+    +distribute(stakes) Map
+    +verifyIntegrity() bool
+  }
+
+  class LedgerEntry {
+    <<Insert-Only>>
+    -action_type: ActionType
+    -amount: Point
+    -escrow_snapshot: Point
+    +record()$ void
+  }
+
+  class Stake {
+    -contributed_days: int
+    -stake_ratio: decimal
+    +calculateDividend(total) Point
+  }
+
+  class LeaveBalance {
+    <<abstract>>
+    -allocated_days: int
+    -used_days: int
+    +getRemaining() int
+    +deduct(days) void
+    +expireAtYearEnd()* void
+  }
+
+  Employee "1" *-- "N" Wallet : owns
+  Employee "1" *-- "N" LeaveBalance : owns
+  Employee "1" o-- "N" Stake : contributes
+  Employee "0..1" <-- "N" Auction : winner
+  Auction "N" ..> "1" Escrow : 적립
+  Auction "1" -- "N" LedgerEntry : 기록
+  Stake ..> Escrow : 배당 계산
+  note for LeaveBalance "3-flag 상속: RegularLeave / AuctionLeave / EventLeave"

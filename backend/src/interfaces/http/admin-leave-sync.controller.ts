@@ -6,9 +6,9 @@
 import { BadRequestException, Controller, Param, Post, Query } from "@nestjs/common";
 import { GetLeaveSyncReportUseCase } from "@/application/leave-sync/get-leave-sync-report.use-case";
 import { ReconcileUserLeaveUseCase } from "@/application/leave-sync/reconcile-user-leave.use-case";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/leave-sync")
 export class AdminLeaveSyncController {
   constructor(

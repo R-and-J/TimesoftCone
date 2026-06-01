@@ -14,7 +14,12 @@ export const IS_PUBLIC_KEY = "rbac:isPublic";
 export const ROLES_KEY = "rbac:roles";
 export const SELF_PARAM_KEY = "rbac:selfParam";
 
-export type Role = "EMPLOYEE" | "ADMIN";
+// ADMIN: 최고관리자(둘 다 관리). EZPASS_ADMIN/EXAM_ADMIN: 영역별 관리자.
+// EZPASS/EXAM: 일반 사용자. RBAC는 관리자 계열(ADMIN_ROLES)과 일반을 구분한다.
+export type Role = "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM";
+
+/** 관리자 계열 role(모든 /admin 영역 접근 가능). 세부 스코프는 메서드 단위 @Roles로 좁힌다. */
+export const ADMIN_ROLES: Role[] = ["ADMIN", "EZPASS_ADMIN", "EXAM_ADMIN"];
 
 /** 검증된 JWT에서 뽑은 요청 주체. 가드가 req.user에 심는다. */
 export type AuthUser = {

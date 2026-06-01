@@ -4,9 +4,9 @@
 
 import { Controller, Post, Query } from "@nestjs/common";
 import { SettleYearEndDividendUseCase } from "@/application/dividend/settle-year-end-dividend.use-case";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/dividend")
 export class AdminDividendController {
   constructor(private readonly settle: SettleYearEndDividendUseCase) {}

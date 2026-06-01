@@ -8,7 +8,12 @@
       "Bash(ls ppt/embeddings/)",
       "Bash(cat ppt/slides/_rels/slide4.xml.rels)",
       "Bash(python3 *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(cd backend && node_modules/.bin/tsx scripts/*)",
+      "Bash(node_modules/.bin/tsx scripts/*)",
+      "Bash(backend/node_modules/.bin/tsx backend/scripts/*)",
+      "Bash(git -c safe.directory=D:/Univercity/2_1SWProject push:*)",
+      "Bash(powershell.exe *)"
     ]
   }
 }

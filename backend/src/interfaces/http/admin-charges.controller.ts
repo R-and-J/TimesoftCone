@@ -8,7 +8,7 @@ import { z } from "zod";
 import { ApproveChargeRequestUseCase } from "@/application/wallet/charge/approve-charge-request.use-case";
 import { RejectChargeRequestUseCase } from "@/application/wallet/charge/reject-charge-request.use-case";
 import { ListChargeRequestsUseCase } from "@/application/wallet/charge/list-charge-requests.use-case";
-import { CurrentUser, Roles, type AuthUser } from "./auth/auth.decorators";
+import { CurrentUser, Roles, ADMIN_ROLES, type AuthUser } from "./auth/auth.decorators";
 import { ZodValidationPipe } from "./zod.pipe";
 
 const decisionSchema = z.object({
@@ -17,7 +17,7 @@ const decisionSchema = z.object({
 
 const STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/charge-requests")
 export class AdminChargesController {
   constructor(

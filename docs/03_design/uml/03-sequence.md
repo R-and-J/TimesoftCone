@@ -127,7 +127,7 @@ sequenceDiagram
 ![Sequence Diagram](sequence.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `sequence.png`로 덮어쓰기.
-> ⚠️ **재렌더링 필요** (2026-05-14): `users.current_point` → `wallet.balance`(BiddingCurrency.debit), `point_transaction_log` → `ledger_entry` 반영됨. PNG는 아직 구버전.
+> ✅ **최신 렌더 완료** (2026-05-27, kroki): `wallet.balance`(BiddingCurrency.debit)·`ledger_entry`가 반영된 현재 소스로 재렌더됨. 재생성: `python presentation/render-uml.py`.
 
 ---
 

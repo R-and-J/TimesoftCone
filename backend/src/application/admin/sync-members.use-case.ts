@@ -36,7 +36,8 @@ export class SyncMembersUseCase {
     const errors: string[] = [];
 
     for (const m of members) {
-      const role = m.isAdmin ? "ADMIN" : "EMPLOYEE";
+      // ezpass org에서 온 회원은 회사 도메인 연동 사용자 → EZPASS(관리자 힌트면 EZPASS_ADMIN).
+      const role = m.isAdmin ? "EZPASS_ADMIN" : "EZPASS";
       const empId = m.empNo ?? `EZP-${m.externalUserNo}`;
       try {
         const existing = await this.prisma.user.findUnique({ where: { email: m.email } });

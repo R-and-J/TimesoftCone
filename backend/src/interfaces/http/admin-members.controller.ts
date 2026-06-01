@@ -1,7 +1,7 @@
-// 관리자 회원관리 (ADR-022).
-//   위임형(ezpass): 읽기 전용 미러 뷰 + "지금 동기화".
-//   자립형(local) : 회원 CRUD(추가/수정/비번/비활성). local 모드가 아니면 CRUD는 409.
-// ADMIN 전용 (회원 관리 = 운영 권한).
+// 관리자 회원관리 (ADR-022, 관리자 영역 분리).
+//   목록/충전: 모든 관리자(ADMIN_ROLES).
+//   동기화(ezpass): ADMIN·EZPASS_ADMIN.   추가/수정(EXAM 로컬): ADMIN·EXAM_ADMIN.
+//   EZPASS 회원 수정은 use-case에서 409(ezpass 동기화 전용).
 
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { z } from "zod";
@@ -9,13 +9,14 @@ import { ListMembersUseCase } from "@/application/admin/list-members.use-case";
 import { SyncMembersUseCase } from "@/application/admin/sync-members.use-case";
 import { ManageMembersUseCase } from "@/application/admin/manage-members.use-case";
 import { ZodValidationPipe } from "./zod.pipe";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 const createSchema = z.object({
   email: z.string().email("올바른 이메일이 아닙니다"),
   name: z.string().min(1, "이름은 필수입니다"),
   password: z.string().min(4, "비밀번호는 4자 이상"),
-  role: z.enum(["EMPLOYEE", "ADMIN"]).default("EMPLOYEE"),
+  // 로컬 생성은 exam 영역 계정만(EXAM/EXAM_ADMIN). EZPASS는 ezpass 동기화로만.
+  role: z.enum(["EXAM", "EXAM_ADMIN"]).default("EXAM"),
   empId: z.string().optional(),
   team: z.string().nullish(),
   jobRank: z.string().nullish(),
@@ -24,7 +25,7 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
-  role: z.enum(["EMPLOYEE", "ADMIN"]).optional(),
+  role: z.enum(["EXAM", "EXAM_ADMIN"]).optional(),
   team: z.string().nullish(),
   jobRank: z.string().nullish(),
   jobTitle: z.string().nullish(),
@@ -32,7 +33,7 @@ const updateSchema = z.object({
   password: z.string().min(4).optional(),
 });
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/members")
 export class AdminMembersController {
   constructor(
@@ -47,19 +48,22 @@ export class AdminMembersController {
     return this.list.execute();
   }
 
-  /** ezpass org에서 회원 명단을 다시 당겨와 미러 갱신(위임형). */
+  /** ezpass org에서 회원 명단을 다시 당겨와 미러 갱신. ezpass 영역 관리자만. */
+  @Roles("ADMIN", "EZPASS_ADMIN")
   @Post("sync")
   async syncMembers() {
     return this.sync.execute();
   }
 
-  /** 회원 추가(자립형 전용 — 위임형이면 409). */
+  /** 회원 추가(EXAM 로컬). exam 영역 관리자만. */
+  @Roles("ADMIN", "EXAM_ADMIN")
   @Post()
   async createMember(@Body(new ZodValidationPipe(createSchema)) body: z.infer<typeof createSchema>) {
     return this.manage.create(body);
   }
 
-  /** 회원 수정/비번재설정/비활성(자립형 전용 — 위임형이면 409). */
+  /** 회원 수정/비번재설정/비활성(EXAM 로컬). exam 영역 관리자만. EZPASS는 use-case에서 409. */
+  @Roles("ADMIN", "EXAM_ADMIN")
   @Patch(":id")
   async updateMember(
     @Param("id") id: string,

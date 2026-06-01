@@ -269,7 +269,7 @@ export default function AuctionDetailPage() {
                         marginRight: 2,
                       }}
                     />
-                    {a.status === "OPEN" ? "진행 중" : a.status}
+                    {a.status === "OPEN" ? "진행 중" : "마감"}
                   </Pill>
                   {live && a.status === "OPEN" && (
                     <Pill p={p} tone="live" size="sm">

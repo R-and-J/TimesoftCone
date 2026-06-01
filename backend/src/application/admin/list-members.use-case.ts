@@ -13,7 +13,7 @@ export type MemberRow = {
   team: string | null;
   jobRank: string | null;
   jobTitle: string | null;
-  role: "EMPLOYEE" | "ADMIN";
+  role: "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM";
   active: boolean;
   /** WELFARE_POINT 잔액(bigint를 문자열로). 지갑 없으면 "0". */
   balance: string;
@@ -62,7 +62,7 @@ export class ListMembersUseCase {
       mode,
       source: mode === "local" ? "local" : "ezpass-mirror",
       total: users.length,
-      admins: users.filter((u) => u.role === "ADMIN").length,
+      admins: users.filter((u) => ["ADMIN", "EZPASS_ADMIN", "EXAM_ADMIN"].includes(u.role)).length,
       members: users.map((u) => ({
         userId: String(u.id),
         empId: u.empId,
@@ -71,7 +71,7 @@ export class ListMembersUseCase {
         team: u.team,
         jobRank: u.jobRank,
         jobTitle: u.jobTitle,
-        role: u.role as "EMPLOYEE" | "ADMIN",
+        role: u.role as "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM",
         active: u.active,
         balance: (balanceByUser.get(u.id) ?? 0n).toString(),
       })),

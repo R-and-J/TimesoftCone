@@ -1,0 +1,10 @@
+stateDiagram-v2
+  direction LR
+  [*] --> CREATED : 연말 배치
+  CREATED --> OPEN : 주차별 오픈
+  OPEN --> CLOSED : 마감(end_time)
+  CLOSED --> AWARDED : 낙찰자 있음
+  CLOSED --> UNSOLD : 낙찰자 없음
+  AWARDED --> EXPIRED : 12/31 소멸
+  UNSOLD --> EXPIRED : 12/31 소멸
+  EXPIRED --> [*]

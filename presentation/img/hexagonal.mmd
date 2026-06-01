@@ -1,0 +1,14 @@
+flowchart TB
+  IN["들어오는 요청 · 인바운드 어댑터<br/>REST · WebSocket · 배치"]
+  CORE["도메인 코어<br/>경매 · 지갑 · 수익적립금 '규칙'<br/>외부 라이브러리 의존 0 → 규칙이 보호됨"]
+  PORT["포트 «interface» = 교체 지점<br/>BiddingCurrency · LeaveGrantPort · PayoutChannel · AuthProvider"]
+  OUT["바깥 어댑터 = 교체 가능<br/>SQLite · ezpass · Outbox<br/>화폐·DB·외부연동이 바뀌어도 코어는 그대로"]
+  IN ==>|요청 전달| CORE
+  CORE -. 필요 기능을 포트로 정의 .-> PORT
+  OUT ==>|포트 구현 implements| PORT
+  classDef core fill:#d6e9ff,stroke:#0066cc,color:#003366,stroke-width:2px
+  classDef port fill:#eef7e6,stroke:#3a8a1f,color:#244d10
+  classDef adp fill:#fff4e6,stroke:#cc7a00,color:#663300
+  class CORE core
+  class PORT port
+  class IN,OUT adp

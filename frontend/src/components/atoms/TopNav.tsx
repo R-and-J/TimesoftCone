@@ -5,6 +5,7 @@ import { Brand } from "./Brand";
 import { Avatar } from "./Avatar";
 import { Icon } from "../icons";
 import { useCurrentUser } from "@/lib/current-user";
+import { roleLabel, isAdmin } from "@/lib/roles";
 import {
   listNotifications,
   markNotificationsRead,
@@ -73,8 +74,7 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
 
   const displayName = user ?? current.name;
   // 직급(ezpass clsf_nm)을 우선 표시. 없으면 role 라벨로 폴백. (ADR-020)
-  const displayRole =
-    role ?? current.jobRank ?? (current.role === "ADMIN" ? "관리자" : "사원");
+  const displayRole = role ?? current.jobRank ?? roleLabel(current.role);
 
   const items: { id: NonNullable<Props["active"]>; label: string }[] = [
     { id: "dashboard", label: "홈" },
@@ -82,7 +82,8 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
     { id: "activity", label: "내 활동" },
     { id: "dividend", label: "연말 배당" },
     { id: "redemption", label: "스토어" },
-    { id: "admin", label: "관리" },
+    // "관리"는 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN)에게만 노출.
+    ...(isAdmin(current.role) ? [{ id: "admin" as const, label: "관리" }] : []),
   ];
 
   return (
@@ -284,7 +285,7 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
                     </div>
                   )}
                   <div className="mono" style={{ fontSize: 10, color: p.inkMuted }}>
-                    {current.email ?? current.empId} · {current.role}
+                    {current.email ?? current.empId} · {roleLabel(current.role)}
                   </div>
                 </div>
               </div>

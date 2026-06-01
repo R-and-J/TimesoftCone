@@ -1,0 +1,12 @@
+flowchart LR
+  s(["12/31 연말 배치"]) --> a["REGULAR 취합<br/>+ Stake 계산"]
+  a --> v{"정합성 검증<br/>들어온 − 나간 = 잔액?"}
+  v -- 불일치 --> x[/"배치 중단<br/>수동 감사"/]
+  v -- 일치 --> d["배당 산정<br/>floor + 나머지는 1위"]
+  d --> p["복지카드<br/>한도 증액"]
+  p --> f1["내년 매물 생성"]
+  p --> f2["이전연도<br/>AUCTION/EVENT 소멸"]
+  classDef warn fill:#fff4e6,stroke:#cc7a00,color:#663300
+  classDef ok fill:#eef7e6,stroke:#3a8a1f,color:#244d10
+  class x warn
+  class v ok

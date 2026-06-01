@@ -68,6 +68,20 @@ export default function AdminMembersPage() {
 
   const data = membersQ.data;
   const isLocal = data?.mode === "local";
+
+  // 관리자 영역 분리: 로그인한 관리자의 권한으로 EZPASS/EXAM 탭 노출·기본값 결정.
+  const { user } = useCurrentUser();
+  const mayEzpass = canManageEzpass(user.role);
+  const mayExam = canManageExam(user.role);
+  const [tab, setTab] = useState<"EZPASS" | "EXAM">(mayEzpass ? "EZPASS" : "EXAM");
+  const onEzpassTab = tab === "EZPASS";
+  // 선택 탭으로 회원 필터(ADMIN 최고관리자는 EXAM 탭에 함께 표시).
+  const shownMembers = (data?.members ?? []).filter((m) =>
+    onEzpassTab
+      ? m.role === "EZPASS" || m.role === "EZPASS_ADMIN"
+      : m.role === "EXAM" || m.role === "EXAM_ADMIN" || m.role === "ADMIN",
+  );
+
   // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트/작업). 위임형은 작업이 충전 한 개라 좁다.
   const w = isLocal
     ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "110px", "220px"]
@@ -373,22 +387,64 @@ export default function AdminMembersPage() {
               <Btn p={p} variant="ghost" size="md" onClick={() => membersQ.refetch()}>
                 새로고침
               </Btn>
-              {!isLocal && (
-                <Btn p={p} variant="ghost" size="md" disabled={syncing} onClick={doSync}>
+              {/* EZPASS 탭: 동기화 + ezpass 화면으로 유도(읽기전용 영역). */}
+              {onEzpassTab && (
+                <>
+                  {!isLocal && (
+                    <Btn p={p} variant="ghost" size="md" disabled={syncing} onClick={doSync}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <Icon.bolt size={14} />
+                        {syncing ? "동기화 중…" : "지금 동기화"}
+                      </span>
+                    </Btn>
+                  )}
+                  <Btn
+                    p={p}
+                    variant="dark"
+                    size="md"
+                    onClick={() => window.open(EZPASS_ADMIN_URL, "_blank", "noopener")}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      ezpass에서 관리 ↗
+                    </span>
+                  </Btn>
+                </>
+              )}
+              {/* EXAM 탭: 비연동 계정은 로컬에서 직접 추가. */}
+              {!onEzpassTab && mayExam && (
+                <Btn p={p} variant="dark" size="md" onClick={openCreate}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <Icon.bolt size={14} />
-                    {syncing ? "동기화 중…" : "지금 동기화"}
+                    <Icon.bolt size={14} /> 회원 추가 (exam)
                   </span>
                 </Btn>
               )}
-              {/* EXAM(비연동) 계정은 어느 배포에서나 직접 추가 가능. EZPASS는 동기화로만. */}
-              <Btn p={p} variant="dark" size="md" onClick={openCreate}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Icon.bolt size={14} /> 회원 추가 (exam)
-                </span>
-              </Btn>
             </div>
           </div>
+
+          {/* 두 영역을 모두 관리하는 최고관리자만 탭 전환 노출. */}
+          {mayEzpass && mayExam && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {([
+                { id: "EZPASS" as const, label: "ezpass 회원 (연동)" },
+                { id: "EXAM" as const, label: "exam 회원 (독립)" },
+              ]).map((t) => {
+                const on = t.id === tab;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => !on && setTab(t.id)}
+                    style={{
+                      padding: "8px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                      color: on ? p.surface : p.inkMuted, background: on ? p.ink : p.surface,
+                      border: `1px solid ${on ? p.ink : p.line}`, cursor: on ? "default" : "pointer",
+                    }}
+                  >
+                    {t.label}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div
             style={{
@@ -475,14 +531,14 @@ export default function AdminMembersPage() {
 
           <DataGrid<MemberRow>
             p={p}
-            rows={data?.members ?? []}
+            rows={shownMembers}
             rowKey={(m) => m.userId}
             loading={membersQ.loading}
             error={membersQ.error}
             emptyText={
-              isLocal
-                ? "회원이 없습니다. 「회원 추가」로 등록하세요."
-                : "미러된 회원이 없습니다. 「지금 동기화」를 눌러 ezpass에서 가져오세요."
+              onEzpassTab
+                ? "ezpass 연동 회원이 없습니다. 「지금 동기화」 또는 「ezpass에서 관리」를 이용하세요."
+                : "exam(독립) 회원이 없습니다. 「회원 추가」로 등록하세요."
             }
             rowStyle={(m) => ({ opacity: m.active ? 1 : 0.5 })}
             maxHeight={560}
@@ -574,8 +630,8 @@ export default function AdminMembersPage() {
                     <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
                       관리
                     </Btn>
-                    {/* EXAM/ADMIN(로컬)만 수정·비활성. EZPASS는 ezpass 동기화 전용(읽기). */}
-                    {m.role !== "EZPASS" && (
+                    {/* exam 영역(EXAM/EXAM_ADMIN)만 수정·비활성. EZPASS·ADMIN은 읽기. */}
+                    {(m.role === "EXAM" || m.role === "EXAM_ADMIN") && (
                       <>
                         <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
                           수정
@@ -591,7 +647,7 @@ export default function AdminMembersPage() {
             ]}
             footer={
               <span>
-                총 {data?.total ?? 0}명 · 출처 {isLocal ? "자체 관리" : "ezpass 미러"}
+                {onEzpassTab ? "ezpass 연동" : "exam 독립"} {shownMembers.length}명 · 전체 {data?.total ?? 0}명
               </span>
             }
           />
@@ -726,10 +782,10 @@ export default function AdminMembersPage() {
                 <select
                   style={inp(p)}
                   value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as "EXAM" | "ADMIN" })}
+                  onChange={(e) => setForm({ ...form, role: e.target.value as "EXAM" | "EXAM_ADMIN" })}
                 >
-                  <option value="EXAM">exam (비연동)</option>
-                  <option value="ADMIN">관리자</option>
+                  <option value="EXAM">exam (일반)</option>
+                  <option value="EXAM_ADMIN">exam 관리자</option>
                 </select>
               </Field>
             </div>

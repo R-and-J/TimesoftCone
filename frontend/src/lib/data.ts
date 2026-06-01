@@ -11,7 +11,7 @@ export const ME: User = {
   id: 1,
   name: "김기철",
   emp: "TS-2024-018",
-  role: "EMPLOYEE",
+  role: "EXAM",
   team: "서비스플랫폼팀",
   wallet: 12450,
   stake_ratio: 0.087,

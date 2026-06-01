@@ -1,0 +1,12 @@
+sequenceDiagram
+  autonumber
+  actor 구매자
+  participant AS as AuctionService
+  participant DB as SQLite
+  구매자->>AS: 입찰 (amount)
+  AS->>DB: write 락 (lockAuction)
+  AS->>DB: 트랜잭션 — wallet 차감 · 최고가 갱신 · 거래기록 INSERT
+  DB-->>AS: COMMIT
+  AS-->>구매자: 200 OK (입찰 성공)
+  AS-)구매자: WebSocket 실시간 최고가 알림
+  Note over AS,DB: 마감 시 settle(): 에스크로 적립 + 연차 부여까지 단일 트랜잭션

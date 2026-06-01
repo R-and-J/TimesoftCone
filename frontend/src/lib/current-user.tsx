@@ -4,12 +4,13 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { clearAuthToken } from "./api";
+import type { Role } from "./roles";
 
 export type CurrentUser = {
   id: number;
   name: string;
   empId: string;
-  role: "EMPLOYEE" | "ADMIN";
+  role: Role;
   team: string | null;
   /** 직급 (ezpass clsf_nm). */
   jobRank?: string | null;

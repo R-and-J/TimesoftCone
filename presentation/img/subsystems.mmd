@@ -1,0 +1,13 @@
+flowchart LR
+  A["① 자산화<br/>미사용 연차 수집<br/>+ Stake 기록"]
+  B["② 경매<br/>실시간 입찰·낙찰<br/>(WebSocket)"]
+  C["③ 수익적립금<br/>낙찰 대금<br/>중앙 적립"]
+  D["④ 권한 제어<br/>연차 +1 부여<br/>+ Flag 분리"]
+  E["⑤ 수익 배당<br/>Stake 비율대로<br/>복지카드 한도"]
+  A -->|"연말 배치: 매물 N개"| B
+  B -->|낙찰 대금| C
+  B -->|낙찰 시| D
+  C -->|연말| E
+  A -. 지분율 .-> E
+  classDef hi fill:#eef2ff,stroke:#1f3a93,color:#1f3a93
+  class A,B,C,D,E hi

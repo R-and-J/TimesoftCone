@@ -17,7 +17,7 @@ export type DirectoryMember = {
   name: string;
   /** 사번(emp_no) — 없으면 null. */
   empNo: string | null;
-  /** 관리자 권한 보유 여부(mngr_author_no) → role ADMIN/EMPLOYEE. */
+  /** 관리자 권한 보유 여부(mngr_author_no) → role ADMIN, 아니면 EZPASS. */
   isAdmin: boolean;
   team: string | null;
   jobRank: string | null;

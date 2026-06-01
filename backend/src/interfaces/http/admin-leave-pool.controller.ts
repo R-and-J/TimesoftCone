@@ -5,9 +5,9 @@
 
 import { Controller, Post, Query } from "@nestjs/common";
 import { CollectLeavePoolUseCase } from "@/application/leave-pool/collect-leave-pool.use-case";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/leave-pool")
 export class AdminLeavePoolController {
   constructor(private readonly collect: CollectLeavePoolUseCase) {}

@@ -69,6 +69,10 @@
 - [WBS 및 일정](07_plan/wbs.md)
 - [역할 분담](07_plan/roles.md)
 
+### 08. 발표 (Presentation)
+- [13주차 발표 슬라이드 (Marp)](../presentation/slides.md) — 6대 항목 + 채점기준 매핑, UML·아키텍처·GoF 패턴
+- [13주차 발표 대본·예상질문](../presentation/script.md) — 슬라이드별 멘트, 발표 전 체크리스트, Q&A
+
 ### 99. 아카이브
 - [UML 모델링 명세서 제출본 (PDF)](99_archive/UML모델링명세서_제출본.pdf)
 

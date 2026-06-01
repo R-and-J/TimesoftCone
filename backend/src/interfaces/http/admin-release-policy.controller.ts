@@ -8,7 +8,7 @@ import { z } from "zod";
 import { ZodValidationPipe } from "./zod.pipe";
 import { GetReleasePolicyUseCase } from "@/application/leave-pool/get-release-policy.use-case";
 import { UpdateReleasePolicyUseCase } from "@/application/leave-pool/update-release-policy.use-case";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 const policySchema = z.discriminatedUnion("cadence", [
   z.object({ cadence: z.literal("none") }),
@@ -31,7 +31,7 @@ const policySchema = z.discriminatedUnion("cadence", [
   }),
 ]);
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/release-policy")
 export class AdminReleasePolicyController {
   constructor(

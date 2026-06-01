@@ -1,0 +1,23 @@
+flowchart LR
+  buyer(["구매자"])
+  seller(["판매자"])
+  admin(["관리자"])
+  sched(["스케줄러"])
+  hr(["HR 시스템"])
+  subgraph SYS["연차 경매 시스템 (핵심 유스케이스)"]
+    u1(["입찰"])
+    u2(["낙찰 확정"])
+    u3(["연차 부여<br/>(AUCTION +1)"])
+    u4(["배당금 조회"])
+    u5(["유찰 재고<br/>EVENT 지급"])
+    u6(["연말 정산·배당 배치"])
+    u1 -. include .-> u2
+    u2 -. include .-> u3
+  end
+  buyer --- u1
+  seller --- u4
+  admin --- u5
+  sched --- u6
+  hr --- u3
+  classDef a fill:#e6f3ff,stroke:#0066cc,color:#003366
+  class buyer,seller,admin,sched,hr a

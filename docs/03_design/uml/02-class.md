@@ -263,7 +263,7 @@ classDiagram
 ![Class Diagram](class.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `class.png`로 덮어쓰기.
-> ⚠️ **재렌더링 필요** (2026-05-14): `current_point` → `Wallet` 분리, `PointTransactionLog` → `LedgerEntry`, `AuctionStatus` 6상태, `Currency` enum 추가 반영됨. PNG는 아직 구버전.
+> ✅ **최신 렌더 완료** (2026-05-27, kroki): `Wallet` 분리·`LedgerEntry`·`AuctionStatus` 6상태·`Currency` enum이 반영된 현재 소스로 재렌더됨. 재생성: `python presentation/render-uml.py`.
 
 ---
 

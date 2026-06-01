@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>블록 다이어그램 — 포트 & 어댑터 (단일 앱 · 헥사고날)</title>
+<style>
+  :root{
+    --domain:#FBF8C8;   --domain-bd:#D9B93A;
+    --app:#F6B7B7;       --app-bd:#D98A8A;
+    --port:#BDE7BD;      --port-bd:#5FA968;
+    --infra:#AED6F1;     --infra-bd:#5E93C9;
+    --ext:#E5E7EB;       --ext-bd:#9AA3B2;
+    --ink:#1f2a44;       --muted:#5b6b8c;  --line:#9aa3b2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:#fff;color:var(--ink);
+    font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo",sans-serif;}
+  .slide{width:1320px;min-height:780px;margin:0 auto;padding:30px 46px 30px;position:relative;}
+  .kicker{font-size:13px;color:var(--muted);font-weight:600;}
+  h1{font-size:27px;color:#1d4ed8;margin:5px 0 3px;font-weight:800;letter-spacing:-.5px;}
+  h1::after{content:"";display:block;height:3px;background:#1d4ed8;margin-top:7px;border-radius:2px;}
+  .subtitle{text-align:center;font-size:13.5px;font-weight:700;color:#374151;margin:11px 0 14px;}
+  .subtitle b{color:#1d4ed8;}
+
+  .grid{display:grid;grid-template-columns:1fr 36px 1.45fr 36px 1fr;align-items:stretch;gap:0;}
+  .col{display:flex;flex-direction:column;gap:9px;}
+  .colhead{font-size:11.5px;font-weight:800;text-align:center;color:#27365e;
+    letter-spacing:.2px;margin-bottom:1px;}
+  .colhead .en{display:block;font-size:9.5px;font-weight:600;color:#8090ad;}
+
+  .card{border-radius:10px;padding:8px 10px;border:1.5px solid #ccc;background:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .card .t{font-size:12.5px;font-weight:800;}
+  .card .d{font-size:10.5px;color:#475569;margin-top:2px;line-height:1.35;}
+  .infra{background:var(--infra);border-color:var(--infra-bd);}
+  .extc{background:var(--ext);border-color:var(--ext-bd);}
+  .portc{background:var(--port);border-color:var(--port-bd);}
+  .appc{background:var(--app);border-color:var(--app-bd);}
+
+  .client{background:var(--infra);border-color:var(--infra-bd);text-align:center;}
+  .pill{display:inline-block;font-size:10px;font-weight:700;border-radius:999px;
+    padding:1px 8px;margin:2px 3px 0;background:#fff;border:1px solid #b9c3d6;color:#3a4a73;}
+  .pill.iface{background:#eafaef;border-color:var(--port-bd);color:#246b2e;font-family:ui-monospace,monospace;}
+
+  /* center core column */
+  .corewrap{border:2px dashed var(--infra-bd);border-radius:14px;padding:10px 10px 12px;
+    background:linear-gradient(#f6f9ff,#eef3fc);height:100%;display:flex;flex-direction:column;gap:9px;}
+  .corewrap .wraplbl{font-size:10.5px;font-weight:800;color:#3a4a73;text-align:center;}
+  .appband{background:var(--app);border:1.5px solid var(--app-bd);border-radius:10px;padding:8px;}
+  .appband .lbl{font-size:11px;font-weight:800;color:#7a2f2f;text-align:center;margin-bottom:5px;}
+  .uc{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;}
+  .uc span{font-size:10px;font-weight:700;background:#fff;border:1px solid var(--app-bd);
+    border-radius:6px;padding:2px 7px;color:#7a2f2f;font-family:ui-monospace,monospace;}
+
+  .core{background:var(--domain);border:2px solid var(--domain-bd);border-radius:11px;padding:9px;
+    box-shadow:0 0 0 4px rgba(217,185,58,.16);}
+  .core .lbl{font-size:11.5px;font-weight:900;color:#6b5300;text-align:center;}
+  .core .zero{font-size:9.5px;font-weight:700;color:#8a6d00;text-align:center;margin-bottom:6px;}
+  .ctx{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:6px;}
+  .ctx span{font-size:10px;font-weight:800;background:#fff;border:1.3px solid var(--domain-bd);
+    border-radius:6px;padding:2px 8px;color:#6b5300;}
+  .vo{font-size:9.5px;color:#6b5300;text-align:center;font-family:ui-monospace,monospace;}
+  .inv{margin-top:6px;border-top:1px dashed var(--domain-bd);padding-top:5px;
+    font-size:9.3px;color:#7a5d00;text-align:center;line-height:1.45;}
+  .inv b{color:#5c4500;}
+
+  /* arrows between columns */
+  .arr{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
+  .arr .a{font-size:22px;color:var(--line);line-height:1;}
+  .arr .cap{position:absolute;font-size:9px;color:var(--muted);width:90px;text-align:center;
+    line-height:1.3;}
+
+  .evbus{margin-top:13px;border:1.5px solid var(--port-bd);background:#f0faf2;border-radius:10px;
+    padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:11px;}
+  .evbus .tag{font-weight:800;color:#246b2e;white-space:nowrap;}
+  .evbus .flow{color:#33503a;}
+  .evbus code{font-family:ui-monospace,monospace;background:#fff;border:1px solid var(--port-bd);
+    border-radius:4px;padding:0 4px;}
+
+  .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:12px;font-size:10.5px;}
+  .legend .item{display:flex;align-items:center;gap:5px;}
+  .chip{width:13px;height:13px;border-radius:3px;border:1px solid #888;display:inline-block;}
+
+  .note{margin:11px auto 0;max-width:1080px;background:#FFFBEA;border:1.3px solid var(--domain-bd);
+    border-radius:8px;padding:8px 14px;font-size:11.5px;color:#5b4a12;text-align:center;}
+  .note b{color:#7a5d00;}
+  .deprule{text-align:center;font-size:11px;color:var(--muted);margin-top:8px;font-weight:700;}
+  .deprule b{color:#1d4ed8;}
+  .pageno{position:absolute;right:24px;bottom:10px;color:#9ca3af;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="kicker">사내 연차 경매 시스템 · 타임소프트콘</div>
+  <h1>④ 블록 다이어그램 — 포트 &amp; 어댑터 (단일 앱 · 헥사고날)</h1>
+  <div class="subtitle">
+    물리적으론 <b>단일 NestJS 앱(모듈러 모놀리식)</b> · 논리 경계 5개 컨텍스트 —
+    의존은 항상 <b>안쪽(노란 코어)</b>으로
+  </div>
+
+  <div class="grid">
+    <!-- ===== LEFT: driving / inbound ===== -->
+    <div class="col">
+      <div class="colhead">들어오는 측 · 인바운드 어댑터<span class="en">driving · interfaces/</span></div>
+      <div class="card client">
+        <div class="t">클라이언트 (React + Vite)</div>
+        <div class="d">직원 웹 UI · 관리자 UI</div>
+        <div><span class="pill">HTTPS · 폴링</span><span class="pill" style="background:#fdecec;border-color:#e3a0a0;color:#9a3b3b">WebSocket 미사용 (CUT-6)</span></div>
+      </div>
+      <div class="card infra">
+        <div class="t">interfaces/http</div>
+        <div class="d">Controllers · zod 검증 파이프 · BigInt 직렬화</div>
+      </div>
+      <div class="card infra">
+        <div class="t">인증·권한 가드 체인</div>
+        <div class="d" style="font-family:ui-monospace,monospace">JwtAuthGuard → RolesGuard → SelfOrAdminGuard</div>
+        <div class="d">RBAC(EMPLOYEE/ADMIN) + ABAC(본인)</div>
+      </div>
+      <div class="card infra">
+        <div class="t">스케줄러 (시간 기반 인바운드)</div>
+        <div class="d">SettleDue · YearEndDividend · LeavePool<br/>(cutoff 게이트 · 자동 정산/배당/수집)</div>
+      </div>
+    </div>
+
+    <!-- arrow L->C -->
+    <div class="arr"><div class="a">▶</div><div class="cap" style="top:42%">요청<br/>(안쪽으로)</div></div>
+
+    <!-- ===== CENTER: application + domain core ===== -->
+    <div class="col">
+      <div class="colhead">코어 — 유스케이스 + 도메인<span class="en">application/ + domain/</span></div>
+      <div class="corewrap">
+        <div class="wraplbl">단일 NestJS 앱 (app.module = 유일한 조립 지점)</div>
+
+        <div class="appband">
+          <div class="lbl">유스케이스 (application/)</div>
+          <div class="uc">
+            <span>PlaceBid</span><span>SettleAuction</span><span>UseLeave</span>
+            <span>CollectLeavePool</span><span>SettleYearEndDividend</span><span>Login</span>
+          </div>
+        </div>
+
+        <div class="core">
+          <div class="lbl">도메인 코어 (domain/)</div>
+          <div class="zero">외부 라이브러리 의존 0 — NestJS · Prisma · rxjs import 금지</div>
+          <div class="ctx">
+            <span>Auction</span><span>Wallet</span><span>Ledger</span>
+            <span>Leave</span><span>LeavePool</span><span>Dividend·Stake</span>
+          </div>
+          <div class="vo">Value Objects: UserId · Point · LeaveDays · LeaveType · Year · Currency</div>
+          <div class="inv">
+            불변식이 여기 산다 — <b>거래원장 INSERT-only</b> · <b>3-flag 분리</b> ·
+            <b>차감 우선순위 AUCTION→EVENT→REGULAR</b> · <b>적립금 상한(통화별)</b> · <b>P2P 금지</b>
+          </div>
+        </div>
+
+        <div class="evbus">
+          <span class="tag">도메인 이벤트</span>
+          <span class="flow">커밋 <b>후</b> <code>EventEmitter2</code> 발행 →
+            <code>NotificationObserver</code> 구독 (실패해도 입찰/정산에 영향 X)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- arrow C<-R : adapter implements port → dependency points inward -->
+    <div class="arr">
+      <div class="a" style="color:var(--port-bd)">◀</div>
+      <div class="cap" style="top:38%">어댑터 → 포트 구현<br/>(의존은 안쪽)</div>
+    </div>
+
+    <!-- ===== RIGHT: driven / outbound ===== -->
+    <div class="col">
+      <div class="colhead">나가는 측 · 포트 → 어댑터<span class="en">ports/ → adapters/</span></div>
+
+      <div class="card portc">
+        <div class="t">포트 «interface» (교체 지점)</div>
+        <div>
+          <span class="pill iface">BiddingCurrency</span><span class="pill iface">PayoutChannel</span>
+          <span class="pill iface">LeaveGrantPort</span><span class="pill iface">AuthProvider</span>
+          <span class="pill iface">WalletRepository</span><span class="pill iface">UnitOfWork</span>
+          <span class="pill iface">LeavePoolPort</span>
+        </div>
+      </div>
+
+      <div class="card portc" style="background:#d9f2dd">
+        <div class="t">어댑터 (adapters/) — 구현</div>
+        <div class="d">
+          WelfarePointProvider(화폐) · InternalLeaveAdapter(연차)<br/>
+          EzpassAuthProvider / LocalAuthProvider(인증) · Prisma*(영속)<br/>
+          PrismaUnitOfWork(단일 트랜잭션 · lockAuction)
+        </div>
+      </div>
+
+      <div class="card infra">
+        <div class="t">SQLite (이 시스템이 마스터)</div>
+        <div class="d">거래원장 · 지갑 · 연차 · Stake — 입찰 경로는 외부 호출 0</div>
+      </div>
+
+      <div class="card extc">
+        <div class="t">외부 (어댑터 뒤)</div>
+        <div class="d">
+          ezpass — 인증·신원(이름/부서/직급/role) 동기화<br/>
+          Outbox <i>(dormant)</i> → 추후 그룹웨어/HR 배당 출금
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="deprule">
+    의존 규칙: 모든 화살표는 <b>코어(노랑)</b>를 향한다 — 바깥(파랑/초록)이 바뀌어도 코어 규칙은 그대로,
+    화폐·DB·인증·연차연동은 <b>어댑터만 교체</b>.
+    <span style="display:block;font-weight:500;color:#8090ad;margin-top:2px;">
+      (런타임 호출은 코어 → 포트로 나가지만, <b>코드 의존</b>은 어댑터가 포트를 구현하며 안으로 들어온다 = 의존성 역전)
+    </span>
+  </div>
+
+  <div class="legend">
+    <div class="item"><span class="chip" style="background:var(--domain);border-color:var(--domain-bd)"></span>도메인 코어 (domain/) · 외부 의존 0</div>
+    <div class="item"><span class="chip" style="background:var(--app);border-color:var(--app-bd)"></span>유스케이스 (application/)</div>
+    <div class="item"><span class="chip" style="background:var(--port);border-color:var(--port-bd)"></span>포트 · 어댑터 (ports/ · adapters/)</div>
+    <div class="item"><span class="chip" style="background:var(--infra);border-color:var(--infra-bd)"></span>프레임워크 · 인프라 (interfaces/ · DB)</div>
+    <div class="item"><span class="chip" style="background:var(--ext);border-color:var(--ext-bd)"></span>외부 시스템</div>
+  </div>
+
+  <div class="note">
+    <b>낙찰 정산 = 단일 트랜잭션</b>: 지갑 차감 + 적립금 적립 + 거래원장 INSERT + 연차 부여 = All-or-Nothing
+    (<code style="font-family:ui-monospace,monospace">PrismaUnitOfWork</code> 안에서 전부 커밋 또는 전부 롤백).
+  </div>
+
+  <div class="pageno">19</div>
+</div>
+</body>
+</html>

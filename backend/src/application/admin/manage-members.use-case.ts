@@ -1,8 +1,9 @@
-// ManageMembers — 자립형(AUTH_MODE=local) 배포의 회원 CRUD (ADR-022).
+// ManageMembers — 회원 CRUD (ADR-022, 3-role 개정).
 //
-// 위임형(ezpass)에선 신원 정본이 ezpass라 로컬 CRUD가 이중 원본을 만든다 →
-// local 모드가 아니면 거부(409). 자립형에선 우리 users가 정본이므로 추가/수정/
-// 비번재설정/비활성을 여기서 한다.
+// 게이트는 배포 모드(AUTH_MODE)가 아니라 "대상 회원의 종류"로 판단한다:
+//   - EZPASS(회사 도메인 연동) 회원: 신원 정본이 ezpass → 로컬 수정 거부(409). 동기화로만.
+//   - EXAM(비연동 독립) / ADMIN(로컬) 회원: 우리 users가 정본 → 추가/수정/비번/비활성 허용.
+// 신규 생성은 회사 도메인 이메일이면 거부(EZPASS는 ezpass에서 생성·동기화).
 
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -15,7 +16,8 @@ export type CreateMemberInput = {
   email: string;
   name: string;
   password: string;
-  role: "EMPLOYEE" | "ADMIN";
+  // 로컬 생성은 exam 영역 계정만(EXAM/EXAM_ADMIN). EZPASS는 ezpass 동기화로만 생성된다.
+  role: "EXAM" | "EXAM_ADMIN";
   empId?: string;
   team?: string | null;
   jobRank?: string | null;
@@ -24,7 +26,7 @@ export type CreateMemberInput = {
 
 export type UpdateMemberInput = {
   name?: string;
-  role?: "EMPLOYEE" | "ADMIN";
+  role?: "EXAM" | "EXAM_ADMIN";
   team?: string | null;
   jobRank?: string | null;
   jobTitle?: string | null;
@@ -40,18 +42,21 @@ export class ManageMembersUseCase {
     @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
-  /** 자립형 배포에서만 회원 직접 변경 허용. */
-  private assertLocalMode() {
-    const mode = this.config.get<string>("AUTH_MODE") ?? "ezpass";
-    if (mode !== "local") {
-      throw new ConflictException(
-        "위임형(ezpass) 모드에서는 회원을 직접 추가·수정할 수 없습니다. 회원 변경은 ezpass에서 한 뒤 「지금 동기화」를 사용하세요.",
-      );
-    }
+  /** 회사 도메인(EZPASS) 이메일인지. 로컬 생성에서 거부 판정에 사용. */
+  private isEzpassDomain(email: string): boolean {
+    const domain = (email.split("@")[1] ?? "").toLowerCase();
+    const ezpassDomain = (
+      this.config.get<string>("EZPASS_EMAIL_DOMAIN") ?? "timesoftcone.com"
+    ).toLowerCase();
+    return domain === ezpassDomain;
   }
 
   async create(input: CreateMemberInput) {
-    this.assertLocalMode();
+    if (this.isEzpassDomain(input.email)) {
+      throw new ConflictException(
+        "회사 도메인(EZPASS) 계정은 ezpass에서 생성·동기화합니다. 로컬 추가는 EXAM(비연동) 계정만 가능합니다.",
+      );
+    }
     const dup = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (dup) throw new ConflictException(`이미 존재하는 이메일입니다: ${input.email}`);
 
@@ -73,9 +78,13 @@ export class ManageMembersUseCase {
   }
 
   async update(userId: bigint, input: UpdateMemberInput) {
-    this.assertLocalMode();
     const existing = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!existing) throw new NotFoundException(`회원을 찾을 수 없습니다: ${userId}`);
+    if (existing.role === "EZPASS") {
+      throw new ConflictException(
+        "EZPASS(ezpass 연동) 회원은 여기서 수정할 수 없습니다. ezpass에서 변경 후 「지금 동기화」를 사용하세요.",
+      );
+    }
 
     const data: Record<string, unknown> = {};
     if (input.name !== undefined) data.name = input.name;
@@ -103,7 +112,7 @@ export class ManageMembersUseCase {
       team: u.team,
       jobRank: u.jobRank,
       jobTitle: u.jobTitle,
-      role: u.role as "EMPLOYEE" | "ADMIN",
+      role: u.role as "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM",
       active: u.active,
     };
   }

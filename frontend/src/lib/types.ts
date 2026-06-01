@@ -2,7 +2,7 @@ export type User = {
   id: number;
   name: string;
   emp: string;
-  role: "EMPLOYEE" | "ADMIN";
+  role: "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM";
   team: string;
   wallet: number;
   stake_ratio: number;

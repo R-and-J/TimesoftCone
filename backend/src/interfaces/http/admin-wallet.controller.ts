@@ -11,7 +11,7 @@ import { z } from "zod";
 import { CreditWalletAdminUseCase } from "@/application/wallet/credit-wallet-admin.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 const creditBodySchema = z.object({
   // Accept stringified bigint or numeric. amount는 양수(충전) 또는 음수(차감) 둘 다 허용.
@@ -31,7 +31,7 @@ const creditBodySchema = z.object({
 
 type CreditBody = z.infer<typeof creditBodySchema>;
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/wallet")
 export class AdminWalletController {
   constructor(private readonly creditAdmin: CreditWalletAdminUseCase) {}

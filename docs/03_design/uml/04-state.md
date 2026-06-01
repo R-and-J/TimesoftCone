@@ -115,7 +115,7 @@ stateDiagram-v2
 ![State Diagram](state.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `state.png`로 덮어쓰기.
-> ⚠️ **재렌더링 필요** (2026-05-14): `CREATED → OPEN` 전이가 "1월 1일 자정 전량 오픈" → "분산 오픈 배치(주차별)"로 변경됨 ([business-rules.md](../../02_requirements/business-rules.md) OP-4). PNG는 아직 구버전.
+> ✅ **최신 렌더 완료** (2026-05-27, kroki): "분산 오픈 배치(주차별)"([business-rules.md](../../02_requirements/business-rules.md) OP-4)가 반영된 현재 소스로 재렌더됨. 재생성: `python presentation/render-uml.py`.
 
 ---
 

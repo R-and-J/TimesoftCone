@@ -6,6 +6,7 @@ import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
+import { DataGrid } from "@/components/DataGrid";
 import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
@@ -25,8 +26,6 @@ const STATUS_LABEL: Record<RedemptionRequestStatus, string> = {
   RECEIVED: "수령 완료",
   REJECTED: "반려",
 };
-
-const COLS = "60px 1.1fr 1.2fr 110px 1.4fr 120px 200px";
 
 export default function AdminRedemptionPage() {
   const p = PALETTES.cobalt;
@@ -162,95 +161,106 @@ export default function AdminRedemptionPage() {
             />
           </div>
 
-          <Card p={p} padding={0}>
-            <div
-              style={{
-                display: "grid", gridTemplateColumns: COLS,
-                padding: "12px 20px", fontSize: 11, color: p.inkMuted,
-                fontWeight: 700, letterSpacing: 0.4,
-                borderBottom: `1px solid ${p.line}`, background: p.bg,
-              }}
-            >
-              <div>#</div>
-              <div>요청자</div>
-              <div>상품</div>
-              <div style={{ textAlign: "right" }}>가격</div>
-              <div>메모 / 쿠폰 / 결정</div>
-              <div>상태</div>
-              <div style={{ textAlign: "right" }}>작업</div>
-            </div>
-            <div style={{ maxHeight: 600, overflow: "auto" }}>
-              {reqsQ.error && (
-                <div style={{ padding: 24, color: p.danger, fontSize: 13, fontWeight: 700 }}>{reqsQ.error.message}</div>
-              )}
-              {!reqsQ.error && reqsQ.data?.length === 0 && !reqsQ.loading && (
-                <div style={{ padding: 24, color: p.inkMuted, fontSize: 13, textAlign: "center" }}>
-                  {filter === "PENDING" ? "대기 중인 신청이 없습니다." : "신청이 없습니다."}
-                </div>
-              )}
-              {reqsQ.data?.map((r, i) => {
-                const zebra = i % 2 === 1;
-                const isPending = r.status === "PENDING";
-                return (
-                  <div
-                    key={r.id}
-                    style={{
-                      display: "grid", gridTemplateColumns: COLS,
-                      padding: "13px 20px", fontSize: 12, alignItems: "center",
-                      background: zebra ? p.bg : p.surface,
-                      borderBottom: `1px solid ${p.line}`,
-                    }}
-                  >
-                    <div className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>#{r.id}</div>
-                    <div>
-                      <div style={{ color: p.ink, fontWeight: 700 }}>{r.userName}</div>
-                      <div className="mono" style={{ color: p.inkMuted, fontSize: 10, marginTop: 2 }}>
-                        {new Date(r.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          <DataGrid<RedemptionRequestRow>
+            p={p}
+            rows={reqsQ.data ?? []}
+            rowKey={(r) => r.id}
+            loading={reqsQ.loading}
+            error={reqsQ.error}
+            emptyText={filter === "PENDING" ? "대기 중인 신청이 없습니다." : "신청이 없습니다."}
+            maxHeight={600}
+            columns={[
+              {
+                key: "id",
+                header: "#",
+                width: "60px",
+                render: (r) => (
+                  <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>#{r.id}</span>
+                ),
+              },
+              {
+                key: "user",
+                header: "요청자",
+                width: "1.1fr",
+                render: (r) => (
+                  <>
+                    <div style={{ color: p.ink, fontWeight: 700 }}>{r.userName}</div>
+                    <div className="mono" style={{ color: p.inkMuted, fontSize: 10, marginTop: 2 }}>
+                      {new Date(r.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </>
+                ),
+              },
+              {
+                key: "item",
+                header: "상품",
+                width: "1.2fr",
+                render: (r) => <span style={{ color: p.ink, fontWeight: 600 }}>{r.itemName}</span>,
+              },
+              {
+                key: "price",
+                header: "가격",
+                width: "110px",
+                align: "right",
+                render: (r) => (
+                  <span className="mono" style={{ color: p.ink, fontWeight: 700 }}>
+                    {fmt.point(Number(r.pricePAtRequest))}P
+                  </span>
+                ),
+              },
+              {
+                key: "memo",
+                header: "메모 / 쿠폰 / 결정",
+                width: "1.4fr",
+                render: (r) => (
+                  <div style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.4 }}>
+                    {r.note && <div>메모: {r.note}</div>}
+                    {r.couponCode && (
+                      <div className="mono" style={{ color: p.ink, marginTop: 3, wordBreak: "break-all" }}>
+                        쿠폰: {r.couponCode}
                       </div>
-                    </div>
-                    <div style={{ color: p.ink, fontWeight: 600 }}>{r.itemName}</div>
-                    <div className="mono" style={{ textAlign: "right", color: p.ink, fontWeight: 700 }}>
-                      {fmt.point(Number(r.pricePAtRequest))}P
-                    </div>
-                    <div style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.4 }}>
-                      {r.note && <div>메모: {r.note}</div>}
-                      {r.couponCode && (
-                        <div className="mono" style={{ color: p.ink, marginTop: 3, wordBreak: "break-all" }}>
-                          쿠폰: {r.couponCode}
-                        </div>
-                      )}
-                      {r.decisionNote && <div style={{ color: p.inkMuted, marginTop: 3 }}>결정: {r.decisionNote}</div>}
-                      {r.decidedByName && (
-                        <div style={{ color: p.inkMuted, fontSize: 10, marginTop: 3 }}>
-                          by {r.decidedByName} · {r.decidedAt ? new Date(r.decidedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
-                        </div>
-                      )}
-                      {r.receivedAt && (
-                        <div style={{ color: p.success, fontSize: 10, marginTop: 3, fontWeight: 700 }}>
-                          수령 {new Date(r.receivedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <Pill p={p} tone={statusTone(r.status)} size="sm" style={{ fontSize: 10, fontWeight: 700 }}>
-                        {STATUS_LABEL[r.status]}
-                      </Pill>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                      {isPending ? (
-                        <>
-                          <Btn p={p} variant="primary" size="sm" disabled={acting === r.id} onClick={() => openModal(r, "approve")}>승인</Btn>
-                          <Btn p={p} variant="ghost" size="sm" disabled={acting === r.id} onClick={() => openModal(r, "reject")}>반려</Btn>
-                        </>
-                      ) : (
-                        <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>
-                      )}
-                    </div>
+                    )}
+                    {r.decisionNote && <div style={{ color: p.inkMuted, marginTop: 3 }}>결정: {r.decisionNote}</div>}
+                    {r.decidedByName && (
+                      <div style={{ color: p.inkMuted, fontSize: 10, marginTop: 3 }}>
+                        by {r.decidedByName} · {r.decidedAt ? new Date(r.decidedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                      </div>
+                    )}
+                    {r.receivedAt && (
+                      <div style={{ color: p.success, fontSize: 10, marginTop: 3, fontWeight: 700 }}>
+                        수령 {new Date(r.receivedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </Card>
+                ),
+              },
+              {
+                key: "status",
+                header: "상태",
+                width: "120px",
+                render: (r) => (
+                  <Pill p={p} tone={statusTone(r.status)} size="sm" style={{ fontSize: 10, fontWeight: 700 }}>
+                    {STATUS_LABEL[r.status]}
+                  </Pill>
+                ),
+              },
+              {
+                key: "actions",
+                header: "작업",
+                width: "200px",
+                align: "right",
+                render: (r) =>
+                  r.status === "PENDING" ? (
+                    <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                      <Btn p={p} variant="primary" size="sm" disabled={acting === r.id} onClick={() => openModal(r, "approve")}>승인</Btn>
+                      <Btn p={p} variant="ghost" size="sm" disabled={acting === r.id} onClick={() => openModal(r, "reject")}>반려</Btn>
+                    </span>
+                  ) : (
+                    <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>
+                  ),
+              },
+            ]}
+          />
         </div>
       </div>
 

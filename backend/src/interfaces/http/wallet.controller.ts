@@ -10,11 +10,11 @@ import {
 } from "@nestjs/common";
 import { GetWalletBalanceUseCase } from "@/application/wallet/get-wallet-balance.use-case";
 import { DomainError } from "@/domain/shared/errors";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 // (legacy) 임의 사용자의 잔액 조회 — 본인 잔액은 /api/users/:id/balance(self),
 // 이 경로는 타인 조회라 ADMIN 전용 (permission-matrix WA-3).
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/wallet")
 export class WalletController {
   constructor(private readonly getBalance: GetWalletBalanceUseCase) {}

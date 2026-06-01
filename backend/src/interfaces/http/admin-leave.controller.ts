@@ -12,7 +12,7 @@ import { UseLeaveUseCase } from "@/application/leave/use-leave.use-case";
 import { GrantEventFromUnsoldUseCase } from "@/application/leave/grant-event-from-unsold.use-case";
 import { PurgeUnsoldAuctionsUseCase } from "@/application/leave/purge-unsold-auctions.use-case";
 import { ZodValidationPipe } from "./zod.pipe";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 const useLeaveSchema = z.object({
   userId: z.union([z.string(), z.number()]),
@@ -24,7 +24,7 @@ const grantEventSchema = z.object({
   userId: z.union([z.string(), z.number()]),
 });
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin")
 export class AdminLeaveController {
   constructor(

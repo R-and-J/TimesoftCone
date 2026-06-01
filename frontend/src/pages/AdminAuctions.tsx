@@ -191,7 +191,7 @@ export default function AdminAuctionsPage() {
         startPrice: editForm.startPrice,
         leaveDays: Number(editForm.leaveDays),
       });
-      toast.push("success", `${r.id} 즉시 OPEN — 마감 ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
+      toast.push("success", `${r.id} 즉시 오픈 — 마감 ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
       setEditingFor(null);
       await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
     } catch (e) {
@@ -233,8 +233,8 @@ export default function AdminAuctionsPage() {
           {/* 카운터 — 총 / 오픈 예정 / 진행 중 / 종료 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
             <KpiCard k="총 매물" v={summaryQ.data?.total ?? "—"} sub="모든 상태" />
-            <KpiCard k="오픈 예정" v={summaryQ.data?.upcoming ?? "—"} sub="CREATED · 자동 OPEN" />
-            <KpiCard k="진행 중" v={summaryQ.data?.open ?? "—"} sub="OPEN" />
+            <KpiCard k="오픈 예정" v={summaryQ.data?.upcoming ?? "—"} sub="예약됨 · 자동 시작" />
+            <KpiCard k="진행 중" v={summaryQ.data?.open ?? "—"} sub="입찰 가능" />
             <KpiCard
               k="종료"
               v={summaryQ.data?.ended ?? "—"}
@@ -298,7 +298,7 @@ export default function AdminAuctionsPage() {
                 오픈 예정 ({upcomingQ.data?.length ?? "—"}건)
               </div>
               <div style={{ flex: 1 }} />
-              <div style={{ fontSize: 11, color: p.inkMuted }}>시간 되면 자동 OPEN</div>
+              <div style={{ fontSize: 11, color: p.inkMuted }}>시간이 되면 자동 시작</div>
             </div>
             <div style={{ padding: 12, maxHeight: 480, overflow: "auto" }}>
               {upcomingQ.data?.length === 0 && (
@@ -400,7 +400,7 @@ export default function AdminAuctionsPage() {
             <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>경매 설정</div>
             <div className="mono" style={{ fontSize: 12, color: p.inkMuted, marginBottom: 16 }}>{editingFor.id}</div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
-              <b>예약 저장</b> — 시간이 되면 자동 OPEN. <b>즉시 오픈</b> — 예약 시작 전이라도 강제 OPEN.
+              <b>예약 저장</b> — 시간이 되면 자동으로 시작됩니다. <b>즉시 오픈</b> — 예약 시작 전이라도 바로 엽니다.
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>

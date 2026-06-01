@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>블록 다이어그램 — 포트 & 어댑터 (헥사고날)</title>
+<style>
+  :root{
+    --domain:#FBF8C8;   --domain-bd:#D9B93A;
+    --app:#F6B7B7;       --app-bd:#D98A8A;
+    --port:#BDE7BD;      --port-bd:#5FA968;
+    --infra:#AED6F1;     --infra-bd:#5E93C9;
+    --ext:#E5E7EB;       --ext-bd:#9AA3B2;
+    --ink:#1f2a44;       --muted:#5b6b8c;  --line:#9aa3b2;
+    --brand:#1f3a93;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:#fff;color:var(--ink);
+    font-family:"Malgun Gothic","Pretendard","Noto Sans KR","Apple SD Gothic Neo",sans-serif;}
+  .slide{width:1320px;margin:0 auto;padding:34px 50px 28px;position:relative;}
+  .kicker{font-size:14px;color:var(--muted);font-weight:600;}
+  h1{font-size:30px;color:var(--brand);margin:5px 0 3px;font-weight:800;letter-spacing:-.5px;}
+  h1::after{content:"";display:block;height:3px;background:var(--brand);margin-top:8px;border-radius:2px;}
+  .subtitle{text-align:center;font-size:16px;font-weight:700;color:#374151;margin:16px 0 20px;}
+  .subtitle b{color:var(--brand);}
+
+  .grid{display:grid;grid-template-columns:1fr 44px 1.4fr 44px 1fr;align-items:stretch;gap:0;}
+  .col{display:flex;flex-direction:column;gap:13px;}
+  .colhead{font-size:14px;font-weight:800;text-align:center;color:#27365e;margin-bottom:2px;}
+  .colhead .en{display:block;font-size:11px;font-weight:600;color:#8090ad;}
+
+  .card{border-radius:11px;padding:12px 14px;border:1.5px solid #ccc;background:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .card .t{font-size:15px;font-weight:800;}
+  .card .d{font-size:12.5px;color:#475569;margin-top:4px;line-height:1.4;}
+  .infra{background:var(--infra);border-color:var(--infra-bd);}
+  .extc{background:var(--ext);border-color:var(--ext-bd);}
+  .portc{background:var(--port);border-color:var(--port-bd);}
+
+  .client{background:var(--infra);border-color:var(--infra-bd);text-align:center;}
+  .pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;
+    padding:2px 10px;margin:4px 3px 0;background:#fff;border:1px solid #b9c3d6;color:#3a4a73;}
+  .pill.iface{background:#eafaef;border-color:var(--port-bd);color:#246b2e;font-family:ui-monospace,monospace;}
+
+  /* center core column */
+  .corewrap{border:2px dashed var(--infra-bd);border-radius:16px;padding:14px;
+    background:linear-gradient(#f6f9ff,#eef3fc);height:100%;display:flex;flex-direction:column;gap:13px;
+    justify-content:center;}
+  .appband{background:var(--app);border:1.5px solid var(--app-bd);border-radius:12px;padding:12px;}
+  .appband .lbl{font-size:13px;font-weight:800;color:#7a2f2f;text-align:center;margin-bottom:8px;}
+  .uc{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;}
+  .uc span{font-size:12px;font-weight:700;background:#fff;border:1px solid var(--app-bd);
+    border-radius:7px;padding:3px 9px;color:#7a2f2f;font-family:ui-monospace,monospace;}
+  .coredep{display:flex;align-items:center;justify-content:center;gap:7px;margin:-3px 0 -2px;}
+  .coredep .a{font-size:22px;color:#9a3b3b;line-height:1;}
+  .coredep .t{font-size:12px;font-weight:800;color:#7a2f2f;}
+
+  .core{background:var(--domain);border:2px solid var(--domain-bd);border-radius:13px;padding:13px;
+    box-shadow:0 0 0 5px rgba(217,185,58,.16);}
+  .core .lbl{font-size:14px;font-weight:900;color:#6b5300;text-align:center;}
+  .core .zero{font-size:12px;font-weight:800;color:#8a6d00;text-align:center;margin:3px 0 9px;}
+  .ctx{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;}
+  .ctx span{font-size:12.5px;font-weight:800;background:#fff;border:1.3px solid var(--domain-bd);
+    border-radius:7px;padding:3px 10px;color:#6b5300;}
+  .inv{margin-top:10px;border-top:1px dashed var(--domain-bd);padding-top:8px;
+    font-size:12px;color:#7a5d00;text-align:center;line-height:1.5;}
+  .inv b{color:#5c4500;}
+
+  /* arrows between columns */
+  .arr{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
+  .arr .a{font-size:30px;color:var(--line);line-height:1;}
+  .arr .cap{position:absolute;font-size:11px;color:var(--muted);width:96px;text-align:center;line-height:1.3;}
+
+  .legend{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:22px;font-size:12.5px;}
+  .legend .item{display:flex;align-items:center;gap:6px;}
+  .chip{width:15px;height:15px;border-radius:4px;border:1px solid #888;display:inline-block;}
+
+  .deprule{text-align:center;font-size:13.5px;color:var(--muted);margin-top:14px;font-weight:700;}
+  .deprule b{color:var(--brand);}
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="grid">
+    <!-- ===== LEFT: driving / inbound ===== -->
+    <div class="col">
+      <div class="colhead">들어오는 측 · 인바운드<span class="en">interfaces/</span></div>
+      <div class="card client">
+        <div class="t">클라이언트 (React)</div>
+        <div class="d">직원 · 관리자 웹 UI · HTTPS</div>
+      </div>
+      <div class="card infra">
+        <div class="t">interfaces/http</div>
+        <div class="d">Controllers · 입력 검증 · 직렬화</div>
+      </div>
+      <div class="card infra">
+        <div class="t">인증 · 권한</div>
+        <div class="d">RBAC(EMPLOYEE/ADMIN) + ABAC(본인)</div>
+      </div>
+      <div class="card infra">
+        <div class="t">스케줄러</div>
+        <div class="d">자동 정산 · 연말 배당 · 풀 수집</div>
+      </div>
+    </div>
+
+    <!-- arrow L->C -->
+    <div class="arr"><div class="a">▶</div><div class="cap" style="top:38%">요청<br/>(안쪽으로)</div></div>
+
+    <!-- ===== CENTER: application + domain core ===== -->
+    <div class="col">
+      <div class="colhead">코어 — 유스케이스 + 도메인<span class="en">application/ + domain/</span></div>
+      <div class="corewrap">
+        <div class="appband">
+          <div class="lbl">유스케이스 (application/)</div>
+          <div class="uc">
+            <span>PlaceBid</span><span>SettleAuction</span><span>UseLeave</span>
+            <span>CollectLeavePool</span><span>SettleYearEndDividend</span>
+          </div>
+        </div>
+
+        <div class="coredep"><span class="a">▼</span><span class="t">application → domain 의존</span></div>
+
+        <div class="core">
+          <div class="lbl">도메인 코어 (domain/)</div>
+          <div class="zero">외부 라이브러리 의존 0</div>
+          <div class="ctx">
+            <span>Auction</span><span>Wallet</span><span>Ledger</span>
+            <span>Leave</span><span>LeavePool</span><span>Dividend·Stake</span>
+          </div>
+          <div class="inv">
+            <b>핵심 불변식이 여기 산다</b> — INSERT-only · 3-flag 분리 · 차감 우선순위 · 적립금 상한 · P2P 금지
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- arrow C<-R : adapter implements port -->
+    <div class="arr">
+      <div class="a" style="color:var(--port-bd)">◀</div>
+      <div class="cap" style="top:34%">어댑터가<br/>포트 구현</div>
+    </div>
+
+    <!-- ===== RIGHT: driven / outbound ===== -->
+    <div class="col">
+      <div class="colhead">나가는 측 · 포트 → 어댑터<span class="en">ports/ → adapters/</span></div>
+
+      <div class="card portc">
+        <div class="t">포트 «interface» (교체 지점)</div>
+        <div>
+          <span class="pill iface">BiddingCurrency</span><span class="pill iface">PayoutChannel</span>
+          <span class="pill iface">LeaveGrantPort</span><span class="pill iface">AuthProvider</span>
+          <span class="pill iface">WalletRepository</span><span class="pill iface">UnitOfWork</span>
+        </div>
+      </div>
+
+      <div class="card portc" style="background:#d9f2dd">
+        <div class="t">어댑터 (adapters/) — 구현</div>
+        <div class="d">
+          WelfarePointProvider(화폐) · LeaveAdapter(연차 부여 + ezpass 동기화)<br/>
+          Ezpass/LocalAuthProvider(인증) · Prisma*(영속)
+        </div>
+      </div>
+
+      <div class="card infra">
+        <div class="t">SQLite — 이 시스템이 마스터</div>
+        <div class="d">거래원장 · 지갑 · 연차 · Stake</div>
+      </div>
+
+      <div class="card extc">
+        <div class="t">외부 시스템</div>
+        <div class="d">ezpass — 인증 · 신원 · 연차 부여 동기화</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="item"><span class="chip" style="background:var(--domain);border-color:var(--domain-bd)"></span>도메인 코어 · 외부 의존 0</div>
+    <div class="item"><span class="chip" style="background:var(--app);border-color:var(--app-bd)"></span>유스케이스 (application/)</div>
+    <div class="item"><span class="chip" style="background:var(--port);border-color:var(--port-bd)"></span>포트 · 어댑터</div>
+    <div class="item"><span class="chip" style="background:var(--infra);border-color:var(--infra-bd)"></span>프레임워크 · 인프라 · DB</div>
+    <div class="item"><span class="chip" style="background:var(--ext);border-color:var(--ext-bd)"></span>외부 시스템</div>
+  </div>
+
+  <div class="deprule">
+    모든 의존은 <b>코어(노랑)</b>를 향한다 = <b>의존성 역전</b> — 바깥이 바뀌어도 어댑터만 교체
+  </div>
+</div>
+</body>
+</html>

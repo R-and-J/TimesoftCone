@@ -16,12 +16,21 @@ import AdminMembersPage from "@/pages/AdminMembers";
 import AdminRedemptionPage from "@/pages/AdminRedemption";
 import AdminAuctionsPage from "@/pages/AdminAuctions";
 import { useAuth } from "@/lib/current-user";
+import { isAdmin } from "@/lib/roles";
 
 // 로그인 안 된 상태로 보호된 페이지 접근 시 /login으로. 보호된 페이지는
 // 이 가드 안에서만 렌더되므로 useCurrentUser()가 항상 사용자 보장.
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+// 관리 영역(/admin/*) — 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN)만. 일반은 대시보드로.
+function RequireAdmin({ children }: { children: JSX.Element }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -43,11 +52,11 @@ export default function App() {
         <Route path="/activity" element={<RequireAuth><MyActivityPage /></RequireAuth>} />
         <Route path="/dividend" element={<RequireAuth><DividendPage /></RequireAuth>} />
         <Route path="/redemption" element={<RequireAuth><RedemptionPage /></RequireAuth>} />
-        <Route path="/admin/ops" element={<RequireAuth><AdminOpsPage /></RequireAuth>} />
-        <Route path="/admin/ledger" element={<RequireAuth><AdminLedgerPage /></RequireAuth>} />
-        <Route path="/admin/members" element={<RequireAuth><AdminMembersPage /></RequireAuth>} />
-        <Route path="/admin/redemption" element={<RequireAuth><AdminRedemptionPage /></RequireAuth>} />
-        <Route path="/admin/auctions" element={<RequireAuth><AdminAuctionsPage /></RequireAuth>} />
+        <Route path="/admin/ops" element={<RequireAdmin><AdminOpsPage /></RequireAdmin>} />
+        <Route path="/admin/ledger" element={<RequireAdmin><AdminLedgerPage /></RequireAdmin>} />
+        <Route path="/admin/members" element={<RequireAdmin><AdminMembersPage /></RequireAdmin>} />
+        <Route path="/admin/redemption" element={<RequireAdmin><AdminRedemptionPage /></RequireAdmin>} />
+        <Route path="/admin/auctions" element={<RequireAdmin><AdminAuctionsPage /></RequireAdmin>} />
 
         {/* Developer escape hatch — full 12-screen catalog. */}
         <Route path="/_screens" element={<IndexPage />} />

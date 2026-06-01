@@ -23,7 +23,7 @@ export default function LoginPage() {
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 20,
-          display: "flex",
+          display: "none",
           gap: 8,
           background: p.surface,
           padding: 4,
@@ -183,7 +183,7 @@ function LoginImpact() {
           {[
             { k: "재무 리스크", v: "0%", sub: "회사 예산 선투입 없음" },
             { k: "재무 정합성", v: "100%", sub: "Insert-Only 원장" },
-            { k: "동시성 제어", v: "MySQL", sub: "FOR UPDATE 행 잠금" },
+            { k: "동시성 제어", v: "SQLite", sub: "write 락 (직렬화)" },
           ].map((s) => (
             <div
               key={s.k}

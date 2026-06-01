@@ -9,7 +9,7 @@ import { ApproveRedemptionRequestUseCase } from "@/application/redemption/approv
 import { RejectRedemptionRequestUseCase } from "@/application/redemption/reject-redemption-request.use-case";
 import { ListRedemptionRequestsUseCase } from "@/application/redemption/list-redemption-requests.use-case";
 import { GetRedemptionSummaryUseCase } from "@/application/redemption/get-redemption-summary.use-case";
-import { CurrentUser, Roles, type AuthUser } from "./auth/auth.decorators";
+import { CurrentUser, Roles, ADMIN_ROLES, type AuthUser } from "./auth/auth.decorators";
 import { ZodValidationPipe } from "./zod.pipe";
 
 const approveSchema = z.object({
@@ -23,7 +23,7 @@ const rejectSchema = z.object({
 
 const STATUSES = ["PENDING", "APPROVED", "RECEIVED", "REJECTED"] as const;
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin/redemption-requests")
 export class AdminRedemptionRequestsController {
   constructor(

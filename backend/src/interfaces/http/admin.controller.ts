@@ -4,7 +4,7 @@ import { Controller, Get, Query } from "@nestjs/common";
 import type { LedgerActionType } from "@/domain/ledger/ledger-action-type";
 import { GetAdminStatsUseCase } from "@/application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "@/application/admin/list-ledger.use-case";
-import { Roles } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
 const ALL_ACTIONS: LedgerActionType[] = [
   "BID",
@@ -19,7 +19,7 @@ const ALL_ACTIONS: LedgerActionType[] = [
   "CHARGE_REJECTED",
 ];
 
-@Roles("ADMIN")
+@Roles(...ADMIN_ROLES)
 @Controller("api/admin")
 export class AdminController {
   constructor(

@@ -1,0 +1,17 @@
+flowchart TB
+  CLIENT["클라이언트 (React + Vite)<br/>직원 웹 UI · 관리자 UI"]
+  GW["API Gateway · 인증 미들웨어 (JWT)"]
+  S1["AuthService<br/>(ezpass 위임)"]
+  S2["AuctionService<br/>(입찰/낙찰)"]
+  S3["DividendService<br/>(연말 배당)"]
+  S4["AdminService<br/>(운영/적립)"]
+  DB[("SQLite<br/>거래원장·지갑·연차")]
+  OB["Outbox<br/>(HR 호출 큐, dormant)"]
+  EXT["외부: ezpass 인증 · HR 배당 출금"]
+  CLIENT -->|"HTTPS / WebSocket"| GW
+  GW --> S1 & S2 & S3 & S4
+  S1 & S2 & S3 & S4 --> DB
+  S3 -. 연동 시 .-> OB
+  OB -. 추후 .-> EXT
+  classDef svc fill:#eef2ff,stroke:#1f3a93,color:#1f3a93
+  class S1,S2,S3,S4 svc

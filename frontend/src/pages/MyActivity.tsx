@@ -1,6 +1,7 @@
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import type { Palette } from "@/lib/tokens";
 import { Card, Pill, TopNav } from "@/components/atoms";
+import { DataGrid } from "@/components/DataGrid";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { useCurrentUser } from "@/lib/current-user";
 import { useQuery } from "@/lib/use-query";
@@ -77,85 +78,73 @@ export default function MyActivityPage() {
 
             <SummaryCards p={p} summary={activityQ.data?.summary} loading={activityQ.loading} />
 
-            <Card
+            <DataGrid
               p={p}
-              padding={0}
-              style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "140px 100px 120px 1fr 130px 130px",
-                  padding: "14px 24px",
-                  fontSize: 11,
-                  color: p.inkMuted,
-                  fontWeight: 700,
-                  borderBottom: `1px solid ${p.line}`,
-                  letterSpacing: 0.4,
-                }}
-              >
-                <div>시각</div>
-                <div>구분</div>
-                <div>경매</div>
-                <div>설명</div>
-                <div style={{ textAlign: "right" }}>금액</div>
-                <div style={{ textAlign: "right" }}>잔액</div>
-              </div>
-              <div style={{ overflow: "auto", flex: 1 }}>
-                {activityQ.loading && (
-                  <div style={{ padding: 32, textAlign: "center", color: p.inkMuted }}>
-                    불러오는 중…
-                  </div>
-                )}
-                {activityQ.error && (
-                  <div style={{ padding: 24, color: p.danger, fontSize: 13, fontWeight: 700 }}>
-                    백엔드 연결 실패: {activityQ.error.message}
-                  </div>
-                )}
-                {activityQ.data?.history.length === 0 && (
-                  <div style={{ padding: 32, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
-                    아직 거래 내역이 없습니다.
-                  </div>
-                )}
-                {activityQ.data?.history.map((h, i) => {
-                  const c = TYPE_LABEL[h.actionType] ?? {
-                    bg: p.bg,
-                    fg: p.inkSoft,
-                    label: h.actionType,
-                  };
-                  const amount = Number(h.amount);
-                  const balance = Number(h.balanceAfter);
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "140px 100px 120px 1fr 130px 130px",
-                        padding: "16px 24px",
-                        alignItems: "center",
-                        fontSize: 13,
-                        borderBottom: `1px solid ${p.line}`,
-                        background: h.actionType === "WIN" ? p.accentSoft : p.surface,
-                      }}
-                    >
-                      <div style={{ color: p.inkMuted, fontSize: 12 }}>
-                        {formatTime(new Date(h.occurredAt))}
-                      </div>
-                      <div>
-                        <Pill p={p} size="sm" style={{ background: c.bg, color: c.fg }}>
-                          {c.label}
-                        </Pill>
-                      </div>
-                      <div className="mono" style={{ color: p.inkSoft, fontSize: 12, fontWeight: 600 }}>
-                        {h.auctionId ?? "—"}
-                      </div>
-                      <div style={{ color: p.ink, fontWeight: h.actionType === "WIN" ? 700 : 500 }}>
-                        {h.refNote ?? defaultDesc(h.actionType)}
-                      </div>
-                      <div
+              fill
+              rows={activityQ.data?.history ?? []}
+              rowKey={(_, i) => i}
+              loading={activityQ.loading}
+              error={activityQ.error ? new Error(`백엔드 연결 실패: ${activityQ.error.message}`) : null}
+              emptyText="아직 거래 내역이 없습니다."
+              zebra={false}
+              rowBackground={(h) => (h.actionType === "WIN" ? p.accentSoft : undefined)}
+              rowPadding="16px 24px"
+              rowFontSize={13}
+              columns={[
+                {
+                  key: "time",
+                  header: "시각",
+                  width: "140px",
+                  render: (h) => (
+                    <span style={{ color: p.inkMuted, fontSize: 12 }}>
+                      {formatTime(new Date(h.occurredAt))}
+                    </span>
+                  ),
+                },
+                {
+                  key: "type",
+                  header: "구분",
+                  width: "100px",
+                  render: (h) => {
+                    const c = TYPE_LABEL[h.actionType] ?? { bg: p.bg, fg: p.inkSoft, label: h.actionType };
+                    return (
+                      <Pill p={p} size="sm" style={{ background: c.bg, color: c.fg }}>
+                        {c.label}
+                      </Pill>
+                    );
+                  },
+                },
+                {
+                  key: "auction",
+                  header: "경매",
+                  width: "120px",
+                  render: (h) => (
+                    <span className="mono" style={{ color: p.inkSoft, fontSize: 12, fontWeight: 600 }}>
+                      {h.auctionId ?? "—"}
+                    </span>
+                  ),
+                },
+                {
+                  key: "desc",
+                  header: "설명",
+                  width: "1fr",
+                  render: (h) => (
+                    <span style={{ color: p.ink, fontWeight: h.actionType === "WIN" ? 700 : 500 }}>
+                      {h.refNote ?? defaultDesc(h.actionType)}
+                    </span>
+                  ),
+                },
+                {
+                  key: "amount",
+                  header: "금액",
+                  width: "130px",
+                  align: "right",
+                  render: (h) => {
+                    const amount = Number(h.amount);
+                    return (
+                      <span
                         className="mono"
                         style={{
-                          textAlign: "right",
                           fontWeight: 800,
                           color: amount > 0 ? p.success : amount < 0 ? p.ink : p.inkMuted,
                         }}
@@ -165,16 +154,24 @@ export default function MyActivityPage() {
                         {amount !== 0 && (
                           <span style={{ color: p.inkMuted, marginLeft: 3, fontWeight: 500 }}>P</span>
                         )}
-                      </div>
-                      <div className="mono" style={{ textAlign: "right", color: p.inkSoft, fontSize: 13 }}>
-                        {fmt.point(balance)}
-                        <span style={{ color: p.inkMuted, marginLeft: 3 }}>P</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "balance",
+                  header: "잔액",
+                  width: "130px",
+                  align: "right",
+                  render: (h) => (
+                    <span className="mono" style={{ color: p.inkSoft, fontSize: 13 }}>
+                      {fmt.point(Number(h.balanceAfter))}
+                      <span style={{ color: p.inkMuted, marginLeft: 3 }}>P</span>
+                    </span>
+                  ),
+                },
+              ]}
+            />
           </div>
 
           <RightColumn
@@ -435,7 +432,7 @@ function LeaveCard({
               color: p.inkSoft,
             }}
           >
-            {safe(leave?.regular)} REGULAR
+            {safe(leave?.regular)} 일반
           </div>
         )}
       </div>
@@ -447,7 +444,7 @@ function LeaveCard({
           lineHeight: 1.4,
         }}
       >
-        차감 순위 AUCTION → EVENT → REGULAR (ADR-003). 입찰 낙찰 시 AUCTION 자동 가산은 후속 PR.
+        차감 순위: 경매 연차 → 이벤트 연차 → 일반 연차
       </div>
     </Card>
   );

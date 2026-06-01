@@ -3,7 +3,7 @@
 // 한 번의 `npm run db:seed`로 실회원을 재현한다:
 //   1) msaportal(ezpass)에서 cmpny-7 회원 미러 → users (이메일 키)
 //   2) 각 회원 REGULAR 연차를 ezpass tbl_user_yryc에서 시드
-//   3) @exam.com 회원에 지갑(WELFARE_POINT)+CREDIT_ADMIN 원장+contributedDays 부여
+//   3) EZPASS 회원에 지갑(WELFARE_POINT)+CREDIT_ADMIN 원장+contributedDays 부여 + EXAM 데모 계정
 //   4) 경매판(OPEN/CREATED) + 입찰/낙찰 데모 활동(escrow/wallet/ledger/AUCTION연차 정합)
 //
 // 접속정보는 .env의 MSAPORTAL_URL에서만 읽는다(크리덴셜 커밋 금지).
@@ -99,7 +99,8 @@ async function syncMembersAndLeave() {
     for (const m of members) {
       const email = String(m.email);
       const empId = m.emp_no && String(m.emp_no).trim() ? String(m.emp_no).trim() : `EZP-${Number(m.user_no)}`;
-      const role = m.mngr_author_no && String(m.mngr_author_no).trim() ? "ADMIN" : "EMPLOYEE";
+      // ezpass cmpny 회원 = 회사 도메인 연동 → EZPASS(관리자 권한 보유면 ADMIN).
+      const role = m.mngr_author_no && String(m.mngr_author_no).trim() ? "ADMIN" : "EZPASS";
       const name = m.name ? String(m.name) : email.split("@")[0];
       const team = m.team ? String(m.team) : null;
       const jobRank = m.job_rank ? String(m.job_rank) : null;
@@ -133,10 +134,10 @@ async function syncMembersAndLeave() {
   }
 }
 
-// ── 2) @exam.com 회원 펀딩(지갑 + CREDIT_ADMIN + contributedDays) ──
+// ── 2) EZPASS 회원 펀딩(지갑 + CREDIT_ADMIN + contributedDays) ──
 async function fundMembers() {
   const members = await prisma.user.findMany({
-    where: { email: { endsWith: "@exam.com" } },
+    where: { role: { in: ["EZPASS", "EZPASS_ADMIN"] } },
     select: { id: true },
     orderBy: { email: "asc" },
   });
@@ -169,13 +170,18 @@ async function seedActivity() {
     return;
   }
   await loadBalances();
+  // EZPASS 회원을 이메일 로컬파트(userNNN)로 매핑 — 도메인(@exam.com/@timesoftcone.com) 무관.
   const members = await prisma.user.findMany({
-    where: { email: { endsWith: "@exam.com" } },
+    where: { role: { in: ["EZPASS", "EZPASS_ADMIN"] } },
     select: { id: true, email: true },
   });
-  const byEmail = new Map(members.map((m) => [m.email, m.id]));
+  const byLocal = new Map(
+    members
+      .filter((m) => m.email)
+      .map((m) => [m.email!.split("@")[0], m.id]),
+  );
   const U = (n: number) => {
-    const id = byEmail.get(`user${String(n).padStart(3, "0")}@exam.com`);
+    const id = byLocal.get(`user${String(n).padStart(3, "0")}`);
     if (!id) throw new Error(`member user${n} missing`);
     return id;
   };
@@ -238,6 +244,58 @@ async function seedRedemptionCatalog() {
   console.log(`  카탈로그 ${items.length}종 (AI 구독권/식권/카페/기프티콘)`);
 }
 
+/** EXAM(비연동 독립) 데모 계정 — ezpass에 없고 우리 DB가 정본. 로컬 비번으로 로그인.
+ *  자체 로컬 데이터(지갑 + REGULAR 연차)만 가지며 ezpass 동기화를 받지 않는다. */
+async function setupExamMembers() {
+  const PW = await bcrypt.hash("1234", 10); // 데모 전용
+  const exam = [
+    { email: "exam001@exam.com", name: "체험 사용자1", team: "체험팀", role: "EXAM" },
+    { email: "exam002@exam.com", name: "체험 사용자2", team: "체험팀", role: "EXAM" },
+    { email: "exam003@exam.com", name: "체험 사용자3", team: "체험팀", role: "EXAM" },
+    { email: "examadmin@exam.com", name: "exam 관리자", team: "운영", role: "EXAM_ADMIN" },
+  ];
+  for (let i = 0; i < exam.length; i++) {
+    const e = exam[i];
+    const user = await prisma.user.upsert({
+      where: { email: e.email },
+      update: { name: e.name, team: e.team, role: e.role, passwordHash: PW, active: true },
+      create: {
+        empId: `EXAM-${String(i + 1).padStart(3, "0")}`,
+        email: e.email,
+        name: e.name,
+        team: e.team,
+        role: e.role,
+        passwordHash: PW,
+        active: true,
+      },
+    });
+    // 자체 로컬 데이터: 지갑(신규일 때만 CREDIT_ADMIN 원장) + REGULAR 연차(동기화 아님).
+    const existing = await prisma.wallet.findUnique({
+      where: { uq_wallet_user_currency: { userId: user.id, currency: "WELFARE_POINT" } },
+    });
+    if (!existing) {
+      const points = 30000n;
+      await prisma.wallet.create({ data: { userId: user.id, currency: "WELFARE_POINT", balance: points } });
+      await prisma.ledgerEntry.create({
+        data: { userId: user.id, currency: "WELFARE_POINT", actionType: "CREDIT_ADMIN", amount: points, balanceAfter: points, refNote: "Seed: EXAM 초기 복지포인트" },
+      });
+    }
+    await prisma.leaveBalance.upsert({
+      where: { uq_leave_user_year_type: { userId: user.id, year: YEAR, leaveType: "REGULAR" } },
+      update: {},
+      create: { userId: user.id, year: YEAR, leaveType: "REGULAR", grantedDays: 15, adjustedDays: 0, usedDays: 0 },
+    });
+  }
+  console.log(`  EXAM 데모 ${exam.length}명 (EXAM ${exam.length - 1} + EXAM_ADMIN 1, 로컬 비번 1234)`);
+}
+
+/** 데모용 EZPASS_ADMIN 1명 지정 — ezpass 회원(empId T001)을 ezpass 영역 관리자로.
+ *  login resolveRole이 관리자 계열은 고정(sticky)이라 유지된다. */
+async function designateDemoEzpassAdmin() {
+  const r = await prisma.user.updateMany({ where: { empId: "T001" }, data: { role: "EZPASS_ADMIN" } });
+  console.log(`  EZPASS_ADMIN 데모 지정 — empId T001 (updated ${r.count})`);
+}
+
 async function setupDemoAdmin() {
   const ADMIN_EMAIL = "admin@timesoftcon.co.kr";
   const DEMO_PW = "!12345qwertY"; // 데모 전용
@@ -254,6 +312,10 @@ async function main() {
   await syncMembersAndLeave();
   console.log("== 1b) 데모 관리자 (로컬 비번) ==");
   await setupDemoAdmin();
+  console.log("== 1b-2) EXAM 데모 계정 (비연동, 로컬 비번) ==");
+  await setupExamMembers();
+  console.log("== 1b-3) EZPASS_ADMIN 데모 지정 ==");
+  await designateDemoEzpassAdmin();
   console.log("== 1c) 스토어 카탈로그 (ADR-023) ==");
   await seedRedemptionCatalog();
   console.log("== 2) 회원 펀딩 ==");
