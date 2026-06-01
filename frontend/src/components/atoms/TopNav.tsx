@@ -184,12 +184,18 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
                   {notifs.map((n) => (
                     <div
                       key={n.id}
+                      onClick={() => {
+                        if (!n.linkPath) return;
+                        setBellOpen(false);
+                        navigate(n.linkPath);
+                      }}
                       style={{
                         padding: "10px",
                         borderRadius: 8,
                         display: "flex",
                         gap: 8,
                         alignItems: "flex-start",
+                        cursor: n.linkPath ? "pointer" : "default",
                       }}
                     >
                       <div

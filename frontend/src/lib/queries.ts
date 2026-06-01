@@ -516,10 +516,18 @@ export function createAuction(body: CreateAuctionInput) {
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
 export type NotificationItem = {
   id: string;
-  type: "OUTBID" | "AUCTION_WON" | "INVENTORY_CREATED";
+  type:
+    | "OUTBID"
+    | "AUCTION_WON"
+    | "INVENTORY_CREATED"
+    | "CHARGE_REQUEST_SUBMITTED"
+    | "CHARGE_APPROVED"
+    | "CHARGE_REJECTED";
   title: string;
   message: string;
   auctionId: string | null;
+  /** 클릭 시 이동할 프론트엔드 경로. 백엔드가 알림 만들 때 박음. null이면 비-네비. */
+  linkPath: string | null;
   read: boolean;
   createdAt: string;
 };
