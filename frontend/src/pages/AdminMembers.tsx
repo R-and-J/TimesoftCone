@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { PALETTES, FONT, type Palette } from "@/lib/tokens";
+import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
@@ -7,6 +7,7 @@ import { AdminTabs } from "@/components/AdminTabs";
 import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
+  adminCreditWallet,
   listMembers,
   syncMembers,
   createMember,
@@ -49,9 +50,48 @@ export default function AdminMembersPage() {
 
   const data = membersQ.data;
   const isLocal = data?.mode === "local";
+  // 마지막에 "포인트" + "작업" 컬럼 추가. 위임형은 작업이 충전 한 개라 80px.
   const cols = isLocal
-    ? "110px 1fr 200px 1fr 150px 80px 150px"
-    : "120px 1fr 220px 1.2fr 160px 90px";
+    ? "110px 1fr 200px 1fr 150px 80px 110px 220px"
+    : "120px 1fr 220px 1.2fr 160px 90px 110px 80px";
+
+  // 충전 모달 상태.
+  const [creditFor, setCreditFor] = useState<MemberRow | null>(null);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReason, setCreditReason] = useState("");
+  const [crediting, setCrediting] = useState(false);
+
+  const openCredit = (m: MemberRow) => {
+    setCreditFor(m);
+    setCreditAmount("");
+    setCreditReason("");
+  };
+  const doCredit = async () => {
+    if (!creditFor) return;
+    const n = Number(creditAmount);
+    if (!Number.isFinite(n) || n <= 0) {
+      toast.push("error", "금액은 양수여야 합니다");
+      return;
+    }
+    if (!creditReason.trim()) {
+      toast.push("error", "사유는 필수입니다 (감사 로그)");
+      return;
+    }
+    setCrediting(true);
+    try {
+      const r = await adminCreditWallet(creditFor.userId, n, creditReason.trim());
+      toast.push(
+        "success",
+        `${creditFor.name} 충전 — +${fmt.point(n)} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+      );
+      setCreditFor(null);
+      await membersQ.refetch();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setCrediting(false);
+    }
+  };
 
   const doSync = async () => {
     setSyncing(true);
@@ -185,7 +225,7 @@ export default function AdminMembersPage() {
                 회원 ({data?.total ?? "—"})
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                {isLocal ? "신원 정본은 이 시스템" : "신원 정본은 ezpass(ADR-020)"} · 관리자{" "}
+                {isLocal ? "신원 정본은 이 시스템" : "신원 정본은 ezpass"} · 관리자{" "}
                 {data?.admins ?? "—"}명
                 {lastSync ? ` · 마지막 동기화 ${lastSync}` : ""}
               </div>
@@ -226,7 +266,7 @@ export default function AdminMembersPage() {
               <>
                 <strong>자립형 모드</strong>{" "}
                 <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-                  외부 그룹웨어 없이 이 시스템이 회원·인증을 직접 관리합니다(ADR-022). 회원 추가 시
+                  외부 그룹웨어 없이 이 시스템이 회원·인증을 직접 관리합니다. 회원 추가 시
                   비밀번호로 로그인됩니다. 연차·경매금도 우리 시스템 소유입니다.
                 </span>
               </>
@@ -260,8 +300,9 @@ export default function AdminMembersPage() {
               <div>이메일</div>
               <div>부서</div>
               <div>직급 / 직책</div>
-              <div style={{ textAlign: isLocal ? "left" : "right" }}>권한</div>
-              {isLocal && <div style={{ textAlign: "right" }}>작업</div>}
+              <div style={{ textAlign: "left" }}>권한</div>
+              <div style={{ textAlign: "right" }}>포인트</div>
+              <div style={{ textAlign: "right" }}>작업</div>
             </div>
             <div style={{ overflow: "auto", maxHeight: 560 }}>
               {membersQ.error && (
@@ -310,7 +351,7 @@ export default function AdminMembersPage() {
                     </div>
                     <div style={{ color: p.inkSoft }}>{m.team ?? "—"}</div>
                     <div style={{ color: p.inkSoft }}>{rankTitle}</div>
-                    <div style={{ textAlign: isLocal ? "left" : "right" }}>
+                    <div style={{ textAlign: "left" }}>
                       <Pill
                         p={p}
                         size="sm"
@@ -320,16 +361,27 @@ export default function AdminMembersPage() {
                         {isAdmin ? "관리자" : "직원"}
                       </Pill>
                     </div>
-                    {isLocal && (
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
-                          수정
-                        </Btn>
-                        <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
-                          {m.active ? "비활성" : "활성"}
-                        </Btn>
-                      </div>
-                    )}
+                    <div
+                      className="mono"
+                      style={{ textAlign: "right", color: p.ink, fontWeight: 700, fontSize: 12 }}
+                    >
+                      {fmt.point(Number(m.balance))} P
+                    </div>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
+                        충전
+                      </Btn>
+                      {isLocal && (
+                        <>
+                          <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
+                            수정
+                          </Btn>
+                          <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
+                            {m.active ? "비활성" : "활성"}
+                          </Btn>
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -353,6 +405,54 @@ export default function AdminMembersPage() {
           </Card>
         </div>
       </div>
+
+      {creditFor && (
+        <div
+          onClick={() => !crediting && setCreditFor(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 440, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>포인트 충전</div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>
+              <b>{creditFor.name}</b> · 사번 {creditFor.empId}
+            </div>
+            <div className="mono" style={{ fontSize: 12, color: p.inkSoft, marginBottom: 16 }}>
+              현재 잔액 {fmt.point(Number(creditFor.balance))} P
+            </div>
+
+            <Field label="충전 금액 (P)">
+              <input
+                style={inp(p)}
+                type="number" min={1} step={100}
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                placeholder="예: 10000"
+              />
+            </Field>
+            <Field label="사유 (감사 로그 — 필수)">
+              <input
+                style={inp(p)}
+                value={creditReason}
+                onChange={(e) => setCreditReason(e.target.value)}
+                placeholder="예: 입사 환영 보너스 / 충전 요청 승인"
+              />
+            </Field>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => setCreditFor(null)}>취소</Btn>
+              <Btn p={p} variant="primary" size="md" disabled={crediting} onClick={doCredit}>
+                {crediting ? "충전 중…" : "충전"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
       {form && (
         <div

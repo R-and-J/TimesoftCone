@@ -15,6 +15,8 @@ export type MemberRow = {
   jobTitle: string | null;
   role: "EMPLOYEE" | "ADMIN";
   active: boolean;
+  /** WELFARE_POINT 잔액(bigint를 문자열로). 지갑 없으면 "0". */
+  balance: string;
 };
 
 export type MemberList = {
@@ -49,6 +51,13 @@ export class ListMembersUseCase {
         active: true,
       },
     });
+    // 회원별 WELFARE_POINT 잔액 — 단일 쿼리로 가져와 map(N+1 회피).
+    const wallets = await this.prisma.wallet.findMany({
+      where: { userId: { in: users.map((u) => u.id) }, currency: "WELFARE_POINT" },
+      select: { userId: true, balance: true },
+    });
+    const balanceByUser = new Map<bigint, bigint>();
+    for (const w of wallets) balanceByUser.set(w.userId, w.balance);
     return {
       mode,
       source: mode === "local" ? "local" : "ezpass-mirror",
@@ -64,6 +73,7 @@ export class ListMembersUseCase {
         jobTitle: u.jobTitle,
         role: u.role as "EMPLOYEE" | "ADMIN",
         active: u.active,
+        balance: (balanceByUser.get(u.id) ?? 0n).toString(),
       })),
     };
   }

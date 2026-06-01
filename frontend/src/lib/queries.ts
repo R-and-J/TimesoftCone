@@ -283,6 +283,8 @@ export type MemberRow = {
   jobTitle: string | null;
   role: "EMPLOYEE" | "ADMIN";
   active: boolean;
+  /** WELFARE_POINT 잔액(bigint 문자열). */
+  balance: string;
 };
 
 export type MemberListResponse = {
@@ -338,6 +340,16 @@ export function createMember(input: CreateMemberInput) {
 
 export function updateMember(userId: string, input: UpdateMemberInput) {
   return apiPatch<MemberRow>(`/admin/members/${userId}`, input);
+}
+
+// 관리자 즉시 충전 — 회원관리에서 회원 클릭 → 모달.
+export function adminCreditWallet(userId: string, amount: number, reason: string) {
+  return apiPost<{
+    userId: string;
+    currency: string;
+    newBalance: string;
+    delta: string;
+  }>("/admin/wallet/credit", { userId, amount, reason });
 }
 
 // ── Redemption (스토어 — ADR-023 자립형 포인트 소모처) ──────────────
