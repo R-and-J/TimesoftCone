@@ -15,12 +15,14 @@ export default function AuctionListGridPage() {
   const navigate = useNavigate();
   // 연도 필터(CUT-9 이후 LeavePool 배치로 익년도 매물이 대량 생성되므로 기본 올해).
   const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
+  const [tab, setTab] = useState<"open" | "upcoming" | "closed">("open");
   const q = useQuery(() => listAuctions(undefined, year), [year]);
 
   const all = q.data ?? [];
   const open = all.filter((a) => a.status === "OPEN");
   const upcoming = all.filter((a) => a.status === "CREATED");
   const closed = all.filter((a) => a.status === "AWARDED" || a.status === "UNSOLD");
+  const shown: AuctionListItem[] = tab === "open" ? open : tab === "upcoming" ? upcoming : closed;
 
   return (
     <ScreenFrame>
@@ -89,27 +91,33 @@ export default function AuctionListGridPage() {
               borderBottom: `1px solid ${p.line}`,
             }}
           >
-            {[
-              { l: "진행 중", n: open.length, on: true },
-              { l: "오픈 예정", n: upcoming.length },
-              { l: "마감", n: closed.length },
-            ].map((t, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "12px 18px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: t.on ? p.ink : p.inkMuted,
-                  borderBottom: `2px solid ${t.on ? p.accent : "transparent"}`,
-                  marginBottom: -1,
-                  cursor: "pointer",
-                }}
-              >
-                {t.l}{" "}
-                <span style={{ color: t.on ? p.accent : p.inkMuted, marginLeft: 4 }}>{t.n}</span>
-              </div>
-            ))}
+            {(
+              [
+                { id: "open", l: "진행 중", n: open.length },
+                { id: "upcoming", l: "오픈 예정", n: upcoming.length },
+                { id: "closed", l: "마감", n: closed.length },
+              ] as const
+            ).map((t) => {
+              const on = tab === t.id;
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  style={{
+                    padding: "12px 18px",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: on ? p.ink : p.inkMuted,
+                    borderBottom: `2px solid ${on ? p.accent : "transparent"}`,
+                    marginBottom: -1,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t.l}{" "}
+                  <span style={{ color: on ? p.accent : p.inkMuted, marginLeft: 4 }}>{t.n}</span>
+                </div>
+              );
+            })}
           </div>
 
           {q.loading && (
@@ -133,7 +141,7 @@ export default function AuctionListGridPage() {
 
           {q.data && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {open.map((a) => (
+              {shown.map((a) => (
                 <AuctionCard
                   key={a.id}
                   p={p}
@@ -141,15 +149,7 @@ export default function AuctionListGridPage() {
                   onClick={() => navigate(`/auction/detail/${a.id}`)}
                 />
               ))}
-              {upcoming.slice(0, 4).map((a) => (
-                <AuctionCard
-                  key={a.id}
-                  p={p}
-                  a={a}
-                  onClick={() => navigate(`/auction/detail/${a.id}`)}
-                />
-              ))}
-              {open.length + upcoming.length === 0 && (
+              {shown.length === 0 && (
                 <div
                   style={{
                     gridColumn: "1 / -1",
@@ -158,7 +158,7 @@ export default function AuctionListGridPage() {
                     color: p.inkMuted,
                   }}
                 >
-                  표시할 경매가 없습니다.
+                  {tab === "open" ? "진행 중인" : tab === "upcoming" ? "오픈 예정인" : "마감된"} 경매가 없습니다.
                 </div>
               )}
             </div>
