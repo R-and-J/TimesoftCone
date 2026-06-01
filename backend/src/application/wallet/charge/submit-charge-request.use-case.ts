@@ -30,13 +30,32 @@ export class SubmitChargeRequestUseCase {
     });
     if (!user) throw new BadRequestException("사용자를 찾을 수 없습니다.");
 
-    const req = await this.prisma.chargeRequest.create({
-      data: {
-        userId: input.userId,
-        amount,
-        note: input.note ?? null,
-        status: "PENDING",
-      },
+    // 요청 등록 + 감사 ledger INSERT는 단일 트랜잭션 — 둘 중 하나만 남는 일 방지.
+    const { req, currentBalance } = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.chargeRequest.create({
+        data: {
+          userId: input.userId,
+          amount,
+          note: input.note ?? null,
+          status: "PENDING",
+        },
+      });
+      // 현재 잔액 — entry에 balanceAfter로 박는다(이 entry는 잔액을 바꾸지 않음).
+      const wallet = await tx.wallet.findUnique({
+        where: { uq_wallet_user_currency: { userId: input.userId, currency: "WELFARE_POINT" } },
+      });
+      const balance = wallet?.balance ?? 0n;
+      await tx.ledgerEntry.create({
+        data: {
+          userId: input.userId,
+          currency: "WELFARE_POINT",
+          actionType: "CHARGE_REQUESTED",
+          amount,
+          balanceAfter: balance,
+          refNote: `충전요청 #${created.id} 등록` + (input.note ? ` — ${input.note}` : ""),
+        },
+      });
+      return { req: created, currentBalance: balance };
     });
 
     this.events.emit(
@@ -48,6 +67,7 @@ export class SubmitChargeRequestUseCase {
       id: req.id,
       amount: req.amount.toString(),
       status: req.status,
+      balance: currentBalance.toString(),
       createdAt: req.createdAt,
     };
   }

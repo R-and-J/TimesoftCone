@@ -4,6 +4,7 @@ import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
+import { DataGrid } from "@/components/DataGrid";
 import {
   listLedger,
   type LedgerActionType,
@@ -17,18 +18,33 @@ const ALL_ACTIONS: LedgerActionType[] = [
   "DIVIDEND",
   "CREDIT_ADMIN",
   "EXPIRE",
+  "CHARGE_REQUESTED",
+  "CHARGE_REJECTED",
 ];
 
 const ACTION_COLORS: Record<
   LedgerActionType,
   { bg: string; fg: string; dot: string }
 > = {
-  BID:          { bg: "#EEF2F7", fg: "#3b4a5e", dot: "#94A3B8" },
-  REFUND:       { bg: "#E6F6F0", fg: "#16A07A", dot: "#16A07A" },
-  WIN:          { bg: "#eef4ff", fg: "#1B64DA", dot: "#1B64DA" },
-  DIVIDEND:     { bg: "#FFF4E0", fg: "#E08B19", dot: "#E08B19" },
-  CREDIT_ADMIN: { bg: "#F3F0FF", fg: "#7C3AED", dot: "#7C3AED" },
-  EXPIRE:       { bg: "#FDECEE", fg: "#DC3F4A", dot: "#DC3F4A" },
+  BID:              { bg: "#EEF2F7", fg: "#3b4a5e", dot: "#94A3B8" },
+  REFUND:           { bg: "#E6F6F0", fg: "#16A07A", dot: "#16A07A" },
+  WIN:              { bg: "#eef4ff", fg: "#1B64DA", dot: "#1B64DA" },
+  DIVIDEND:         { bg: "#FFF4E0", fg: "#E08B19", dot: "#E08B19" },
+  CREDIT_ADMIN:     { bg: "#F3F0FF", fg: "#7C3AED", dot: "#7C3AED" },
+  EXPIRE:           { bg: "#FDECEE", fg: "#DC3F4A", dot: "#DC3F4A" },
+  CHARGE_REQUESTED: { bg: "#FEF3C7", fg: "#92400E", dot: "#D97706" },
+  CHARGE_REJECTED:  { bg: "#FEE2E2", fg: "#991B1B", dot: "#DC2626" },
+};
+
+const ACTION_LABELS: Record<LedgerActionType, string> = {
+  BID: "입찰",
+  REFUND: "환불",
+  WIN: "낙찰",
+  DIVIDEND: "배당",
+  CREDIT_ADMIN: "관리자 조정",
+  EXPIRE: "만료",
+  CHARGE_REQUESTED: "충전요청",
+  CHARGE_REJECTED: "충전반려",
 };
 
 export default function AdminLedgerPage() {
@@ -122,7 +138,7 @@ export default function AdminLedgerPage() {
                   gap: 6,
                 }}
               >
-                <Icon.ledger size={14} /> LEDGER_ENTRY · Insert-Only
+                <Icon.ledger size={14} /> 거래 내역
               </div>
               <div
                 style={{
@@ -133,10 +149,10 @@ export default function AdminLedgerPage() {
                   marginTop: 4,
                 }}
               >
-                원장 (감사 추적)
+                거래 원장
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                DB-RULE-1 · UPDATE / DELETE는 트리거로 영구 차단됩니다
+                모든 포인트 입·출금 내역을 기록하며 수정·삭제할 수 없습니다
               </div>
             </div>
           </div>
@@ -144,7 +160,7 @@ export default function AdminLedgerPage() {
           <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16 }}>
             <Card p={p} padding={20}>
               <div style={{ fontSize: 12, color: p.inkMuted, fontWeight: 700, marginBottom: 12 }}>
-                action_type 필터
+                유형 필터
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
                 {ALL_ACTIONS.map((t) => (
@@ -155,7 +171,7 @@ export default function AdminLedgerPage() {
                     size="sm"
                     style={{ cursor: "pointer" }}
                   >
-                    <span onClick={() => toggle(t)}>{t}</span>
+                    <span onClick={() => toggle(t)}>{ACTION_LABELS[t]}</span>
                   </Pill>
                 ))}
               </div>
@@ -172,148 +188,135 @@ export default function AdminLedgerPage() {
                 <strong>⚠ 읽기 전용</strong>
                 <br />
                 <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-                  관리자도 원장 행을 수정·삭제할 수 없습니다. 정정은 REFUND 또는 CREDIT_ADMIN INSERT로만 가능.
+                  관리자도 거래 내역을 수정·삭제할 수 없습니다. 정정이 필요하면 환불 또는 관리자 조정으로만 처리됩니다.
                 </span>
               </div>
             </Card>
 
-            <Card p={p} padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "70px 130px 110px 110px 130px 1fr 130px 130px",
-                  padding: "12px 20px",
-                  fontSize: 11,
-                  color: p.inkMuted,
-                  fontWeight: 700,
-                  letterSpacing: 0.4,
-                  borderBottom: `1px solid ${p.line}`,
-                  background: p.bg,
-                }}
-              >
-                <div>id</div>
-                <div>시각</div>
-                <div>action</div>
-                <div>경매</div>
-                <div>user</div>
-                <div>note</div>
-                <div style={{ textAlign: "right" }}>amount</div>
-                <div style={{ textAlign: "right" }}>balance</div>
-              </div>
-              <div style={{ overflow: "auto", maxHeight: 540 }}>
-                {error && (
-                  <div style={{ padding: 24, color: p.danger, fontSize: 13, fontWeight: 700 }}>
-                    {error.message}
-                  </div>
-                )}
-                {!error && rows.length === 0 && !loading && (
-                  <div style={{ padding: 24, color: p.inkMuted, fontSize: 13, textAlign: "center" }}>
-                    표시할 원장 항목이 없습니다.
-                  </div>
-                )}
-                {rows.map((r, i) => {
-                  const c = ACTION_COLORS[r.actionType] ?? ACTION_COLORS.BID;
-                  const zebra = i % 2 === 1;
-                  const amount = Number(r.amount);
-                  const balance = Number(r.balanceAfter);
-                  return (
-                    <div
-                      key={r.id}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "70px 130px 110px 110px 130px 1fr 130px 130px",
-                        padding: "14px 20px",
-                        fontSize: 12,
-                        alignItems: "center",
-                        background: zebra ? p.bg : p.surface,
-                        borderBottom: `1px solid ${p.line}`,
-                        borderLeft: `3px solid ${c.dot}`,
-                      }}
-                    >
-                      <div className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
-                        {r.id}
-                      </div>
-                      <div className="mono" style={{ color: p.inkSoft }}>
-                        {formatTime(new Date(r.occurredAt))}
-                      </div>
-                      <div>
-                        <Pill
-                          p={p}
-                          size="sm"
-                          style={{
-                            background: c.bg,
-                            color: c.fg,
-                            fontSize: 10,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {r.actionType}
-                        </Pill>
-                      </div>
-                      <div className="mono" style={{ color: p.inkSoft, fontSize: 11, fontWeight: 600 }}>
-                        {r.auctionId ?? "—"}
-                      </div>
-                      <div style={{ color: p.ink, fontWeight: 600 }}>{r.userName}</div>
-                      <div style={{ color: p.inkMuted, fontSize: 11 }}>{r.refNote || "—"}</div>
-                      <div
+            <DataGrid<LedgerRow>
+              p={p}
+              rows={rows}
+              rowKey={(r) => r.id}
+              loading={loading}
+              error={error}
+              emptyText="표시할 원장 항목이 없습니다."
+              rowAccent={(r) => (ACTION_COLORS[r.actionType] ?? ACTION_COLORS.BID).dot}
+              maxHeight={540}
+              rowPadding="14px 20px"
+              columns={[
+                {
+                  key: "id",
+                  header: "번호",
+                  width: "70px",
+                  render: (r) => (
+                    <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
+                      {r.id}
+                    </span>
+                  ),
+                },
+                {
+                  key: "time",
+                  header: "시각",
+                  width: "130px",
+                  render: (r) => (
+                    <span className="mono" style={{ color: p.inkSoft }}>
+                      {formatTime(new Date(r.occurredAt))}
+                    </span>
+                  ),
+                },
+                {
+                  key: "action",
+                  header: "유형",
+                  width: "110px",
+                  render: (r) => {
+                    const c = ACTION_COLORS[r.actionType] ?? ACTION_COLORS.BID;
+                    return (
+                      <Pill
+                        p={p}
+                        size="sm"
+                        style={{ background: c.bg, color: c.fg, fontSize: 10, fontWeight: 700 }}
+                      >
+                        {ACTION_LABELS[r.actionType] ?? r.actionType}
+                      </Pill>
+                    );
+                  },
+                },
+                {
+                  key: "auction",
+                  header: "경매",
+                  width: "110px",
+                  render: (r) => (
+                    <span className="mono" style={{ color: p.inkSoft, fontSize: 11, fontWeight: 600 }}>
+                      {r.auctionId ?? "—"}
+                    </span>
+                  ),
+                },
+                {
+                  key: "user",
+                  header: "사용자",
+                  width: "130px",
+                  render: (r) => <span style={{ color: p.ink, fontWeight: 600 }}>{r.userName}</span>,
+                },
+                {
+                  key: "note",
+                  header: "비고",
+                  width: "1fr",
+                  render: (r) => (
+                    <span style={{ color: p.inkMuted, fontSize: 11 }}>{r.refNote || "—"}</span>
+                  ),
+                },
+                {
+                  key: "amount",
+                  header: "금액",
+                  width: "130px",
+                  align: "right",
+                  render: (r) => {
+                    const amount = Number(r.amount);
+                    return (
+                      <span
                         className="mono"
                         style={{
-                          textAlign: "right",
                           fontWeight: 800,
                           color: amount > 0 ? p.success : amount < 0 ? p.ink : p.inkMuted,
                         }}
                       >
                         {amount > 0 ? "+" : ""}
                         {amount === 0 ? "0" : fmt.point(amount)}
-                      </div>
-                      <div
-                        className="mono"
-                        style={{
-                          textAlign: "right",
-                          color: p.inkSoft,
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {fmt.point(balance)}
-                      </div>
-                    </div>
-                  );
-                })}
-                {loading && (
-                  <div style={{ padding: 16, textAlign: "center", color: p.inkMuted, fontSize: 12 }}>
-                    불러오는 중…
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "balance",
+                  header: "잔액",
+                  width: "130px",
+                  align: "right",
+                  render: (r) => (
+                    <span className="mono" style={{ color: p.inkSoft, fontSize: 11, fontWeight: 600 }}>
+                      {fmt.point(Number(r.balanceAfter))}
+                    </span>
+                  ),
+                },
+              ]}
+              footer={
+                <>
+                  <span>
+                    총 {total}건 · 현재 {rows.length}건 표시
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Btn
+                      p={p}
+                      variant="ghost"
+                      size="sm"
+                      disabled={!cursor || loading}
+                      onClick={loadMore}
+                    >
+                      {cursor ? "더 보기" : "마지막 페이지"}
+                    </Btn>
                   </div>
-                )}
-              </div>
-              <div
-                style={{
-                  padding: "12px 20px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  borderTop: `1px solid ${p.line}`,
-                  background: p.bg,
-                  fontSize: 11,
-                  color: p.inkMuted,
-                }}
-              >
-                <span>
-                  총 {total}건 · 현재 {rows.length}건 표시
-                </span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Btn
-                    p={p}
-                    variant="ghost"
-                    size="sm"
-                    disabled={!cursor || loading}
-                    onClick={loadMore}
-                  >
-                    {cursor ? "더 보기" : "마지막 페이지"}
-                  </Btn>
-                </div>
-              </div>
-            </Card>
+                </>
+              }
+            />
           </div>
         </div>
       </div>

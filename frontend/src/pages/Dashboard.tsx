@@ -269,9 +269,9 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
-                  { k: "REGULAR", v: leaveQ.data?.regular, label: "법정", color: p.ink },
-                  { k: "AUCTION", v: leaveQ.data?.auction, label: "경매", color: p.accent },
-                  { k: "EVENT", v: leaveQ.data?.event, label: "포상", color: p.warn },
+                  { k: "REGULAR", v: leaveQ.data?.regular, label: "일반 연차", color: p.ink },
+                  { k: "AUCTION", v: leaveQ.data?.auction, label: "경매 연차", color: p.accent },
+                  { k: "EVENT", v: leaveQ.data?.event, label: "포상 연차", color: p.warn },
                 ].map((it) => (
                   <div key={it.k} style={{ background: p.bg, borderRadius: 12, padding: 12 }}>
                     <div
@@ -286,9 +286,9 @@ export default function DashboardPage() {
                       {leaveQ.loading ? "—" : (it.v ?? 0)}
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: it.color, marginTop: -2 }}>
-                      {it.k}
+                      {it.label}
                     </div>
-                    <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2 }}>{it.label}일</div>
+                    <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2 }}>일</div>
                   </div>
                 ))}
               </div>
@@ -303,10 +303,10 @@ export default function DashboardPage() {
                   lineHeight: 1.5,
                 }}
               >
-                <strong>차감 순서:</strong> AUCTION → EVENT → REGULAR
+                <strong>차감 순서:</strong> 경매 연차 → 이벤트 연차 → 일반 연차
                 <br />
                 <span style={{ color: p.inkMuted, fontWeight: 500 }}>
-                  ADR-003 — 경매 연차부터 자동 차감됩니다.
+                  경매 연차부터 자동으로 차감됩니다.
                 </span>
               </div>
             </Card>
@@ -474,7 +474,7 @@ export default function DashboardPage() {
                     fontSize: 13,
                   }}
                 >
-                  진행 중인 경매가 없습니다. (관리자 콘솔에서 OPEN 상태 경매를 만드세요)
+                  진행 중인 경매가 없습니다. (관리자 콘솔에서 경매를 만드세요)
                 </div>
               )}
             </div>
@@ -582,7 +582,7 @@ export default function DashboardPage() {
               <textarea
                 value={chargeNote}
                 onChange={(e) => setChargeNote(e.target.value)}
-                placeholder="예: 회식비로 사용 예정"
+                placeholder="예: 입찰 참여용 — 잔액 부족"
                 rows={3}
                 style={{
                   width: "100%", padding: "9px 12px", borderRadius: 9,

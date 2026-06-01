@@ -13,6 +13,10 @@ const ALL_ACTIONS: LedgerActionType[] = [
   "DIVIDEND",
   "CREDIT_ADMIN",
   "EXPIRE",
+  "REDEEM",
+  "REDEEM_REFUND",
+  "CHARGE_REQUESTED",
+  "CHARGE_REJECTED",
 ];
 
 @Roles("ADMIN")

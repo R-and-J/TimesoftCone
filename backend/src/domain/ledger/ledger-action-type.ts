@@ -14,6 +14,9 @@ export const LEDGER_ACTION_TYPES = [
   "EXPIRE",
   "REDEEM",
   "REDEEM_REFUND",
+  // 충전 요청 라이프사이클 감사 entry — 잔액은 안 바꾸고 흐름만 기록.
+  "CHARGE_REQUESTED",
+  "CHARGE_REJECTED",
 ] as const;
 
 export type LedgerActionType = (typeof LEDGER_ACTION_TYPES)[number];

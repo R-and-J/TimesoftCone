@@ -235,7 +235,9 @@ export type LedgerActionType =
   | "WIN"
   | "DIVIDEND"
   | "CREDIT_ADMIN"
-  | "EXPIRE";
+  | "EXPIRE"
+  | "CHARGE_REQUESTED"
+  | "CHARGE_REJECTED";
 
 export type LedgerRow = {
   id: string;

@@ -1,10 +1,11 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
-import { Btn, Card, Pill, TopNav } from "@/components/atoms";
+import { Btn, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
+import { DataGrid } from "@/components/DataGrid";
 import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
@@ -55,10 +56,10 @@ export default function AdminMembersPage() {
 
   const data = membersQ.data;
   const isLocal = data?.mode === "local";
-  // 마지막에 "포인트" + "작업" 컬럼 추가. 위임형은 작업이 충전 한 개라 80px.
-  const cols = isLocal
-    ? "110px 1fr 200px 1fr 150px 80px 110px 220px"
-    : "120px 1fr 220px 1.2fr 160px 90px 110px 80px";
+  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트/작업). 위임형은 작업이 충전 한 개라 좁다.
+  const w = isLocal
+    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "110px", "220px"]
+    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "110px", "80px"];
 
   // 충전 모달 상태.
   // free: 관리자 자유 충전. request: 알림에서 들어온 충전 요청(승인/반려).
@@ -83,8 +84,8 @@ export default function AdminMembersPage() {
   const doCredit = async () => {
     if (!creditFor) return;
     const n = Number(creditAmount);
-    if (!Number.isFinite(n) || n <= 0) {
-      toast.push("error", "금액은 양수여야 합니다");
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n === 0) {
+      toast.push("error", "금액은 0이 아닌 정수여야 합니다 (음수=차감)");
       return;
     }
     if (!creditReason.trim()) {
@@ -94,9 +95,11 @@ export default function AdminMembersPage() {
     setCrediting(true);
     try {
       const r = await adminCreditWallet(creditFor.userId, n, creditReason.trim());
+      const verb = n > 0 ? "충전" : "차감";
+      const sign = n > 0 ? "+" : "−";
       toast.push(
         "success",
-        `${creditFor.name} 충전 — +${fmt.point(n)} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+        `${creditFor.name} ${verb} — ${sign}${fmt.point(Math.abs(n))} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
       );
       setCreditFor(null);
       await membersQ.refetch();
@@ -368,138 +371,127 @@ export default function AdminMembersPage() {
             )}
           </div>
 
-          <Card
+          <DataGrid<MemberRow>
             p={p}
-            padding={0}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              minHeight: 0,
-              border: `1px solid ${p.bgDeep}`,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: cols,
-                padding: "13px 20px",
-                fontSize: 11,
-                color: p.inkSoft,
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                borderBottom: `1px solid ${p.line}`,
-                background: p.bgDeep,
-              }}
-            >
-              <div>사번</div>
-              <div>이름</div>
-              <div>이메일</div>
-              <div>부서</div>
-              <div>직급 / 직책</div>
-              <div style={{ textAlign: "left" }}>권한</div>
-              <div style={{ textAlign: "right" }}>포인트</div>
-              <div style={{ textAlign: "right" }}>작업</div>
-            </div>
-            <div style={{ overflow: "auto", maxHeight: 560 }}>
-              {membersQ.error && (
-                <div style={{ padding: 24, color: p.danger, fontSize: 13, fontWeight: 700 }}>
-                  {membersQ.error.message}
-                </div>
-              )}
-              {!membersQ.error && data?.members.length === 0 && !membersQ.loading && (
-                <div style={{ padding: 24, color: p.inkMuted, fontSize: 13, textAlign: "center" }}>
-                  {isLocal
-                    ? "회원이 없습니다. 「회원 추가」로 등록하세요."
-                    : "미러된 회원이 없습니다. 「지금 동기화」를 눌러 ezpass에서 가져오세요."}
-                </div>
-              )}
-              {data?.members.map((m, i) => {
-                const zebra = i % 2 === 1;
-                const isAdmin = m.role === "ADMIN";
-                const rankTitle = [m.jobRank, m.jobTitle].filter(Boolean).join(" / ") || "—";
-                return (
-                  <div
-                    key={m.userId}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: cols,
-                      padding: "13px 20px",
-                      fontSize: 12,
-                      alignItems: "center",
-                      background: zebra ? p.bg : p.surface,
-                      borderBottom: `1px solid ${p.line}`,
-                      opacity: m.active ? 1 : 0.5,
-                    }}
-                  >
-                    <div className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
-                      {m.empId}
-                    </div>
-                    <div style={{ color: p.ink, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                      {m.name}
-                      {!m.active && (
-                        <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
-                          비활성
-                        </Pill>
-                      )}
-                    </div>
-                    <div className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
-                      {m.email ?? "—"}
-                    </div>
-                    <div style={{ color: p.inkSoft }}>{m.team ?? "—"}</div>
-                    <div style={{ color: p.inkSoft }}>{rankTitle}</div>
-                    <div style={{ textAlign: "left" }}>
-                      <Pill
-                        p={p}
-                        size="sm"
-                        tone={isAdmin ? "accent" : "neutral"}
-                        style={{ fontSize: 10, fontWeight: 700 }}
-                      >
-                        {isAdmin ? "관리자" : "직원"}
+            rows={data?.members ?? []}
+            rowKey={(m) => m.userId}
+            loading={membersQ.loading}
+            error={membersQ.error}
+            emptyText={
+              isLocal
+                ? "회원이 없습니다. 「회원 추가」로 등록하세요."
+                : "미러된 회원이 없습니다. 「지금 동기화」를 눌러 ezpass에서 가져오세요."
+            }
+            rowStyle={(m) => ({ opacity: m.active ? 1 : 0.5 })}
+            maxHeight={560}
+            columns={[
+              {
+                key: "empId",
+                header: "사번",
+                width: w[0],
+                render: (m) => (
+                  <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
+                    {m.empId}
+                  </span>
+                ),
+              },
+              {
+                key: "name",
+                header: "이름",
+                width: w[1],
+                render: (m) => (
+                  <span style={{ color: p.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {m.name}
+                    {!m.active && (
+                      <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
+                        비활성
                       </Pill>
-                    </div>
-                    <div
-                      className="mono"
-                      style={{ textAlign: "right", color: p.ink, fontWeight: 700, fontSize: 12 }}
-                    >
-                      {fmt.point(Number(m.balance))} P
-                    </div>
-                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                      <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
-                        충전
-                      </Btn>
-                      {isLocal && (
-                        <>
-                          <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
-                            수정
-                          </Btn>
-                          <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
-                            {m.active ? "비활성" : "활성"}
-                          </Btn>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {membersQ.loading && (
-                <div style={{ padding: 16, textAlign: "center", color: p.inkMuted, fontSize: 12 }}>
-                  불러오는 중…
-                </div>
-              )}
-            </div>
-            <div
-              style={{
-                padding: "12px 20px",
-                borderTop: `1px solid ${p.line}`,
-                background: p.bg,
-                fontSize: 11,
-                color: p.inkMuted,
-              }}
-            >
-              총 {data?.total ?? 0}명 · 출처 {isLocal ? "자체 관리" : "ezpass 미러"}
-            </div>
-          </Card>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: "email",
+                header: "이메일",
+                width: w[2],
+                render: (m) => (
+                  <span className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
+                    {m.email ?? "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "team",
+                header: "부서",
+                width: w[3],
+                render: (m) => <span style={{ color: p.inkSoft }}>{m.team ?? "—"}</span>,
+              },
+              {
+                key: "rank",
+                header: "직급 / 직책",
+                width: w[4],
+                render: (m) => (
+                  <span style={{ color: p.inkSoft }}>
+                    {[m.jobRank, m.jobTitle].filter(Boolean).join(" / ") || "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "role",
+                header: "권한",
+                width: w[5],
+                render: (m) => (
+                  <Pill
+                    p={p}
+                    size="sm"
+                    tone={m.role === "ADMIN" ? "accent" : "neutral"}
+                    style={{ fontSize: 10, fontWeight: 700 }}
+                  >
+                    {m.role === "ADMIN" ? "관리자" : "직원"}
+                  </Pill>
+                ),
+              },
+              {
+                key: "balance",
+                header: "포인트",
+                width: w[6],
+                align: "right",
+                render: (m) => (
+                  <span className="mono" style={{ color: p.ink, fontWeight: 700, fontSize: 12 }}>
+                    {fmt.point(Number(m.balance))} P
+                  </span>
+                ),
+              },
+              {
+                key: "actions",
+                header: "작업",
+                width: w[7],
+                align: "right",
+                render: (m) => (
+                  <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                    <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
+                      관리
+                    </Btn>
+                    {isLocal && (
+                      <>
+                        <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
+                          수정
+                        </Btn>
+                        <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
+                          {m.active ? "비활성" : "활성"}
+                        </Btn>
+                      </>
+                    )}
+                  </span>
+                ),
+              },
+            ]}
+            footer={
+              <span>
+                총 {data?.total ?? 0}명 · 출처 {isLocal ? "자체 관리" : "ezpass 미러"}
+              </span>
+            }
+          />
         </div>
       </div>
 
@@ -521,7 +513,7 @@ export default function AdminMembersPage() {
             style={{ width: 440, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
           >
             <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
-              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "포인트 충전"}
+              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "포인트 관리"}
             </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>
               <b>{creditFor.name}</b> · 사번 {creditFor.empId}
@@ -535,13 +527,13 @@ export default function AdminMembersPage() {
               현재 잔액 {fmt.point(Number(creditFor.balance))} P
             </div>
 
-            <Field label={chargeReq ? "요청 금액 (P)" : "충전 금액 (P)"}>
+            <Field label={chargeReq ? "요청 금액 (P)" : "금액 (P · 음수=차감)"}>
               <input
                 style={{ ...inp(p), background: chargeReq ? p.bgDeep : p.bg }}
-                type="number" min={1} step={100}
+                type="number" step={100}
                 value={creditAmount}
                 onChange={(e) => setCreditAmount(e.target.value)}
-                placeholder="예: 10000"
+                placeholder="예: 10000 또는 -5000"
                 readOnly={!!chargeReq}
               />
             </Field>
@@ -572,7 +564,7 @@ export default function AdminMembersPage() {
                 <>
                   <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => setCreditFor(null)}>취소</Btn>
                   <Btn p={p} variant="primary" size="md" disabled={crediting} onClick={doCredit}>
-                    {crediting ? "충전 중…" : "충전"}
+                    {crediting ? "처리 중…" : Number(creditAmount) < 0 ? "차감" : "충전"}
                   </Btn>
                 </>
               )}
