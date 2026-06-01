@@ -23,6 +23,10 @@ export default function AuctionListGridPage() {
   const upcoming = all.filter((a) => a.status === "CREATED");
   const closed = all.filter((a) => a.status === "AWARDED" || a.status === "UNSOLD");
   const shown: AuctionListItem[] = tab === "open" ? open : tab === "upcoming" ? upcoming : closed;
+  // 마감 탭 헤더 통계 — AWARDED 매물의 낙찰가 합계가 곧 에스크로우 적립.
+  const awarded = closed.filter((a) => a.status === "AWARDED");
+  const awardedEscrow = awarded.reduce((sum, a) => sum + Number(a.highest), 0);
+  const unsoldCount = closed.length - awarded.length;
 
   return (
     <ScreenFrame>
@@ -120,6 +124,28 @@ export default function AuctionListGridPage() {
             })}
           </div>
 
+          {tab === "closed" && q.data && (
+            <Card p={p} padding={14} style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 700 }}>이번 연도 마감 합계</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>에스크로우 적립</span>
+                  <span className="mono" style={{ fontSize: 20, color: p.accent, fontWeight: 800, letterSpacing: "-0.02em" }}>
+                    {fmt.point(awardedEscrow)}
+                  </span>
+                  <span style={{ fontSize: 12, color: p.inkMuted, fontWeight: 600 }}>P</span>
+                </div>
+                <div style={{ fontSize: 12, color: p.inkSoft }}>
+                  낙찰 <b style={{ color: p.ink }}>{awarded.length}</b>건 · 유찰 <b style={{ color: p.ink }}>{unsoldCount}</b>건
+                </div>
+                <div style={{ flex: 1 }} />
+                <div style={{ fontSize: 11, color: p.inkMuted }}>
+                  낙찰가가 곧 에스크로우(연말 배당 재원).
+                </div>
+              </div>
+            </Card>
+          )}
+
           {q.loading && (
             <div style={{ padding: 40, textAlign: "center", color: p.inkMuted }}>
               불러오는 중…
@@ -180,15 +206,16 @@ function AuctionCard({
 }) {
   const isOpen = a.status === "OPEN";
   const isUpcoming = a.status === "CREATED";
+  const isAwarded = a.status === "AWARDED";
+  const isUnsold = a.status === "UNSOLD";
+  const isClosed = isAwarded || isUnsold;
   const highest = Number(a.highest);
   const startPrice = Number(a.startPrice);
   const isHot = isOpen && new Date(a.endsAt).getTime() - Date.now() < 30 * 60 * 1000;
-  const endLabel = new Date(a.endsAt).toLocaleString("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const fmtTime = (d: Date) =>
+    d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const endLabel = fmtTime(new Date(a.endsAt));
+  const closedAtLabel = a.settledAt ? fmtTime(new Date(a.settledAt)) : endLabel;
 
   return (
     <Card p={p} padding={20} hover style={{ position: "relative" }} onClick={onClick}>
@@ -204,6 +231,16 @@ function AuctionCard({
           <Pill p={p} tone="neutral" size="sm">
             예정
           </Pill>
+        </div>
+      )}
+      {isAwarded && (
+        <div style={{ position: "absolute", top: 16, right: 16 }}>
+          <Pill p={p} tone="success" size="sm">낙찰</Pill>
+        </div>
+      )}
+      {isUnsold && (
+        <div style={{ position: "absolute", top: 16, right: 16 }}>
+          <Pill p={p} tone="warn" size="sm">유찰</Pill>
         </div>
       )}
       <div className="mono" style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>
@@ -273,7 +310,7 @@ function AuctionCard({
             </span>
           </div>
         </>
-      ) : (
+      ) : isUpcoming ? (
         <>
           <div style={{ marginTop: 18 }}>
             <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600, marginBottom: 4 }}>
@@ -294,13 +331,45 @@ function AuctionCard({
             </div>
           </div>
           <div style={{ marginTop: 24, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>
-            {new Date(a.startedAt).toLocaleString("ko-KR", {
-              month: "numeric",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}{" "}
-            오픈 예정
+            {fmtTime(new Date(a.startedAt))} 오픈 예정
+          </div>
+        </>
+      ) : (
+        // AWARDED / UNSOLD — 좌측하단: 마감시간, 우측하단: 낙찰자(있으면) / 유찰 표시.
+        <>
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600, marginBottom: 4 }}>
+              {isAwarded ? "낙찰가" : "시작가"}
+            </div>
+            <div
+              className="mono"
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: isAwarded ? p.ink : p.inkMuted,
+                letterSpacing: "-0.025em",
+                lineHeight: 1,
+              }}
+            >
+              {fmt.point(isAwarded ? highest : startPrice)}
+              <span style={{ fontSize: 13, marginLeft: 4 }}>P</span>
+            </div>
+          </div>
+          <div
+            style={{
+              marginTop: 24,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: 12,
+              color: p.inkSoft,
+              fontWeight: 600,
+            }}
+          >
+            <span>{closedAtLabel} 마감</span>
+            <span style={{ color: isAwarded ? p.ink : p.inkMuted, fontWeight: 700 }}>
+              {isAwarded ? (a.highestBidderName ?? "익명") : "낙찰자 없음"}
+            </span>
           </div>
         </>
       )}
