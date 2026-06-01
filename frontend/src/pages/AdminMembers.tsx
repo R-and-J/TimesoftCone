@@ -17,9 +17,14 @@ import {
   syncMembers,
   createMember,
   updateMember,
+  checkLeaveSync,
+  reconcileUserLeave,
   type ChargeRequestRow,
   type MemberRow,
+  type LeaveSyncReport,
+  type LeaveSyncRow,
 } from "@/lib/queries";
+import { roleLabel } from "@/lib/roles";
 
 type FormState = {
   userId: string | null; // null = 신규
@@ -28,7 +33,8 @@ type FormState = {
   team: string;
   jobRank: string;
   jobTitle: string;
-  role: "EMPLOYEE" | "ADMIN";
+  // 로컬 폼은 EXAM(독립)/ADMIN만 — EZPASS는 ezpass 동기화로만 관리.
+  role: "EXAM" | "ADMIN";
   active: boolean;
   password: string;
 };
@@ -40,7 +46,7 @@ const EMPTY_FORM: FormState = {
   team: "",
   jobRank: "",
   jobTitle: "",
-  role: "EMPLOYEE",
+  role: "EXAM",
   active: true,
   password: "",
 };
@@ -68,6 +74,39 @@ export default function AdminMembersPage() {
   const [creditReason, setCreditReason] = useState("");
   const [crediting, setCrediting] = useState(false);
   const [chargeReq, setChargeReq] = useState<ChargeRequestRow | null>(null);
+
+  // ezpass 연차 정합 점검 — 평소 자동 sync(낙찰→Outbox→streYryc)면 항상 일치.
+  // drift 발생 시(데이터 이슈 등)에만 [점검] 트리거 → 행별 [동기] 비상조치.
+  const [syncReport, setSyncReport] = useState<LeaveSyncReport | null>(null);
+  const [syncChecking, setSyncChecking] = useState(false);
+  const [reconciling, setReconciling] = useState<string | null>(null);
+
+  const runLeaveSyncCheck = async () => {
+    setSyncChecking(true);
+    try {
+      const r = await checkLeaveSync();
+      setSyncReport(r);
+      if (r.driftCount === 0) toast.push("success", "ezpass 연차 정합 OK");
+      else toast.push("info", `drift ${r.driftCount}명 발견`);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setSyncChecking(false);
+    }
+  };
+
+  const doReconcile = async (userId: string) => {
+    setReconciling(userId);
+    try {
+      const r = await reconcileUserLeave(userId);
+      toast.push("success", `동기됨 — ezpass ${r.ezpassPrevious} → ${r.ezpassApplied}`);
+      await runLeaveSyncCheck();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setReconciling(null);
+    }
+  };
 
   const openCredit = (m: MemberRow) => {
     setCreditFor(m);
@@ -210,7 +249,8 @@ export default function AdminMembersPage() {
       team: m.team ?? "",
       jobRank: m.jobRank ?? "",
       jobTitle: m.jobTitle ?? "",
-      role: m.role,
+      // EZPASS 행은 수정 진입이 막혀 있으므로 여기엔 EXAM/ADMIN만 들어온다.
+      role: m.role === "ADMIN" ? "ADMIN" : "EXAM",
       active: m.active,
       password: "",
     });
@@ -324,20 +364,20 @@ export default function AdminMembersPage() {
               <Btn p={p} variant="ghost" size="md" onClick={() => membersQ.refetch()}>
                 새로고침
               </Btn>
-              {isLocal ? (
-                <Btn p={p} variant="dark" size="md" onClick={openCreate}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <Icon.bolt size={14} /> 회원 추가
-                  </span>
-                </Btn>
-              ) : (
-                <Btn p={p} variant="dark" size="md" disabled={syncing} onClick={doSync}>
+              {!isLocal && (
+                <Btn p={p} variant="ghost" size="md" disabled={syncing} onClick={doSync}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <Icon.bolt size={14} />
                     {syncing ? "동기화 중…" : "지금 동기화"}
                   </span>
                 </Btn>
               )}
+              {/* EXAM(비연동) 계정은 어느 배포에서나 직접 추가 가능. EZPASS는 동기화로만. */}
+              <Btn p={p} variant="dark" size="md" onClick={openCreate}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon.bolt size={14} /> 회원 추가 (exam)
+                </span>
+              </Btn>
             </div>
           </div>
 
@@ -368,6 +408,48 @@ export default function AdminMembersPage() {
                   「지금 동기화」로 최신 상태를 당겨옵니다. 연차·경매금은 우리 시스템이 소유합니다.
                 </span>
               </>
+            )}
+          </div>
+
+          {/* ezpass 연차 정합 점검 — drift 있을 때만 페이지 상단에 노란 배너로 노출(평소엔 작은 점검 버튼) */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: syncReport ? 8 : 0 }}>
+              <div style={{ fontSize: 11, color: p.inkMuted }}>
+                평소엔 낙찰 자동 sync. 이슈로 어긋날 때만 점검·동기.
+              </div>
+              <Btn p={p} variant="ghost" size="sm" disabled={syncChecking} onClick={runLeaveSyncCheck}>
+                {syncChecking ? "점검 중…" : "ezpass 연차 동기 점검"}
+              </Btn>
+            </div>
+            {syncReport && syncReport.driftCount > 0 && (
+              <div style={{ padding: 12, background: "#FFF4E0", border: `1px solid #F3CD7F`, borderRadius: 10, fontSize: 12 }}>
+                <div style={{ fontWeight: 700, color: p.warn, marginBottom: 8 }}>
+                  ⚠ ezpass와 어긋난 사용자 {syncReport.driftCount}명 ({syncReport.year}년 기준)
+                </div>
+                {syncReport.rows.filter((r) => !r.inSync).map((r: LeaveSyncRow) => (
+                  <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr 120px", gap: 8, alignItems: "center", padding: "6px 0", borderTop: `1px solid #F3CD7F` }}>
+                    <div style={{ color: p.ink, fontWeight: 600 }}>{r.name} <span style={{ color: p.inkMuted, fontWeight: 400 }}>· {r.email}</span></div>
+                    <div className="mono" style={{ color: p.inkSoft }}>우리 {r.ourAuctionDays}일 ↔ ezpass {r.ezpassMdat ?? "?"}일</div>
+                    <div style={{ color: p.inkMuted, fontSize: 11 }}>{r.error ?? "—"}</div>
+                    <div style={{ textAlign: "right" }}>
+                      <Btn
+                        p={p}
+                        variant="primary"
+                        size="sm"
+                        disabled={reconciling === r.userId || !!r.error}
+                        onClick={() => doReconcile(r.userId)}
+                      >
+                        {reconciling === r.userId ? "동기 중…" : "ezpass에 동기"}
+                      </Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {syncReport && syncReport.driftCount === 0 && (
+              <div style={{ padding: 8, fontSize: 11, color: p.success, marginTop: 8 }}>
+                ✓ 정합 OK · {new Date(syncReport.checkedAt).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </div>
             )}
           </div>
 
@@ -444,10 +526,10 @@ export default function AdminMembersPage() {
                   <Pill
                     p={p}
                     size="sm"
-                    tone={m.role === "ADMIN" ? "accent" : "neutral"}
+                    tone={m.role === "ADMIN" ? "accent" : m.role === "EXAM" ? "warn" : "neutral"}
                     style={{ fontSize: 10, fontWeight: 700 }}
                   >
-                    {m.role === "ADMIN" ? "관리자" : "직원"}
+                    {roleLabel(m.role)}
                   </Pill>
                 ),
               },
@@ -472,7 +554,8 @@ export default function AdminMembersPage() {
                     <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
                       관리
                     </Btn>
-                    {isLocal && (
+                    {/* EXAM/ADMIN(로컬)만 수정·비활성. EZPASS는 ezpass 동기화 전용(읽기). */}
+                    {m.role !== "EZPASS" && (
                       <>
                         <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
                           수정
@@ -623,9 +706,9 @@ export default function AdminMembersPage() {
                 <select
                   style={inp(p)}
                   value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as "EMPLOYEE" | "ADMIN" })}
+                  onChange={(e) => setForm({ ...form, role: e.target.value as "EXAM" | "ADMIN" })}
                 >
-                  <option value="EMPLOYEE">직원</option>
+                  <option value="EXAM">exam (비연동)</option>
                   <option value="ADMIN">관리자</option>
                 </select>
               </Field>

@@ -70,6 +70,8 @@ import { RejectRedemptionRequestUseCase } from "./application/redemption/reject-
 import { ConfirmRedemptionReceivedUseCase } from "./application/redemption/confirm-redemption-received.use-case";
 import { ListRedemptionRequestsUseCase } from "./application/redemption/list-redemption-requests.use-case";
 import { GetRedemptionSummaryUseCase } from "./application/redemption/get-redemption-summary.use-case";
+import { GetLeaveSyncReportUseCase } from "./application/leave-sync/get-leave-sync-report.use-case";
+import { ReconcileUserLeaveUseCase } from "./application/leave-sync/reconcile-user-leave.use-case";
 import { SubmitChargeRequestUseCase } from "./application/wallet/charge/submit-charge-request.use-case";
 import { ApproveChargeRequestUseCase } from "./application/wallet/charge/approve-charge-request.use-case";
 import { RejectChargeRequestUseCase } from "./application/wallet/charge/reject-charge-request.use-case";
@@ -97,6 +99,7 @@ import { NotificationsController } from "./interfaces/http/notifications.control
 import { RedemptionController, UserRedemptionOrdersController } from "./interfaces/http/redemption.controller";
 import { RedemptionRequestsController } from "./interfaces/http/redemption-requests.controller";
 import { AdminRedemptionRequestsController } from "./interfaces/http/admin-redemption-requests.controller";
+import { AdminLeaveSyncController } from "./interfaces/http/admin-leave-sync.controller";
 import { WalletChargeController } from "./interfaces/http/wallet-charge.controller";
 import { AdminChargesController } from "./interfaces/http/admin-charges.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
@@ -153,6 +156,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     UserRedemptionOrdersController,
     RedemptionRequestsController,
     AdminRedemptionRequestsController,
+    AdminLeaveSyncController,
     WalletChargeController,
     AdminChargesController,
     DividendController,
@@ -259,6 +263,8 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     ConfirmRedemptionReceivedUseCase,
     ListRedemptionRequestsUseCase,
     GetRedemptionSummaryUseCase,
+    GetLeaveSyncReportUseCase,
+    ReconcileUserLeaveUseCase,
     SubmitChargeRequestUseCase,
     ApproveChargeRequestUseCase,
     RejectChargeRequestUseCase,

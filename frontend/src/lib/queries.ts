@@ -11,12 +11,16 @@ export type AuctionListItem = {
   startPrice: string;
   highest: string;
   highestBidder: string | null;
+  /** 최고가 입찰자(OPEN) / 낙찰자(AWARDED) 이름. 없으면 null. */
+  highestBidderName: string | null;
   bidCount: number;
   minIncrement: string;
   /** 낙찰 시 받는 AUCTION 연차 일수. */
   leaveDays: number;
   startedAt: string;
   endsAt: string;
+  /** 정산 시각(AWARDED/UNSOLD). 그 외 null. */
+  settledAt: string | null;
 };
 
 export type AuctionDetailResponse = AuctionListItem & {
@@ -113,7 +117,7 @@ export type LoginResponse = {
   userId: string;
   empId: string;
   name: string;
-  role: "EMPLOYEE" | "ADMIN";
+  role: "ADMIN" | "EZPASS" | "EXAM";
   team: string | null;
   jobRank: string | null;
   jobTitle: string | null;
@@ -287,7 +291,7 @@ export type MemberRow = {
   team: string | null;
   jobRank: string | null;
   jobTitle: string | null;
-  role: "EMPLOYEE" | "ADMIN";
+  role: "ADMIN" | "EZPASS" | "EXAM";
   active: boolean;
   /** WELFARE_POINT 잔액(bigint 문자열). */
   balance: string;
@@ -318,12 +322,12 @@ export function syncMembers() {
   return apiPost<SyncMembersResponse>("/admin/members/sync", {});
 }
 
-// 자립형(local) 전용 CRUD — 위임형에선 백엔드가 409로 거부.
+// 로컬 회원 CRUD — EXAM(독립)/ADMIN만. EZPASS(회사 도메인)는 백엔드가 409로 거부.
 export type CreateMemberInput = {
   email: string;
   name: string;
   password: string;
-  role: "EMPLOYEE" | "ADMIN";
+  role: "EXAM" | "ADMIN";
   empId?: string;
   team?: string | null;
   jobRank?: string | null;
@@ -332,7 +336,7 @@ export type CreateMemberInput = {
 
 export type UpdateMemberInput = {
   name?: string;
-  role?: "EMPLOYEE" | "ADMIN";
+  role?: "EXAM" | "ADMIN";
   team?: string | null;
   jobRank?: string | null;
   jobTitle?: string | null;
@@ -457,6 +461,42 @@ export type RedemptionSummaryResponse = {
 
 export function getRedemptionSummary() {
   return apiGet<RedemptionSummaryResponse>("/admin/redemption-requests/summary");
+}
+
+// ── 관리자 비상조치 — 우리 leave_balance.AUCTION ↔ ezpass mdat 정합 ────
+// 평소엔 자동 sync(낙찰→Outbox→relay→streYryc). drift 발생 시 명시 트리거.
+export type LeaveSyncRow = {
+  userId: string;
+  empId: string;
+  name: string;
+  email: string;
+  year: number;
+  ourAuctionDays: number;
+  ezpassMdat: number | null;
+  inSync: boolean;
+  error: string | null;
+};
+export type LeaveSyncReport = {
+  year: number;
+  checkedAt: string;
+  rows: LeaveSyncRow[];
+  driftCount: number;
+};
+export function checkLeaveSync(year?: number) {
+  const qs = year !== undefined ? `?year=${year}` : "";
+  return apiPost<LeaveSyncReport>(`/admin/leave-sync/check${qs}`, {});
+}
+export type ReconcileResult = {
+  userId: string;
+  email: string;
+  year: number;
+  ourValue: number;
+  ezpassPrevious: number;
+  ezpassApplied: number;
+};
+export function reconcileUserLeave(userId: string | number, year?: number) {
+  const qs = year !== undefined ? `?year=${year}` : "";
+  return apiPost<ReconcileResult>(`/admin/leave-sync/${userId}/reconcile${qs}`, {});
 }
 
 export function approveRedemptionRequest(id: number, couponCode: string, note?: string) {

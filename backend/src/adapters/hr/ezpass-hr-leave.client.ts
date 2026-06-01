@@ -53,10 +53,38 @@ export class EzpassHrLeaveClient implements HrLeaveClient {
     const currentMdat = await this.fetchCurrentMdat(userNo, grant.year, token);
     const newMdat = round3(currentMdat + grant.days);
 
-    await this.putStreYryc(userNo, grant.year, newMdat, grant.auctionId, token);
+    await this.putStreYryc(userNo, grant.year, newMdat, `낙찰 적립 (경매 ${grant.auctionId})`, token);
     this.logger.log(
       `[ezpass mdat ${currentMdat} → ${newMdat}] ${grant.email} user_no=${userNo} ${grant.year} (+${grant.days}일, 경매 ${grant.auctionId})`,
     );
+  }
+
+  /** 관리자 비상조치 — 현재 mdat을 절대값 N으로 덮어씀.
+   *  drift 발견 시 우리 leave_balance.AUCTION 값에 맞춰 ezpass mdat을 강제 동기.
+   *  return: { previous, applied } 로 변화량 노출(감사용). */
+  async setMdatAbsolute(
+    email: string,
+    year: number,
+    days: number,
+    content: string,
+  ): Promise<{ userNo: number; previous: number; applied: number }> {
+    const userNo = await this.resolveUserNo(email);
+    const token = await this.admin.getToken();
+    const previous = await this.fetchCurrentMdat(userNo, year, token);
+    const applied = round3(days);
+    await this.putStreYryc(userNo, year, applied, content, token);
+    this.logger.log(
+      `[ezpass mdat reconcile ${previous} → ${applied}] ${email} user_no=${userNo} ${year} (${content})`,
+    );
+    return { userNo, previous, applied };
+  }
+
+  /** drift 점검용 — 단일 사용자 현재 mdat 조회. */
+  async getCurrentMdat(email: string, year: number): Promise<{ userNo: number; mdat: number }> {
+    const userNo = await this.resolveUserNo(email);
+    const token = await this.admin.getToken();
+    const mdat = await this.fetchCurrentMdat(userNo, year, token);
+    return { userNo, mdat };
   }
 
   /** email → (user_no, cmpny_no) 일회성 READ-ONLY 매핑.
@@ -109,7 +137,7 @@ export class EzpassHrLeaveClient implements HrLeaveClient {
     userNo: number,
     year: number,
     newMdat: number,
-    auctionId: string,
+    content: string,
     token: string,
   ): Promise<void> {
     const base = this.requireBase();
@@ -120,7 +148,7 @@ export class EzpassHrLeaveClient implements HrLeaveClient {
         mdatYrycDayQty: newMdat,
         mdatYrycDayQtyMinute: 0,
         yrycYear: year,
-        content: `낙찰 적립 (경매 ${auctionId})`,
+        content,
       },
     ];
     const res = await this.callJson("PUT", url, body, token);
