@@ -16,7 +16,9 @@ import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { LEAVE_POOL, type LeavePoolPort } from "@/ports/leave-pool.port";
+import { RELEASE_POLICY, type ReleasePolicyRepository } from "@/ports/release-policy.port";
 import { planLeavePool } from "@/domain/leave-pool/leave-pool-plan";
+import { planRelease } from "@/domain/leave-pool/release-plan";
 import {
   AUCTION_EVENTS,
   AuctionInventoryCreatedEvent,
@@ -43,6 +45,7 @@ const DEFAULTS = { startPrice: 5000n, minIncrement: 100n, auctionDays: 7, weekly
 export class CollectLeavePoolUseCase {
   constructor(
     @Inject(LEAVE_POOL) private readonly pool: LeavePoolPort,
+    @Inject(RELEASE_POLICY) private readonly policyRepo: ReleasePolicyRepository,
     private readonly config: ConfigService,
     private readonly events: EventEmitter2,
   ) {}
@@ -62,7 +65,19 @@ export class CollectLeavePoolUseCase {
 
     const contributions = await this.pool.regularContributions(sourceYear);
     const opts = this.options(targetYear);
-    const plan = planLeavePool(contributions, opts);
+
+    // 분산 정책 — 행이 없으면 폴백(none = 즉시 baseDate).
+    const policy = (await this.policyRepo.get()) ?? { cadence: "none" as const };
+    const totalDays = contributions.filter((c) => c.days > 0).reduce((s, c) => s + c.days, 0);
+    const baseDate = computeBaseDate(targetYear);
+    let startedAtSlots: Date[] = [];
+    if (totalDays > 0) {
+      startedAtSlots =
+        policy.cadence === "none"
+          ? Array.from({ length: totalDays }, () => new Date(baseDate.getTime()))
+          : planRelease(policy, totalDays, baseDate);
+    }
+    const plan = planLeavePool(contributions, { ...opts, startedAtSlots });
 
     const top = [...contributions]
       .filter((c) => c.days > 0)
@@ -90,6 +105,8 @@ export class CollectLeavePoolUseCase {
       stakes: plan.stakes,
       items: plan.items,
       summary: plan.summary,
+      // 정책 none = "분산 자동 안 함" → 매물도 보류로 만들어 관리자 수동 운영.
+      asDraft: policy.cadence === "none",
     });
 
     // 커밋 후 발행 — 구독자(메트릭/알림 등)가 붙을 수 있음(Use Case는 무지, ADR-013).
@@ -128,4 +145,11 @@ export class CollectLeavePoolUseCase {
       weeklyQty: int("LEAVEPOOL_WEEKLY_QTY", DEFAULTS.weeklyQty),
     };
   }
+}
+
+/** 분산 시작 기준점 — targetYear 1/1과 현재 시각 중 더 늦은 쪽(과거 회차 X). */
+function computeBaseDate(targetYear: number): Date {
+  const yearStart = new Date(targetYear, 0, 1, 0, 0, 0, 0);
+  const now = new Date();
+  return now.getTime() > yearStart.getTime() ? now : yearStart;
 }

@@ -4,15 +4,22 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Param,
   Post,
+  Query,
   UsePipes,
 } from "@nestjs/common";
 import { z } from "zod";
 import { CreateAuctionUseCase } from "@/application/auction/create-auction.use-case";
 import { OpenAuctionUseCase } from "@/application/auction/open-auction.use-case";
+import { ScheduleAuctionUseCase } from "@/application/auction/schedule-auction.use-case";
 import { SettleAuctionUseCase } from "@/application/auction/settle-auction.use-case";
 import { SettleDueAuctionsUseCase } from "@/application/auction/settle-due-auctions.use-case";
+import { OpenDueAuctionsUseCase } from "@/application/auction/open-due-auctions.use-case";
+import { CancelAuctionsUseCase } from "@/application/auction/cancel-auctions.use-case";
+import { GetAuctionsSummaryUseCase } from "@/application/auction/get-auctions-summary.use-case";
+import { GetNextAuctionIdUseCase } from "@/application/auction/get-next-auction-id.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
 import { Roles } from "./auth/auth.decorators";
@@ -22,15 +29,21 @@ const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
 });
 
 const createSchema = z.object({
-  id: z.string().regex(/^A-\d{4}-\d{3,}$/, "id must match A-YYYY-NNN"),
+  /** 1일권 발행 수량(기본 1). id는 서버 채번, leaveDays는 1 고정. */
+  quantity: z
+    .union([z.string(), z.number()])
+    .refine((v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 1000, "quantity must be 1~1000")
+    .optional(),
   startPrice: z.union([z.string(), z.number()]),
   minIncrement: z.union([z.string(), z.number()]).optional(),
-  leaveDays: z
-    .union([z.string(), z.number()])
-    .refine((v) => Number.isInteger(Number(v)) && Number(v) >= 1, "leaveDays must be a positive integer")
-    .optional(),
-  startedAt: isoDate,
-  endsAt: isoDate,
+  /** true면 DRAFT(보류) 매물로 생성. startedAt/endsAt 불필요. */
+  asDraft: z.boolean().optional(),
+  startedAt: isoDate.optional(),
+  endsAt: isoDate.optional(),
+});
+
+const cancelSchema = z.object({
+  ids: z.array(z.string().regex(/^A-\d{4}-\d{3,}$/, "id must match A-YYYY-NNN")).min(1),
 });
 
 const openSchema = z.object({
@@ -51,8 +64,13 @@ export class AdminAuctionsController {
   constructor(
     private readonly createUC: CreateAuctionUseCase,
     private readonly openUC: OpenAuctionUseCase,
+    private readonly scheduleUC: ScheduleAuctionUseCase,
     private readonly settleUC: SettleAuctionUseCase,
     private readonly settleDueUC: SettleDueAuctionsUseCase,
+    private readonly openDueUC: OpenDueAuctionsUseCase,
+    private readonly cancelUC: CancelAuctionsUseCase,
+    private readonly summaryUC: GetAuctionsSummaryUseCase,
+    private readonly nextIdUC: GetNextAuctionIdUseCase,
   ) {}
 
   @Post()
@@ -81,6 +99,21 @@ export class AdminAuctionsController {
     }
   }
 
+  /** CREATED 경매의 운영 파라미터만 갱신(예약 저장) — 상태는 CREATED 유지.
+   *  시간이 되면 OpenDueAuctionsScheduler가 자동 OPEN 처리. */
+  @Post(":id/schedule")
+  async schedule(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(openSchema.omit({ force: true }))) body: z.infer<typeof openSchema>,
+  ) {
+    try {
+      return await this.scheduleUC.execute(id, body);
+    } catch (e) {
+      if (e instanceof DomainError) throw new BadRequestException(e.message);
+      throw e;
+    }
+  }
+
   @Post(":id/settle")
   async settle(@Param("id") id: string) {
     try {
@@ -98,5 +131,31 @@ export class AdminAuctionsController {
   @Post("settle-due")
   async settleDue() {
     return this.settleDueUC.execute();
+  }
+
+  /** startedAt이 지난 CREATED 매물을 OPEN으로 자동 승급(수동 트리거). */
+  @Post("open-due")
+  async openDue() {
+    return this.openDueUC.execute();
+  }
+
+  /** 경매관리 상단 카운터 — 총 / 오픈 예정 / 진행 중 / 종료. */
+  @Get("summary")
+  async summary() {
+    return this.summaryUC.execute();
+  }
+
+  /** 수동 추가 모달용 — 다음 채번 추천("A-YYYY-NNN"). */
+  @Get("next-id")
+  async nextId(@Query("year") year?: string) {
+    return this.nextIdUC.execute(year ? Number(year) : undefined);
+  }
+
+  /** CREATED 매물 다중 취소(삭제). OPEN 이상은 skipped로 응답. */
+  @Post("cancel")
+  async cancel(
+    @Body(new ZodValidationPipe(cancelSchema)) body: z.infer<typeof cancelSchema>,
+  ) {
+    return this.cancelUC.execute(body.ids);
   }
 }

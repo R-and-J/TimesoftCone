@@ -83,6 +83,10 @@ model Notification {
   title     String
   message   String
   auctionId String?  @map("auction_id")
+  /// 알림 클릭 시 이동할 프론트엔드 경로(예: "/auction/detail/A-2026-110",
+  /// "/admin/charges", "/activity"). 백엔드가 알림 만들 때 박고 프론트는 그대로 navigate.
+  /// 새 토픽 추가 시 프론트 분기 늘리지 않게 하기 위함.
+  linkPath  String?  @map("link_path")
   read      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -356,4 +360,29 @@ model ChargeRequest {
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@map("charge_request")
+}
+
+// ─────────────────────────────────────────────────────────────
+// RELEASE_POLICY — 풀 수집된 매물의 startedAt 분산 정책(싱글톤).
+// LeavePool 수집(ADR-017) 이후 생성되는 CREATED 매물을
+// "daily / weekly(요일) / monthly(일)" + 시각 + 1회 수량 으로 분산.
+// 관리자가 수동 PATCH로 갱신 → 다음 수집 또는 재분산에 즉시 반영.
+// 행은 단 하나(id=1)만 존재(애플리케이션 보장). 환경변수 폴백은 시드에서 부여.
+// id INTEGER(autoincrement BigInt drift 회피 — 본 파일 상단 주석).
+// ─────────────────────────────────────────────────────────────
+model ReleasePolicy {
+  id          Int      @id @default(1)
+  /// "none" | "daily" | "weekly" | "monthly". none = 자동 분산 비활성.
+  cadence     String
+  /// weekly 일 때 0(일)~6(토). 그 외 cadence엔 무시.
+  dayOfWeek   Int?     @map("day_of_week")
+  /// monthly 일 때 1..31. 31이면 짧은 달은 EOM 폴백.
+  dayOfMonth  Int?     @map("day_of_month")
+  /// "HH:MM" 24h. none이면 null.
+  timeOfDay   String?  @map("time_of_day")
+  /// 1회 발행 시 오픈할 매물 수. none이면 null.
+  quantity    Int?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("release_policy")
 }

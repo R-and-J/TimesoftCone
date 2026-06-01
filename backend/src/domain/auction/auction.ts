@@ -94,6 +94,38 @@ export class Auction {
     );
   }
 
+  /** 보류(DRAFT) 매물 생성 — 오픈 스케줄 미정. startedAt/endsAt는 placeholder(epoch)이며
+   *  schedule()로 시간 정하거나 open(force=true)로 즉시 오픈할 때 갱신된다. */
+  static createDraft(props: {
+    id: AuctionId;
+    startPrice: Point;
+    minIncrement: Point;
+    leaveDays: number;
+  }): Auction {
+    if (props.minIncrement.isZero()) {
+      throw new Error("minIncrement must be positive");
+    }
+    if (!Number.isInteger(props.leaveDays) || props.leaveDays < 1) {
+      throw new Error("leaveDays must be a positive integer");
+    }
+    // DRAFT 상태에서 startedAt/endsAt는 의미 없음. NOT NULL을 만족하려고 epoch 사용.
+    // OpenDueAuctionsScheduler는 status='CREATED' AND startedAt<=now만 처리하므로 영향 없음.
+    const placeholder = new Date(0);
+    return new Auction(
+      props.id,
+      "DRAFT",
+      props.startPrice,
+      props.startPrice,
+      null,
+      0,
+      props.minIncrement,
+      placeholder,
+      new Date(placeholder.getTime() + 1), // endsAt > startedAt 도메인 불변식
+      null,
+      props.leaveDays,
+    );
+  }
+
   static rehydrate(s: AuctionSnapshot): Auction {
     return new Auction(
       s.id,
@@ -149,7 +181,7 @@ export class Auction {
     leaveDays?: number;
     minIncrement?: Point;
   }): void {
-    if (this._status !== "CREATED") {
+    if (this._status !== "CREATED" && this._status !== "DRAFT") {
       throw new AuctionNotOpenError(`Cannot configure auction in status ${this._status}`);
     }
     const startedAt = opts.startedAt ?? this._startedAt;
@@ -174,15 +206,26 @@ export class Auction {
     if (opts.minIncrement) this._minIncrement = opts.minIncrement;
   }
 
-  /** CREATED → OPEN. Idempotent: re-opening an already-OPEN auction is a noop.
-   *  opts.force=true: 관리자 override — 예약 시작 전이라도 즉시 OPEN 가능.
+  /** DRAFT|CREATED → CREATED. 보류 매물에 시간 정해 자동 OPEN 대상에 올린다. */
+  markScheduled(): void {
+    if (this._status !== "DRAFT" && this._status !== "CREATED") {
+      throw new AuctionNotOpenError(`Cannot schedule auction in status ${this._status}`);
+    }
+    this._status = "CREATED";
+  }
+
+  /** {DRAFT|CREATED} → OPEN. Idempotent: re-opening an already-OPEN auction is a noop.
+   *  opts.force=true: 관리자 override — 예약 시작 전이라도 즉시 OPEN 가능. DRAFT 매물도 force 시에만.
    *  force 시 startedAt도 now로 당겨서 표시·정산 정합 유지(이제부터 입찰 가능). */
   open(now: Date, opts?: { force?: boolean }): void {
     if (this._status === "OPEN") return;
-    if (this._status !== "CREATED") {
+    if (this._status !== "CREATED" && this._status !== "DRAFT") {
       throw new AuctionNotOpenError(
         `Cannot open auction in status ${this._status}`,
       );
+    }
+    if (this._status === "DRAFT" && !opts?.force) {
+      throw new AuctionNotOpenError("DRAFT 매물은 force=true(즉시 오픈)로만 OPEN 가능");
     }
     if (now < this.startedAt) {
       if (!opts?.force) {

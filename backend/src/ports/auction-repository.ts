@@ -17,4 +17,13 @@ export interface AuctionRepository {
   save(auction: Auction): Promise<void>;
   /** For ListMyActivity — count distinct auctions a user has bid on. */
   countAuctionsBidByUser(userId: bigint): Promise<number>;
+  /** 관리자 — DRAFT/CREATED 매물 삭제. 풀 수집(LeavePoolRun)으로 만들어진
+   *  매물은 protectedIds로 따로 분리해 삭제하지 않는다. */
+  deleteCreated(
+    ids: AuctionId[],
+  ): Promise<{ deletedIds: string[]; skippedIds: string[]; protectedIds: string[] }>;
+  /** 관리자 — 상태별 카운트. 모든 키 보장(0 포함). */
+  countsByStatus(): Promise<Record<AuctionStatus, number>>;
+  /** A-YYYY-NNN의 다음 NNN을 채번해 "A-YYYY-NNN" 반환(연도 내 max suffix + 1). */
+  nextIdForYear(year: number): Promise<string>;
 }

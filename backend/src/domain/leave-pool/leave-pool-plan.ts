@@ -31,8 +31,13 @@ export type LeavePoolPlanOptions = {
   minIncrement: bigint;
   /** 한 매물의 입찰 가능 기간(일). */
   auctionDays: number;
-  /** 주당 오픈 개수(0이면 전량 targetYear 1/1 동시 시작). */
-  weeklyQty: number;
+  /** 주당 오픈 개수(0이면 전량 targetYear 1/1 동시 시작). 폴백 전용. */
+  weeklyQty?: number;
+  /**
+   * 매물별 시작 시각 — 외부(분산 정책 planRelease)에서 결정해 주입.
+   * 길이가 총 매물 수(Σdays)와 같아야 함. 지정되면 weeklyQty는 무시.
+   */
+  startedAtSlots?: Date[];
 };
 
 export type LeavePoolPlan = {
@@ -65,14 +70,25 @@ export function planLeavePool(
   const stakes = eligible.map((c) => ({ userId: c.userId, days: c.days }));
   const daysCollected = eligible.reduce((s, c) => s + c.days, 0);
 
+  const totalCount = daysCollected;
+  if (opts.startedAtSlots && opts.startedAtSlots.length !== totalCount) {
+    throw new Error(
+      `planLeavePool: startedAtSlots 길이(${opts.startedAtSlots.length})가 매물 수(${totalCount})와 다릅니다`,
+    );
+  }
   const yearStart = new Date(Date.UTC(opts.targetYear, 0, 1, 0, 0, 0));
+  const weeklyQty = opts.weeklyQty ?? 0;
   const items: InventoryItem[] = [];
-  let index = 0; // 전체 매물 순번 — 주차 분산에 사용
+  let index = 0; // 전체 매물 순번 — 폴백 주차 분산에 사용
   for (const c of eligible) {
     for (let d = 0; d < c.days; d++) {
-      const weekOffset =
-        opts.weeklyQty > 0 ? Math.floor(index / opts.weeklyQty) : 0;
-      const startedAt = new Date(yearStart.getTime() + weekOffset * WEEK_MS);
+      let startedAt: Date;
+      if (opts.startedAtSlots) {
+        startedAt = new Date(opts.startedAtSlots[index].getTime());
+      } else {
+        const weekOffset = weeklyQty > 0 ? Math.floor(index / weeklyQty) : 0;
+        startedAt = new Date(yearStart.getTime() + weekOffset * WEEK_MS);
+      }
       const endsAt = new Date(startedAt.getTime() + opts.auctionDays * DAY_MS);
       items.push({
         sourceUserId: c.userId,

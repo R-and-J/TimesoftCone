@@ -310,6 +310,7 @@ function Bar({ bar, idx, onClick }: { bar: Bar; idx: number; onClick: () => void
     AWARDED: { bg: "#D0D5DD", fg: p.ink },
     UNSOLD: { bg: "#fff", fg: p.inkMuted, border: `1px dashed ${p.line}` },
     CREATED: { bg: p.bgDeep, fg: p.inkSoft, border: `1px solid ${p.line}` },
+    DRAFT: { bg: "#fff", fg: p.inkMuted, border: `1px dashed ${p.line}` },
   };
   const c = colors[a.status];
   const isHot = a.status === "OPEN" && new Date(a.endsAt).getTime() - Date.now() < 30 * 60 * 1000;

@@ -49,6 +49,7 @@ export class PrismaLeavePoolAdapter implements LeavePoolPort {
         return Number.isFinite(n) && n > max ? n : max;
       }, 0);
 
+      const initialStatus = c.asDraft ? "DRAFT" : "CREATED";
       const auctionIds: string[] = [];
       const data = c.items.map((it) => {
         nextSeq += 1;
@@ -56,7 +57,7 @@ export class PrismaLeavePoolAdapter implements LeavePoolPort {
         auctionIds.push(id);
         return {
           id,
-          status: "CREATED",
+          status: initialStatus,
           startPrice: it.startPrice,
           highest: it.startPrice,
           minIncrement: it.minIncrement,

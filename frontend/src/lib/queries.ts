@@ -3,7 +3,7 @@
 
 import { apiGet, apiPost, apiPatch } from "./api";
 
-export type AuctionStatus = "CREATED" | "OPEN" | "AWARDED" | "UNSOLD";
+export type AuctionStatus = "DRAFT" | "CREATED" | "OPEN" | "AWARDED" | "UNSOLD";
 
 export type AuctionListItem = {
   id: string;
@@ -447,6 +447,70 @@ export type OpenAuctionResult = {
 
 export function openAuction(id: string, opts: OpenAuctionInput = {}) {
   return apiPost<OpenAuctionResult>(`/admin/auctions/${id}/open`, opts);
+}
+
+/** 상태는 CREATED 유지 — 예약만 저장. 시간이 되면 OpenDueAuctionsScheduler가 OPEN. */
+export function scheduleAuction(id: string, opts: Omit<OpenAuctionInput, "force">) {
+  return apiPost<OpenAuctionResult>(`/admin/auctions/${id}/schedule`, opts);
+}
+
+// ── 풀 분산 정책 (관리자 경매관리 탭) ─────────────────────────────
+export type ReleasePolicy =
+  | { cadence: "none" }
+  | { cadence: "daily"; timeOfDay: string; quantity: number }
+  | { cadence: "weekly"; dayOfWeek: number; timeOfDay: string; quantity: number }
+  | { cadence: "monthly"; dayOfMonth: number; timeOfDay: string; quantity: number };
+
+export function getReleasePolicy() {
+  return apiGet<ReleasePolicy>("/admin/release-policy");
+}
+
+export function updateReleasePolicy(p: ReleasePolicy) {
+  return apiPatch<ReleasePolicy>("/admin/release-policy", p);
+}
+
+// ── 경매관리 — 카운터 / 채번 / 취소 / 수동 추가 ──────────────────
+export type AuctionsSummary = {
+  total: number;
+  draft: number; // DRAFT(보류) — 오픈 스케줄 미정 매물
+  upcoming: number; // CREATED — 예약된 오픈 예정
+  open: number;
+  ended: number;
+  byStatus: { DRAFT: number; CREATED: number; OPEN: number; AWARDED: number; UNSOLD: number };
+};
+
+export function getAuctionsSummary() {
+  return apiGet<AuctionsSummary>("/admin/auctions/summary");
+}
+
+export function getNextAuctionId(year?: number) {
+  const qs = year !== undefined ? `?year=${year}` : "";
+  return apiGet<{ year: number; nextId: string }>(`/admin/auctions/next-id${qs}`);
+}
+
+export function cancelAuctions(ids: string[]) {
+  return apiPost<{
+    requested: number;
+    deletedIds: string[];
+    skippedIds: string[];
+    /** 풀 수집(LeavePoolRun) 매물 — 보호되어 삭제 안 됨. */
+    protectedIds: string[];
+  }>("/admin/auctions/cancel", { ids });
+}
+
+// 1일권 N개 일괄 생성. id는 서버 채번, leaveDays는 항상 1(ADR-007).
+// asDraft=true면 startedAt/endsAt 불필요(보류 매물). false면 둘 다 필수.
+export type CreateAuctionInput = {
+  quantity?: number;
+  startPrice: string | number;
+  minIncrement?: string | number;
+  asDraft?: boolean;
+  startedAt?: string;
+  endsAt?: string;
+};
+
+export function createAuction(body: CreateAuctionInput) {
+  return apiPost<{ ids: string[]; created: number }>("/admin/auctions", body);
 }
 
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────

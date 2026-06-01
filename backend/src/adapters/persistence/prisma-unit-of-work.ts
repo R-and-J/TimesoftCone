@@ -117,6 +117,17 @@ export class PrismaUnitOfWork implements UnitOfWork {
         });
         return rows.length;
       },
+      // 관리자 툴링 메서드들 — 트랜잭션 안에서 호출되지 않는다(이 어댑터의 사용자는
+      // 핫패스 Use Case들). 컴파일을 위해 정의만 두고 호출 시 throw.
+      async deleteCreated() {
+        throw new Error("deleteCreated: not supported inside UnitOfWork transaction");
+      },
+      async countsByStatus() {
+        throw new Error("countsByStatus: not supported inside UnitOfWork transaction");
+      },
+      async nextIdForYear() {
+        throw new Error("nextIdForYear: not supported inside UnitOfWork transaction");
+      },
     };
 
     return {

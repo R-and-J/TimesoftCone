@@ -41,6 +41,7 @@ export class NotificationObserver {
           title: "입찰이 밀렸어요",
           message: `경매 ${e.auctionId}에서 더 높은 입찰이 나왔습니다. 현재가 ${won(e.amount)}P — 다시 입찰하시겠어요?`,
           auctionId: e.auctionId,
+          linkPath: `/auction/detail/${e.auctionId}`,
         },
       });
     } catch (err) {
@@ -65,6 +66,7 @@ export class NotificationObserver {
           title: "연말 풀 수집 완료",
           message,
           auctionId: null,
+          linkPath: "/admin/auctions",
         })),
       });
     } catch (err) {
@@ -90,6 +92,7 @@ export class NotificationObserver {
           type: "CHARGE_REQUEST_SUBMITTED",
           title: "새 충전 요청",
           message: msg,
+          linkPath: "/admin/charges",
         })),
       });
     } catch (err) {
@@ -107,6 +110,7 @@ export class NotificationObserver {
           type: "CHARGE_APPROVED",
           title: "충전 승인됨 ✅",
           message: `+${won(e.amount)}P 가 지갑에 적립되었습니다.`,
+          linkPath: "/activity",
         },
       });
     } catch (err) {
@@ -125,6 +129,7 @@ export class NotificationObserver {
           type: "CHARGE_REJECTED",
           title: "충전 요청 반려",
           message: `${won(e.amount)}P 충전 요청이 반려되었습니다.${tail}`,
+          linkPath: "/activity",
         },
       });
     } catch (err) {
@@ -143,6 +148,7 @@ export class NotificationObserver {
           title: "낙찰됐어요 🎉",
           message: `경매 ${e.auctionId} 낙찰 — 연차 ${e.leaveDays}일권을 ${won(e.amount)}P에 획득했습니다.`,
           auctionId: e.auctionId,
+          linkPath: `/auction/detail/${e.auctionId}`,
         },
       });
     } catch (err) {

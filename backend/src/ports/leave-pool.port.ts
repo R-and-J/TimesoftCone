@@ -14,6 +14,8 @@ export type LeavePoolCommit = {
   stakes: { userId: bigint; days: number }[];
   items: InventoryItem[];
   summary: { contributorCount: number; daysCollected: number; auctionsCreated: number };
+  /** true면 매물을 DRAFT(보류)로 만든다(자동 OPEN 안 함). 분산 정책=none일 때 사용. */
+  asDraft?: boolean;
 };
 
 export interface LeavePoolPort {
