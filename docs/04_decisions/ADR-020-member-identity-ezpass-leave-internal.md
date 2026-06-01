@@ -22,6 +22,8 @@
 3. **경매금(지갑)·입찰·escrow·배당 = 우리 DB.**
 4. **ezpass의 실제 연차 테이블은 쓰지 않는다(읽기만).** 진짜 HR 연차에 경매분을 써넣는 위험을 피함. 경매 낙찰 연차는 우리 `leave_balance.adjustedDays`(= ezpass `mdat_yryc_day_qty` 대응)에 적립.
 
+   > **개정 (2026-06-01, [[ADR-025]]): §4 완화** — 낙찰 정산 후 Outbox 경유로 ezpass `mdat_yryc_day_qty`에 직접 +N도 쓰게 허용(opt-in, `HR_LEAVE_CLIENT_KIND=msaportal`). cmpny 7 한정·재시도/DLQ. 우리 `leave_balance(AUCTION)`은 그대로 마스터. 자세한 트레이드오프와 안전장치는 [[ADR-025]] 참조.
+
 ## 결과 및 트레이드오프
 
 - ✅ **정산 원자성 유지** — 연차 부여가 우리 로컬 트랜잭션 안에서 끝나 [[ADR-005]] Outbox를 깨우지 않음(휴면 유지).

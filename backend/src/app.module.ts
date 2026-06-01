@@ -14,6 +14,7 @@ import { PrismaAuctionRepository } from "./adapters/persistence/prisma-auction.r
 import { PrismaUnitOfWork } from "./adapters/persistence/prisma-unit-of-work";
 import { PrismaLeavePoolAdapter } from "./adapters/persistence/prisma-leave-pool.adapter";
 import { PrismaLeaveAdminAdapter } from "./adapters/persistence/prisma-leave-admin.adapter";
+import { PrismaReleasePolicyRepository } from "./adapters/persistence/prisma-release-policy.repository";
 import { WelfarePointProvider } from "./adapters/currency/welfare-point.provider";
 import { EzpassAuthProvider } from "./adapters/auth/ezpass-auth.provider";
 import { LocalAuthProvider } from "./adapters/auth/local-auth.provider";
@@ -21,9 +22,11 @@ import { CompositeAuthProvider } from "./adapters/auth/composite-auth.provider";
 import { MsaportalMemberDirectoryAdapter } from "./adapters/directory/msaportal-member-directory.adapter";
 import { NotificationObserver } from "./adapters/notification/notification.observer";
 import { HrLeaveClientAdapter } from "./adapters/hr/hr-leave.client";
+import { MsaportalHrLeaveClient } from "./adapters/hr/msaportal-hr-leave.client";
 import { InternalCatalogRedemption } from "./adapters/redemption/internal-catalog-redemption.adapter";
 import { AuctionStream } from "./adapters/realtime/auction-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
+import { OpenDueAuctionsScheduler } from "./adapters/scheduling/open-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 import { LeavePoolScheduler } from "./adapters/scheduling/leave-pool.scheduler";
 import { PurgeUnsoldAuctionsScheduler } from "./adapters/scheduling/purge-unsold.scheduler";
@@ -34,6 +37,8 @@ import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance
 import { CreditWalletAdminUseCase } from "./application/wallet/credit-wallet-admin.use-case";
 import { CreateAuctionUseCase } from "./application/auction/create-auction.use-case";
 import { OpenAuctionUseCase } from "./application/auction/open-auction.use-case";
+import { ScheduleAuctionUseCase } from "./application/auction/schedule-auction.use-case";
+import { OpenDueAuctionsUseCase } from "./application/auction/open-due-auctions.use-case";
 import { ListAuctionsUseCase } from "./application/auction/list-auctions.use-case";
 import { GetAuctionDetailUseCase } from "./application/auction/get-auction-detail.use-case";
 import { PlaceBidUseCase } from "./application/auction/place-bid.use-case";
@@ -60,6 +65,9 @@ import { ListChargeRequestsUseCase } from "./application/wallet/charge/list-char
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
+import { GetReleasePolicyUseCase } from "./application/leave-pool/get-release-policy.use-case";
+import { UpdateReleasePolicyUseCase } from "./application/leave-pool/update-release-policy.use-case";
+import { RedistributeUpcomingAuctionsUseCase } from "./application/leave-pool/redistribute-upcoming-auctions.use-case";
 import { UseLeaveUseCase } from "./application/leave/use-leave.use-case";
 import { GrantEventFromUnsoldUseCase } from "./application/leave/grant-event-from-unsold.use-case";
 import { PurgeUnsoldAuctionsUseCase } from "./application/leave/purge-unsold-auctions.use-case";
@@ -81,6 +89,7 @@ import { AdminChargesController } from "./interfaces/http/admin-charges.controll
 import { DividendController } from "./interfaces/http/dividend.controller";
 import { AdminDividendController } from "./interfaces/http/admin-dividend.controller";
 import { AdminLeavePoolController } from "./interfaces/http/admin-leave-pool.controller";
+import { AdminReleasePolicyController } from "./interfaces/http/admin-release-policy.controller";
 import { AdminLeaveController } from "./interfaces/http/admin-leave.controller";
 
 // RBAC guards (전역)
@@ -102,6 +111,7 @@ import { PAYOUT_CHANNEL } from "./ports/payout-channel";
 import { AUCTION_STREAM } from "./ports/auction-stream.port";
 import { LEAVE_POOL } from "./ports/leave-pool.port";
 import { LEAVE_ADMIN } from "./ports/leave-admin.port";
+import { RELEASE_POLICY } from "./ports/release-policy.port";
 
 @Module({
   imports: [
@@ -133,6 +143,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     DividendController,
     AdminDividendController,
     AdminLeavePoolController,
+    AdminReleasePolicyController,
     AdminLeaveController,
     MeController,
   ],
@@ -150,6 +161,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     PrismaUnitOfWork,
     PrismaLeavePoolAdapter,
     PrismaLeaveAdminAdapter,
+    PrismaReleasePolicyRepository,
     WelfarePointProvider,
     EzpassAuthProvider,
     LocalAuthProvider,
@@ -157,6 +169,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     MsaportalMemberDirectoryAdapter,
     NotificationObserver,
     HrLeaveClientAdapter,
+    MsaportalHrLeaveClient,
     InternalCatalogRedemption,
     AuctionStream,
     { provide: AUCTION_STREAM, useExisting: AuctionStream },
@@ -170,6 +183,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     { provide: PAYOUT_CHANNEL, useExisting: WelfarePointProvider },
     { provide: LEAVE_POOL, useExisting: PrismaLeavePoolAdapter },
     { provide: LEAVE_ADMIN, useExisting: PrismaLeaveAdminAdapter },
+    { provide: RELEASE_POLICY, useExisting: PrismaReleasePolicyRepository },
     // AUTH_MODE로 인증 어댑터 분기 (ADR-022): local → 순수 자체 비번,
     // 그 외(기본 ezpass) → Composite(로컬 비번 보유 계정은 로컬 검증, 나머지는 ezpass 위임).
     {
@@ -179,7 +193,18 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
       inject: [ConfigService, CompositeAuthProvider, LocalAuthProvider],
     },
     { provide: MEMBER_DIRECTORY, useExisting: MsaportalMemberDirectoryAdapter },
-    { provide: HR_LEAVE_CLIENT, useExisting: HrLeaveClientAdapter },
+    // HR_LEAVE_CLIENT_KIND env로 어댑터 스왑 (ADR-025).
+    //   msaportal → MsaportalHrLeaveClient (mysql2로 tbl_user_yryc.mdat += N)
+    //   그 외       → HrLeaveClientAdapter (mock 로그 OR HR_API_URL POST)
+    {
+      provide: HR_LEAVE_CLIENT,
+      useFactory: (
+        config: ConfigService,
+        mock: HrLeaveClientAdapter,
+        msa: MsaportalHrLeaveClient,
+      ) => (config.get<string>("HR_LEAVE_CLIENT_KIND") === "msaportal" ? msa : mock),
+      inject: [ConfigService, HrLeaveClientAdapter, MsaportalHrLeaveClient],
+    },
     { provide: REDEMPTION_CHANNEL, useExisting: InternalCatalogRedemption },
 
     GetWalletBalanceUseCase,
@@ -212,6 +237,9 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
     CollectLeavePoolUseCase,
+    GetReleasePolicyUseCase,
+    UpdateReleasePolicyUseCase,
+    RedistributeUpcomingAuctionsUseCase,
     UseLeaveUseCase,
     GrantEventFromUnsoldUseCase,
     PurgeUnsoldAuctionsUseCase,
