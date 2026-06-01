@@ -11,6 +11,7 @@ import {
   collectLeavePool,
   getAdminStats,
   listAuctions,
+  openAuction,
   settleDividend,
   type AuctionListItem,
   type CollectLeavePoolResponse,
@@ -89,6 +90,47 @@ export default function AdminOpsPage() {
   const [poolOpen, setPoolOpen] = useState(false);
   const [poolLoading, setPoolLoading] = useState(false);
   const [poolPreview, setPoolPreview] = useState<CollectLeavePoolResponse | null>(null);
+
+  // "오픈 예정" 카드 클릭 → 즉시 오픈 모달(설정 변경 동반 가능).
+  const [openingFor, setOpeningFor] = useState<AuctionListItem | null>(null);
+  const [openForm, setOpenForm] = useState({ startedAt: "", endsAt: "", startPrice: "", leaveDays: "" });
+  const [opening, setOpening] = useState(false);
+
+  const openOpenModal = (a: AuctionListItem) => {
+    setOpeningFor(a);
+    setOpenForm({
+      startedAt: toLocalDatetimeInput(new Date(a.startedAt)),
+      endsAt: toLocalDatetimeInput(new Date(a.endsAt)),
+      startPrice: a.startPrice,
+      leaveDays: String(a.leaveDays),
+    });
+  };
+
+  const doOpen = async () => {
+    if (!openingFor) return;
+    const startedAt = new Date(openForm.startedAt);
+    const endsAt = new Date(openForm.endsAt);
+    if (!(endsAt > startedAt)) {
+      toast.push("error", "마감 시각이 시작 시각보다 늦어야 합니다");
+      return;
+    }
+    setOpening(true);
+    try {
+      const r = await openAuction(openingFor.id, {
+        startedAt: startedAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        startPrice: openForm.startPrice,
+        leaveDays: Number(openForm.leaveDays),
+      });
+      toast.push("success", `${r.id} OPEN — 마감 ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
+      setOpeningFor(null);
+      await Promise.all([upcomingQ.refetch(), statsQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setOpening(false);
+    }
+  };
 
   const openPool = async () => {
     setPoolOpen(true);
@@ -348,7 +390,7 @@ export default function AdminOpsPage() {
                     </div>
                   )}
                   {upcomingQ.data?.map((a) => (
-                    <UpcomingRow key={a.id} a={a} />
+                    <UpcomingRow key={a.id} a={a} onClick={() => openOpenModal(a)} />
                   ))}
                 </div>
               </Card>
@@ -877,6 +919,67 @@ export default function AdminOpsPage() {
           </div>
         </div>
       )}
+
+      {/* 오픈 예정 카드 클릭 시 — 즉시 오픈(설정 변경 동반 가능) 모달 */}
+      {openingFor && (
+        <div
+          onClick={() => !opening && setOpeningFor(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 460, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)", maxHeight: "86vh", overflow: "auto" }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>경매 즉시 오픈</div>
+            <div className="mono" style={{ fontSize: 12, color: p.inkMuted, marginBottom: 16 }}>{openingFor.id}</div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
+              아래 값으로 갱신 + 즉시 OPEN. 예약 시작 전이라도 강제 오픈 — 입찰이 바로 가능.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <FieldBlock p={p} label="연차 일수">
+                <input
+                  type="number" min={1} step={1}
+                  value={openForm.leaveDays}
+                  onChange={(e) => setOpenForm((f) => ({ ...f, leaveDays: e.target.value }))}
+                  style={inputStyle(p)}
+                />
+              </FieldBlock>
+              <FieldBlock p={p} label="시작가 (P)">
+                <input
+                  type="number" min={0} step={100}
+                  value={openForm.startPrice}
+                  onChange={(e) => setOpenForm((f) => ({ ...f, startPrice: e.target.value }))}
+                  style={inputStyle(p)}
+                />
+              </FieldBlock>
+            </div>
+            <FieldBlock p={p} label="오픈 시각">
+              <input
+                type="datetime-local"
+                value={openForm.startedAt}
+                onChange={(e) => setOpenForm((f) => ({ ...f, startedAt: e.target.value }))}
+                style={inputStyle(p)}
+              />
+            </FieldBlock>
+            <FieldBlock p={p} label="마감 시각">
+              <input
+                type="datetime-local"
+                value={openForm.endsAt}
+                onChange={(e) => setOpenForm((f) => ({ ...f, endsAt: e.target.value }))}
+                style={inputStyle(p)}
+              />
+            </FieldBlock>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={opening} onClick={() => setOpeningFor(null)}>취소</Btn>
+              <Btn p={p} variant="primary" size="md" disabled={opening} onClick={doOpen}>
+                {opening ? "오픈 중…" : "지금 오픈"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenFrame>
   );
 }
@@ -927,17 +1030,24 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function UpcomingRow({ a }: { a: AuctionListItem }) {
+function UpcomingRow({ a, onClick }: { a: AuctionListItem; onClick?: () => void }) {
   const p = PALETTES.cobalt;
   return (
     <div
+      onClick={onClick}
+      title={onClick ? "클릭해서 설정하고 즉시 오픈" : undefined}
       style={{
         display: "flex",
         alignItems: "center",
         gap: 16,
-        padding: "12px 0",
+        padding: "12px 8px",
         borderBottom: `1px solid ${p.line}`,
+        cursor: onClick ? "pointer" : "default",
+        borderRadius: 6,
+        transition: "background 120ms",
       }}
+      onMouseEnter={(e) => onClick && (e.currentTarget.style.background = p.bg)}
+      onMouseLeave={(e) => onClick && (e.currentTarget.style.background = "transparent")}
     >
       <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>
         {a.id}
@@ -967,4 +1077,33 @@ function daysUntilYearEnd(): number {
   const now = new Date();
   const eoy = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
   return Math.max(0, Math.ceil((eoy.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
+// 즉시 오픈 모달용 보조 — datetime-local 포맷 ↔ Date 변환.
+function toLocalDatetimeInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function FieldBlock({ p, label, children }: { p: typeof PALETTES.cobalt; label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 6 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function inputStyle(p: typeof PALETTES.cobalt): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "9px 12px",
+    borderRadius: 9,
+    border: `1px solid ${p.line}`,
+    fontSize: 13,
+    color: p.ink,
+    background: p.bg,
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  };
 }

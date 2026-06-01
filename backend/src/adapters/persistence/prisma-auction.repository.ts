@@ -89,6 +89,11 @@ export class PrismaAuctionRepository implements AuctionRepository {
         // anti-snipe(CUT-5)로 연장될 수 있으므로 update에도 포함.
         endsAt: s.endsAt,
         settledAt: s.settledAt,
+        // 관리자 오픈 시 configureBeforeOpen으로 변경 가능한 필드 — CREATED 한정.
+        startPrice: s.startPrice.toBigInt(),
+        minIncrement: s.minIncrement.toBigInt(),
+        leaveDays: s.leaveDays,
+        startedAt: s.startedAt,
       },
       create: {
         id: s.id.toString(),

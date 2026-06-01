@@ -33,6 +33,7 @@ import { OutboxRelayScheduler } from "./adapters/scheduling/outbox-relay.schedul
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
 import { CreditWalletAdminUseCase } from "./application/wallet/credit-wallet-admin.use-case";
 import { CreateAuctionUseCase } from "./application/auction/create-auction.use-case";
+import { OpenAuctionUseCase } from "./application/auction/open-auction.use-case";
 import { ListAuctionsUseCase } from "./application/auction/list-auctions.use-case";
 import { GetAuctionDetailUseCase } from "./application/auction/get-auction-detail.use-case";
 import { PlaceBidUseCase } from "./application/auction/place-bid.use-case";
@@ -184,6 +185,7 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
     CreateAuctionUseCase,
+    OpenAuctionUseCase,
     ListAuctionsUseCase,
     GetAuctionDetailUseCase,
     PlaceBidUseCase,

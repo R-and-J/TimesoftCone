@@ -50,16 +50,16 @@ export class Auction {
   private constructor(
     readonly id: AuctionId,
     private _status: AuctionStatus,
-    readonly startPrice: Point,
+    private _startPrice: Point,
     private _highest: Point,
     private _highestBidder: UserId | null,
     private _bidCount: number,
-    readonly minIncrement: Point,
-    readonly startedAt: Date,
+    private _minIncrement: Point,
+    private _startedAt: Date,
     private _endsAt: Date,
     private _settledAt: Date | null,
     /** 낙찰자에게 부여할 AUCTION 연차 일수. */
-    readonly leaveDays: number,
+    private _leaveDays: number,
   ) {}
 
   static create(props: {
@@ -115,6 +115,10 @@ export class Auction {
   get highest(): Point { return this._highest; }
   get highestBidder(): UserId | null { return this._highestBidder; }
   get bidCount(): number { return this._bidCount; }
+  get startedAt(): Date { return this._startedAt; }
+  get startPrice(): Point { return this._startPrice; }
+  get minIncrement(): Point { return this._minIncrement; }
+  get leaveDays(): number { return this._leaveDays; }
   get endsAt(): Date { return this._endsAt; }
   get settledAt(): Date | null { return this._settledAt; }
 
@@ -136,8 +140,44 @@ export class Auction {
 
   // ── transitions ───────────────────────────────────────────────────
 
-  /** CREATED → OPEN. Idempotent: re-opening an already-OPEN auction is a noop. */
-  open(now: Date): void {
+  /** CREATED 상태에서만 운영 파라미터를 변경 — 시작/마감 시각, 시작금, 일수, 증분.
+   *  관리자가 "오픈 예정" 카드에서 모달로 호출하는 자리. 입찰이 들어간 뒤(OPEN+)에는 금지. */
+  configureBeforeOpen(opts: {
+    startedAt?: Date;
+    endsAt?: Date;
+    startPrice?: Point;
+    leaveDays?: number;
+    minIncrement?: Point;
+  }): void {
+    if (this._status !== "CREATED") {
+      throw new AuctionNotOpenError(`Cannot configure auction in status ${this._status}`);
+    }
+    const startedAt = opts.startedAt ?? this._startedAt;
+    const endsAt = opts.endsAt ?? this._endsAt;
+    if (endsAt <= startedAt) {
+      throw new Error("endsAt must be strictly after startedAt");
+    }
+    if (opts.minIncrement && opts.minIncrement.isZero()) {
+      throw new Error("minIncrement must be positive");
+    }
+    if (opts.leaveDays !== undefined && (!Number.isInteger(opts.leaveDays) || opts.leaveDays < 1)) {
+      throw new Error("leaveDays must be a positive integer");
+    }
+    this._startedAt = startedAt;
+    this._endsAt = endsAt;
+    if (opts.startPrice) {
+      this._startPrice = opts.startPrice;
+      // 입찰 전이라 highest=startPrice 동기화(첫 입찰 후엔 변경 자체가 막혀있음).
+      if (this._bidCount === 0) this._highest = opts.startPrice;
+    }
+    if (opts.leaveDays !== undefined) this._leaveDays = opts.leaveDays;
+    if (opts.minIncrement) this._minIncrement = opts.minIncrement;
+  }
+
+  /** CREATED → OPEN. Idempotent: re-opening an already-OPEN auction is a noop.
+   *  opts.force=true: 관리자 override — 예약 시작 전이라도 즉시 OPEN 가능.
+   *  force 시 startedAt도 now로 당겨서 표시·정산 정합 유지(이제부터 입찰 가능). */
+  open(now: Date, opts?: { force?: boolean }): void {
     if (this._status === "OPEN") return;
     if (this._status !== "CREATED") {
       throw new AuctionNotOpenError(
@@ -145,11 +185,13 @@ export class Auction {
       );
     }
     if (now < this.startedAt) {
-      // CREATED but before scheduled start — allow forcing open via admin
-      // path in a later PR. For now, reject.
-      throw new AuctionNotOpenError(
-        `Auction scheduled for ${this.startedAt.toISOString()}, cannot open at ${now.toISOString()}`,
-      );
+      if (!opts?.force) {
+        throw new AuctionNotOpenError(
+          `Auction scheduled for ${this.startedAt.toISOString()}, cannot open at ${now.toISOString()}`,
+        );
+      }
+      // 관리자 강제 오픈: 시작 시각을 now로 당김(과거 일정에 대한 OPEN 표시 회피).
+      this._startedAt = now;
     }
     this._status = "OPEN";
   }

@@ -426,6 +426,29 @@ export function rejectChargeRequest(id: number, note?: string) {
   );
 }
 
+// ── 경매 — 관리자 즉시 오픈 (CREATED → OPEN, 옵션 변경 동반) ─────
+export type OpenAuctionInput = {
+  startedAt?: string; // ISO
+  endsAt?: string; // ISO
+  startPrice?: string | number;
+  leaveDays?: number;
+  minIncrement?: string | number;
+  force?: boolean;
+};
+
+export type OpenAuctionResult = {
+  id: string;
+  status: string;
+  startedAt: string;
+  endsAt: string;
+  startPrice: string;
+  leaveDays: number;
+};
+
+export function openAuction(id: string, opts: OpenAuctionInput = {}) {
+  return apiPost<OpenAuctionResult>(`/admin/auctions/${id}/open`, opts);
+}
+
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
 export type NotificationItem = {
   id: string;
