@@ -24,7 +24,13 @@ import {
   type LeaveSyncReport,
   type LeaveSyncRow,
 } from "@/lib/queries";
-import { roleLabel } from "@/lib/roles";
+import { roleLabel, canManageEzpass, canManageExam } from "@/lib/roles";
+import { useCurrentUser } from "@/lib/current-user";
+
+// ezpass 회원관리 화면(새 탭 유도). 실제 URL은 env로 덮어쓸 수 있음.
+const EZPASS_ADMIN_URL =
+  (import.meta.env.VITE_EZPASS_ADMIN_URL as string | undefined) ??
+  "https://dev.performax.timesoft.internal/adm/umn/admumn0010m";
 
 type FormState = {
   userId: string | null; // null = 신규
@@ -33,8 +39,8 @@ type FormState = {
   team: string;
   jobRank: string;
   jobTitle: string;
-  // 로컬 폼은 EXAM(독립)/ADMIN만 — EZPASS는 ezpass 동기화로만 관리.
-  role: "EXAM" | "ADMIN";
+  // 로컬 폼은 exam 영역 계정만(EXAM/EXAM_ADMIN) — EZPASS는 ezpass 동기화로만 관리.
+  role: "EXAM" | "EXAM_ADMIN";
   active: boolean;
   password: string;
 };
@@ -99,7 +105,10 @@ export default function AdminMembersPage() {
     setReconciling(userId);
     try {
       const r = await reconcileUserLeave(userId);
-      toast.push("success", `동기됨 — ezpass ${r.ezpassPrevious} → ${r.ezpassApplied}`);
+      toast.push(
+        "success",
+        `동기됨 — ezpass mdat ${r.ezpassMdatBefore}→${r.ezpassMdatApplied} (atmc ${r.ezpassAtmc} + mdat ${r.ezpassMdatApplied} = ${r.ourTotal})`,
+      );
       await runLeaveSyncCheck();
     } catch (e) {
       toast.push("error", (e as Error).message);
@@ -249,8 +258,8 @@ export default function AdminMembersPage() {
       team: m.team ?? "",
       jobRank: m.jobRank ?? "",
       jobTitle: m.jobTitle ?? "",
-      // EZPASS 행은 수정 진입이 막혀 있으므로 여기엔 EXAM/ADMIN만 들어온다.
-      role: m.role === "ADMIN" ? "ADMIN" : "EXAM",
+      // 수정은 exam 영역(EXAM/EXAM_ADMIN)만 진입한다.
+      role: m.role === "EXAM_ADMIN" ? "EXAM_ADMIN" : "EXAM",
       active: m.active,
       password: "",
     });
@@ -426,24 +435,35 @@ export default function AdminMembersPage() {
                 <div style={{ fontWeight: 700, color: p.warn, marginBottom: 8 }}>
                   ⚠ ezpass와 어긋난 사용자 {syncReport.driftCount}명 ({syncReport.year}년 기준)
                 </div>
-                {syncReport.rows.filter((r) => !r.inSync).map((r: LeaveSyncRow) => (
-                  <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr 120px", gap: 8, alignItems: "center", padding: "6px 0", borderTop: `1px solid #F3CD7F` }}>
-                    <div style={{ color: p.ink, fontWeight: 600 }}>{r.name} <span style={{ color: p.inkMuted, fontWeight: 400 }}>· {r.email}</span></div>
-                    <div className="mono" style={{ color: p.inkSoft }}>우리 {r.ourAuctionDays}일 ↔ ezpass {r.ezpassMdat ?? "?"}일</div>
-                    <div style={{ color: p.inkMuted, fontSize: 11 }}>{r.error ?? "—"}</div>
-                    <div style={{ textAlign: "right" }}>
-                      <Btn
-                        p={p}
-                        variant="primary"
-                        size="sm"
-                        disabled={reconciling === r.userId || !!r.error}
-                        onClick={() => doReconcile(r.userId)}
-                      >
-                        {reconciling === r.userId ? "동기 중…" : "ezpass에 동기"}
-                      </Btn>
+                {syncReport.rows.filter((r) => !r.inSync).map((r: LeaveSyncRow) => {
+                  const targetMdat = r.ezpassAtmc !== null ? r.ourTotal - r.ezpassAtmc : null;
+                  return (
+                    <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "1.2fr 2fr 1fr 130px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: `1px solid #F3CD7F` }}>
+                      <div style={{ color: p.ink, fontWeight: 600 }}>{r.name} <span style={{ color: p.inkMuted, fontWeight: 400 }}>· {r.email}</span></div>
+                      <div className="mono" style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.5 }}>
+                        <div>
+                          우리 합 <b style={{ color: p.ink }}>{r.ourTotal}</b> (REG {r.ourRegular} + AUC {r.ourAuctionDays})
+                        </div>
+                        <div>
+                          ezpass 합 <b style={{ color: p.ink }}>{r.ezpassTotal ?? "?"}</b> (atmc {r.ezpassAtmc ?? "?"} + mdat {r.ezpassMdat ?? "?"})
+                          {targetMdat !== null && ` → 동기 시 mdat=${targetMdat}`}
+                        </div>
+                      </div>
+                      <div style={{ color: p.inkMuted, fontSize: 11 }}>{r.error ?? "—"}</div>
+                      <div style={{ textAlign: "right" }}>
+                        <Btn
+                          p={p}
+                          variant="primary"
+                          size="sm"
+                          disabled={reconciling === r.userId || !!r.error}
+                          onClick={() => doReconcile(r.userId)}
+                        >
+                          {reconciling === r.userId ? "동기 중…" : "ezpass에 동기"}
+                        </Btn>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {syncReport && syncReport.driftCount === 0 && (

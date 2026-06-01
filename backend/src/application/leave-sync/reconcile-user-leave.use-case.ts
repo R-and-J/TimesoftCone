@@ -1,6 +1,9 @@
-// ReconcileUserLeave — 단일 사용자에 한해 ezpass mdat을 우리 leave_balance.AUCTION 값으로
-// 강제 동기. 비상조치(관리자 전용). 호출 후 ezpass mdat = 우리 누적값.
+// ReconcileUserLeave — 단일 사용자, ezpass mdat을 (우리 합 − ezpass atmc) 절대값으로 박음.
+//
+// 운영 안전성: atmc는 ezpass 자동 계산 컬럼(정본)이라 절대 안 건드림. mdat(조정)만 다룬다.
 // ezpass의 streYryc는 자동으로 이력 행 적재 → 감사 추적성 보장.
+//
+// 정합 결과: atmc + mdat === ourRegular + ourAuctionDays (= ourTotal)
 
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@/adapters/persistence/prisma.service";
@@ -10,9 +13,12 @@ export type ReconcileResult = {
   userId: string;
   email: string;
   year: number;
-  ourValue: number;
-  ezpassPrevious: number;
-  ezpassApplied: number;
+  ourRegular: number;
+  ourAuctionDays: number;
+  ourTotal: number;
+  ezpassAtmc: number;
+  ezpassMdatBefore: number;
+  ezpassMdatApplied: number;
 };
 
 @Injectable()
@@ -27,25 +33,37 @@ export class ReconcileUserLeaveUseCase {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     if (!user || !user.email) throw new NotFoundException("사용자/이메일 없음");
 
-    const lb = await this.prisma.leaveBalance.findFirst({
-      where: { userId, year, leaveType: "AUCTION" },
-    });
-    const ourValue = lb ? lb.grantedDays + lb.adjustedDays - lb.usedDays : 0;
+    // 우리 합 = REGULAR + AUCTION
+    const lbs = await this.prisma.leaveBalance.findMany({ where: { userId, year } });
+    const reg = lbs.find((l) => l.leaveType === "REGULAR");
+    const auc = lbs.find((l) => l.leaveType === "AUCTION");
+    const ourRegular = reg ? reg.grantedDays + reg.adjustedDays - reg.usedDays : 0;
+    const ourAuctionDays = auc ? auc.grantedDays + auc.adjustedDays - auc.usedDays : 0;
+    const ourTotal = ourRegular + ourAuctionDays;
 
-    const { previous, applied } = await this.ezpass.setMdatAbsolute(
+    // ezpass 현재값 (atmc + mdat)
+    const ez = await this.ezpass.getCurrentLeave(user.email, year);
+
+    // target mdat = (우리 합) − atmc — atmc는 절대 안 건드림.
+    const targetMdat = ourTotal - ez.atmc;
+
+    const r = await this.ezpass.setMdatAbsolute(
       user.email,
       year,
-      ourValue,
-      `관리자 동기(연차경매시스템 ↔ ezpass 정합) — userId=${userId}`,
+      targetMdat,
+      `관리자 동기(연차경매시스템 합 ${ourTotal} − atmc ${ez.atmc} = mdat ${targetMdat}) — userId=${userId}`,
     );
 
     return {
       userId: String(userId),
       email: user.email,
       year,
-      ourValue,
-      ezpassPrevious: previous,
-      ezpassApplied: applied,
+      ourRegular,
+      ourAuctionDays,
+      ourTotal,
+      ezpassAtmc: ez.atmc,
+      ezpassMdatBefore: r.previous,
+      ezpassMdatApplied: r.applied,
     };
   }
 }

@@ -125,6 +125,35 @@ export class EzpassHrLeaveClient implements HrLeaveClient {
     return { userNo, mdat };
   }
 
+  /** drift 점검용 — atmc(자동) + mdat(조정) 동시 조회. ezpass selectUserYrycInfo 1회. */
+  async getCurrentLeave(email: string, year: number): Promise<{ userNo: number; atmc: number; mdat: number }> {
+    const userNo = await this.resolveUserNo(email);
+    const token = await this.admin.getToken();
+    const base = this.requireBase();
+    const startDe = await this.computeAccnutStartDe(year);
+    const res = await this.callJson(
+      "POST",
+      `${base}/v1/cmn/dlz/CmnDlz0020P/selectUserYrycInfo`,
+      { submitUserNo: userNo, startDe },
+      token,
+    );
+    const handled = await this.handleAuthRetry(res, () =>
+      this.callJson(
+        "POST",
+        `${base}/v1/cmn/dlz/CmnDlz0020P/selectUserYrycInfo`,
+        { submitUserNo: userNo, startDe },
+        token,
+      ),
+    );
+    if (handled.status !== 200) {
+      throw new Error(`selectUserYrycInfo 실패 (status=${handled.status}): ${handled.body.slice(0, 300)}`);
+    }
+    const resp = handled.body?.trim() ?? "";
+    if (!resp || resp === "null") return { userNo, atmc: 0, mdat: 0 };
+    const parsed = JSON.parse(resp) as { autoYryc?: number; mdatYryc?: number };
+    return { userNo, atmc: Number(parsed.autoYryc ?? 0), mdat: Number(parsed.mdatYryc ?? 0) };
+  }
+
   /** email → (user_no, cmpny_no) 일회성 READ-ONLY 매핑.
    *  시드(prisma/seed.ts)가 회원 미러를 만들 때 쓰는 것과 동일한 SELECT 패턴.
    *  cmpny가 7이 아니면 throw(타 회사 쓰기 방지). */

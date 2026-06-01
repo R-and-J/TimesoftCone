@@ -117,7 +117,7 @@ export type LoginResponse = {
   userId: string;
   empId: string;
   name: string;
-  role: "ADMIN" | "EZPASS" | "EXAM";
+  role: "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM";
   team: string | null;
   jobRank: string | null;
   jobTitle: string | null;
@@ -291,7 +291,7 @@ export type MemberRow = {
   team: string | null;
   jobRank: string | null;
   jobTitle: string | null;
-  role: "ADMIN" | "EZPASS" | "EXAM";
+  role: "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM";
   active: boolean;
   /** WELFARE_POINT 잔액(bigint 문자열). */
   balance: string;
@@ -327,7 +327,7 @@ export type CreateMemberInput = {
   email: string;
   name: string;
   password: string;
-  role: "EXAM" | "ADMIN";
+  role: "EXAM" | "EXAM_ADMIN";
   empId?: string;
   team?: string | null;
   jobRank?: string | null;
@@ -336,7 +336,7 @@ export type CreateMemberInput = {
 
 export type UpdateMemberInput = {
   name?: string;
-  role?: "EXAM" | "ADMIN";
+  role?: "EXAM" | "EXAM_ADMIN";
   team?: string | null;
   jobRank?: string | null;
   jobTitle?: string | null;
@@ -471,8 +471,12 @@ export type LeaveSyncRow = {
   name: string;
   email: string;
   year: number;
+  ourRegular: number;
   ourAuctionDays: number;
+  ourTotal: number;
+  ezpassAtmc: number | null;
   ezpassMdat: number | null;
+  ezpassTotal: number | null;
   inSync: boolean;
   error: string | null;
 };
@@ -490,9 +494,12 @@ export type ReconcileResult = {
   userId: string;
   email: string;
   year: number;
-  ourValue: number;
-  ezpassPrevious: number;
-  ezpassApplied: number;
+  ourRegular: number;
+  ourAuctionDays: number;
+  ourTotal: number;
+  ezpassAtmc: number;
+  ezpassMdatBefore: number;
+  ezpassMdatApplied: number;
 };
 export function reconcileUserLeave(userId: string | number, year?: number) {
   const qs = year !== undefined ? `?year=${year}` : "";
