@@ -8,6 +8,7 @@ import { z } from "zod";
 import { ApproveRedemptionRequestUseCase } from "@/application/redemption/approve-redemption-request.use-case";
 import { RejectRedemptionRequestUseCase } from "@/application/redemption/reject-redemption-request.use-case";
 import { ListRedemptionRequestsUseCase } from "@/application/redemption/list-redemption-requests.use-case";
+import { GetRedemptionSummaryUseCase } from "@/application/redemption/get-redemption-summary.use-case";
 import { CurrentUser, Roles, type AuthUser } from "./auth/auth.decorators";
 import { ZodValidationPipe } from "./zod.pipe";
 
@@ -29,6 +30,7 @@ export class AdminRedemptionRequestsController {
     private readonly approve: ApproveRedemptionRequestUseCase,
     private readonly reject: RejectRedemptionRequestUseCase,
     private readonly list: ListRedemptionRequestsUseCase,
+    private readonly summary: GetRedemptionSummaryUseCase,
   ) {}
 
   @Get()
@@ -37,6 +39,11 @@ export class AdminRedemptionRequestsController {
       ? (status as (typeof STATUSES)[number])
       : undefined;
     return this.list.forAdmin(s);
+  }
+
+  @Get("summary")
+  async getSummary() {
+    return this.summary.execute();
   }
 
   @Post(":id/approve")

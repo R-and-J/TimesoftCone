@@ -69,6 +69,7 @@ import { ApproveRedemptionRequestUseCase } from "./application/redemption/approv
 import { RejectRedemptionRequestUseCase } from "./application/redemption/reject-redemption-request.use-case";
 import { ConfirmRedemptionReceivedUseCase } from "./application/redemption/confirm-redemption-received.use-case";
 import { ListRedemptionRequestsUseCase } from "./application/redemption/list-redemption-requests.use-case";
+import { GetRedemptionSummaryUseCase } from "./application/redemption/get-redemption-summary.use-case";
 import { SubmitChargeRequestUseCase } from "./application/wallet/charge/submit-charge-request.use-case";
 import { ApproveChargeRequestUseCase } from "./application/wallet/charge/approve-charge-request.use-case";
 import { RejectChargeRequestUseCase } from "./application/wallet/charge/reject-charge-request.use-case";
@@ -257,6 +258,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     RejectRedemptionRequestUseCase,
     ConfirmRedemptionReceivedUseCase,
     ListRedemptionRequestsUseCase,
+    GetRedemptionSummaryUseCase,
     SubmitChargeRequestUseCase,
     ApproveChargeRequestUseCase,
     RejectChargeRequestUseCase,

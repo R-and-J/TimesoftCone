@@ -12,6 +12,7 @@ import {
   listAdminRedemptionRequests,
   approveRedemptionRequest,
   rejectRedemptionRequest,
+  getRedemptionSummary,
   type RedemptionRequestRow,
   type RedemptionRequestStatus,
 } from "@/lib/queries";
@@ -35,6 +36,7 @@ export default function AdminRedemptionPage() {
     () => listAdminRedemptionRequests(filter === "ALL" ? undefined : filter),
     [filter],
   );
+  const summaryQ = useQuery(() => getRedemptionSummary(), []);
   const [acting, setActing] = useState<number | null>(null);
   const [modal, setModal] = useState<{ id: number; mode: "approve" | "reject" } | null>(null);
   const [coupon, setCoupon] = useState("");
@@ -77,7 +79,7 @@ export default function AdminRedemptionPage() {
       setModal(null);
       setCoupon("");
       setNote("");
-      await reqsQ.refetch();
+      await Promise.all([reqsQ.refetch(), summaryQ.refetch()]);
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
@@ -122,6 +124,42 @@ export default function AdminRedemptionPage() {
                 );
               })}
             </div>
+          </div>
+
+          {/* KPI 4칸 — 카드 클릭 시 해당 상태로 필터 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+            <SummaryCard
+              p={p}
+              label="대기"
+              value={summaryQ.data?.pending ?? "—"}
+              tone={(summaryQ.data?.pending ?? 0) > 0 ? "alert" : "neutral"}
+              active={filter === "PENDING"}
+              onClick={() => setFilter("PENDING")}
+            />
+            <SummaryCard
+              p={p}
+              label="승인 (수령 대기)"
+              value={summaryQ.data?.approved ?? "—"}
+              tone="accent"
+              active={filter === "APPROVED"}
+              onClick={() => setFilter("APPROVED")}
+            />
+            <SummaryCard
+              p={p}
+              label="수령 완료"
+              value={summaryQ.data?.received ?? "—"}
+              tone="success"
+              active={filter === "RECEIVED"}
+              onClick={() => setFilter("RECEIVED")}
+            />
+            <SummaryCard
+              p={p}
+              label="반려 (환불)"
+              value={summaryQ.data?.rejected ?? "—"}
+              tone="warn"
+              active={filter === "REJECTED"}
+              onClick={() => setFilter("REJECTED")}
+            />
           </div>
 
           <Card p={p} padding={0}>
@@ -286,5 +324,57 @@ export default function AdminRedemptionPage() {
         </div>
       )}
     </ScreenFrame>
+  );
+}
+
+type Palette = typeof PALETTES.cobalt;
+
+function SummaryCard({
+  p,
+  label,
+  value,
+  tone,
+  active,
+  onClick,
+}: {
+  p: Palette;
+  label: string;
+  value: string | number;
+  tone: "neutral" | "accent" | "success" | "warn" | "alert";
+  active?: boolean;
+  onClick: () => void;
+}) {
+  const valueColor =
+    tone === "alert"
+      ? p.warn
+      : tone === "accent"
+        ? p.accent
+        : tone === "success"
+          ? p.success
+          : tone === "warn"
+            ? p.warn
+            : p.ink;
+  return (
+    <Card
+      p={p}
+      padding={16}
+      onClick={onClick}
+      style={{
+        cursor: "pointer",
+        outline: active ? `2px solid ${p.ink}` : "none",
+        outlineOffset: -1,
+      }}
+    >
+      <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>{label}</div>
+      <div
+        className="mono"
+        style={{ fontSize: 26, fontWeight: 800, color: valueColor, marginTop: 4, letterSpacing: "-0.02em" }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2 }}>
+        {active ? "선택됨 · 클릭으로 필터 유지" : "클릭하면 이 상태만 보기"}
+      </div>
+    </Card>
   );
 }

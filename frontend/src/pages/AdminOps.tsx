@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
@@ -50,6 +51,7 @@ type SettleDueResponse = {
 export default function AdminOpsPage() {
   const p = PALETTES.cobalt;
   const toast = useToast();
+  const navigate = useNavigate();
   const statsQ = useQuery(() => getAdminStats(), []);
   // 유찰 재고는 운영자가 보는 본 연도가 기본. (오픈 예정 목록은 "경매관리" 탭으로 분리.)
   const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
@@ -241,13 +243,13 @@ export default function AdminOpsPage() {
                     ? "—"
                     : "오류"
               }
-              sub="P · NFR-2 등식"
+              sub="현재 적립 잔액"
               mono
             />
             <KpiCard
               k="진행 중 경매"
               v={statsQ.data?.openAuctions ?? "—"}
-              sub="OPEN 상태"
+              sub="진행 중"
             />
             <KpiCard
               k="오픈 예정"
@@ -265,6 +267,19 @@ export default function AdminOpsPage() {
               sub="AWARDED today"
               good
             />
+            <KpiCard
+              k="교환 신청 대기"
+              v={statsQ.data?.redemptionPending ?? "—"}
+              sub="승인/반려 필요"
+              alert={(statsQ.data?.redemptionPending ?? 0) > 0}
+              onClick={() => navigate("/admin/redemption")}
+            />
+            <KpiCard
+              k="수령 대기"
+              v={statsQ.data?.redemptionAwaitingReceipt ?? "—"}
+              sub="승인 후 사용자 컨펌 대기"
+              onClick={() => navigate("/admin/redemption")}
+            />
           </div>
 
           <Card p={p} padding={0} style={{ marginBottom: 16 }}>
@@ -274,7 +289,7 @@ export default function AdminOpsPage() {
                   정산 데이터 내보내기
                 </div>
                 <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
-                  도입사 HR/급여 반영용 핸드오프 (ADR-021) · Excel(.xlsx)/Markdown/JSON
+                  급여·복지 반영용 정산 자료 · Excel(.xlsx)/Markdown/JSON
                 </div>
               </div>
               <Btn p={p} variant="dark" size="md" onClick={() => setExportOpen(true)}>
@@ -292,7 +307,7 @@ export default function AdminOpsPage() {
                   연말 풀 수집
                 </div>
                 <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
-                  올해 REGULAR 미사용 연차를 취합해 익년도 1일권 경매 매물 생성 + Stake 기록 (ADR-017) · 연도당 1회
+                  올해 일반 연차 미사용분을 취합해 익년도 1일권 경매 매물을 만들고 기여 지분을 기록합니다 · 연도당 1회
                 </div>
               </div>
               <Btn p={p} variant="dark" size="md" onClick={openPool}>
@@ -326,7 +341,7 @@ export default function AdminOpsPage() {
                       유찰 재고 (수동 처리 대기)
                     </div>
                     <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
-                      EVENT 속성으로 지급하거나 다시 경매에 등록 가능
+                      이벤트 연차로 지급하거나 다시 경매에 등록 가능
                     </div>
                   </div>
                   <Pill p={p} tone="warn" size="sm">
@@ -486,8 +501,8 @@ export default function AdminOpsPage() {
                   </span>
                 </Btn>
                 <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
-                  에스크로 잔액을 기여 지분(stake)만큼 일괄 지급합니다. 미리보기 후 실행되며,
-                  1회만 지급됩니다. (ADR-008)
+                  에스크로 잔액을 기여 지분만큼 일괄 지급합니다. 미리보기 후 실행되며,
+                  1회만 지급됩니다.
                 </div>
               </Card>
             </div>
@@ -595,8 +610,8 @@ export default function AdminOpsPage() {
               연말 배당 정산 (미리보기)
             </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18 }}>
-              에스크로 잔액을 기여 지분만큼 일괄 지급합니다. 나머지 단수는 stake 1위에게 귀속되어
-              <b> 총 배당 = 에스크로</b>가 정확히 맞습니다 (NFR-2). 실행은 1회만 가능합니다.
+              에스크로 잔액을 기여 지분만큼 일괄 지급합니다. 나머지 단수는 기여 지분 1위에게 귀속되어
+              <b> 총 배당액과 에스크로 잔액이 정확히 일치</b>합니다. 실행은 1회만 가능합니다.
             </div>
 
             {divLoading && !divPreview && (
@@ -739,8 +754,8 @@ export default function AdminOpsPage() {
               연말 풀 수집 (미리보기)
             </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18 }}>
-              올해 <b>REGULAR</b> 미사용 연차를 전량 취합(1:1)해 익년도 1일권 경매 매물을 만들고
-              기여자별 Stake(지분)를 기록합니다. 연도당 1회만 실행됩니다 (ADR-017).
+              올해 <b>일반 연차</b> 미사용분을 전량 취합(1:1)해 익년도 1일권 경매 매물을 만들고
+              기여자별 지분을 기록합니다. 연도당 1회만 실행됩니다.
             </div>
 
             {poolLoading && !poolPreview && (
@@ -778,7 +793,7 @@ export default function AdminOpsPage() {
 
                 {poolPreview.auctionsCreated === 0 ? (
                   <div style={{ padding: 24, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
-                    수집할 기여(REGULAR 미사용 연차)가 없습니다.
+                    수집할 기여(일반 연차 미사용분)가 없습니다.
                   </div>
                 ) : (
                   <div style={{ overflow: "auto", flex: 1, marginBottom: 18 }}>
@@ -840,23 +855,29 @@ function KpiCard({
   sub,
   mono,
   good,
+  alert,
+  onClick,
 }: {
   k: string;
   v: string | number;
   sub: string;
   mono?: boolean;
   good?: boolean;
+  /** 0이 아니면 처리 대기를 강조(주황색 숫자). */
+  alert?: boolean;
+  onClick?: () => void;
 }) {
   const p = PALETTES.cobalt;
+  const color = alert ? p.warn : good ? p.success : p.ink;
   return (
-    <Card p={p} padding={16}>
+    <Card p={p} padding={16} style={onClick ? { cursor: "pointer" } : undefined} onClick={onClick}>
       <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>{k}</div>
       <div
         className={mono ? "mono" : ""}
         style={{
           fontSize: 26,
           fontWeight: 800,
-          color: good ? p.success : p.ink,
+          color,
           marginTop: 4,
           letterSpacing: "-0.02em",
         }}

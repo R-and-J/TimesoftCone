@@ -15,6 +15,10 @@ export type AdminStats = {
   unsoldAuctions: number;
   awardedToday: number;
   dlqDepth: number; // Outbox DEAD 행 수 (ADR-005 relay 사후, CUT-4·7 부활)
+  /** 교환 신청 대기 건수 — 관리자 처리 대기 (ADR-023 v2). */
+  redemptionPending: number;
+  /** 승인됐는데 사용자가 아직 수령 컨펌 안 한 건수. */
+  redemptionAwaitingReceipt: number;
 };
 
 @Injectable()
@@ -22,30 +26,39 @@ export class GetAdminStatsUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(): Promise<AdminStats> {
-    const [bidWinSum, refundDividendSum, statusCounts, awardedToday, dlqDepth] =
-      await Promise.all([
-        // Σ(BID + WIN): BID amounts are negative, so use |amount|. WIN is 0.
-        // Equivalent: sum of all BID amount absolutes.
-        this.prisma.ledgerEntry.aggregate({
-          _sum: { amount: true },
-          where: { actionType: "BID" },
-        }),
-        this.prisma.ledgerEntry.aggregate({
-          _sum: { amount: true },
-          where: { actionType: { in: ["REFUND", "DIVIDEND"] } },
-        }),
-        this.prisma.auction.groupBy({
-          by: ["status"],
-          _count: { _all: true },
-        }),
-        this.prisma.auction.count({
-          where: {
-            status: "AWARDED",
-            settledAt: { gte: startOfToday() },
-          },
-        }),
-        this.prisma.outboxMessage.count({ where: { status: "DEAD" } }),
-      ]);
+    const [
+      bidWinSum,
+      refundDividendSum,
+      statusCounts,
+      awardedToday,
+      dlqDepth,
+      redemptionPending,
+      redemptionAwaitingReceipt,
+    ] = await Promise.all([
+      // Σ(BID + WIN): BID amounts are negative, so use |amount|. WIN is 0.
+      // Equivalent: sum of all BID amount absolutes.
+      this.prisma.ledgerEntry.aggregate({
+        _sum: { amount: true },
+        where: { actionType: "BID" },
+      }),
+      this.prisma.ledgerEntry.aggregate({
+        _sum: { amount: true },
+        where: { actionType: { in: ["REFUND", "DIVIDEND"] } },
+      }),
+      this.prisma.auction.groupBy({
+        by: ["status"],
+        _count: { _all: true },
+      }),
+      this.prisma.auction.count({
+        where: {
+          status: "AWARDED",
+          settledAt: { gte: startOfToday() },
+        },
+      }),
+      this.prisma.outboxMessage.count({ where: { status: "DEAD" } }),
+      this.prisma.redemptionRequest.count({ where: { status: "PENDING" } }),
+      this.prisma.redemptionRequest.count({ where: { status: "APPROVED" } }),
+    ]);
 
     const bidSum = bidWinSum._sum.amount ?? 0n; // negative
     const refundSum = refundDividendSum._sum.amount ?? 0n; // positive
@@ -63,6 +76,8 @@ export class GetAdminStatsUseCase {
       unsoldAuctions: byStatus.get("UNSOLD") ?? 0,
       awardedToday,
       dlqDepth,
+      redemptionPending,
+      redemptionAwaitingReceipt,
     };
   }
 }

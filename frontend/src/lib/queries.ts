@@ -219,6 +219,10 @@ export type AdminStatsResponse = {
   unsoldAuctions: number;
   awardedToday: number;
   dlqDepth: number;
+  /** 교환 신청 대기 건수(관리자 처리 대기 — ADR-023 v2). */
+  redemptionPending: number;
+  /** 승인 후 사용자가 아직 수령 컨펌 안 한 건수. */
+  redemptionAwaitingReceipt: number;
 };
 
 export function getAdminStats() {
@@ -440,6 +444,17 @@ export function listAdminRedemptionRequests(status?: RedemptionRequestStatus) {
   return apiGet<RedemptionRequestRow[]>(
     `/admin/redemption-requests${status ? `?status=${status}` : ""}`,
   );
+}
+
+export type RedemptionSummaryResponse = {
+  pending: number;
+  approved: number;
+  received: number;
+  rejected: number;
+};
+
+export function getRedemptionSummary() {
+  return apiGet<RedemptionSummaryResponse>("/admin/redemption-requests/summary");
 }
 
 export function approveRedemptionRequest(id: number, couponCode: string, note?: string) {
