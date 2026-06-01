@@ -14,6 +14,12 @@ import {
   type AuctionWonEvent,
   type AuctionInventoryCreatedEvent,
 } from "@/application/events/auction-events";
+import {
+  CHARGE_EVENTS,
+  type ChargeRequestSubmittedEvent,
+  type ChargeApprovedEvent,
+  type ChargeRejectedEvent,
+} from "@/application/events/charge-events";
 
 const won = (n: bigint) => Number(n).toLocaleString("ko-KR");
 
@@ -65,6 +71,64 @@ export class NotificationObserver {
       this.logger.warn(
         `INVENTORY_CREATED 알림 적재 실패 (${e.targetYear}): ${(err as Error).message}`,
       );
+    }
+  }
+
+  /** 충전 요청 등록 → 모든 ADMIN에게 알림(ADR-024). */
+  @OnEvent(CHARGE_EVENTS.SUBMITTED)
+  async onChargeRequestSubmitted(e: ChargeRequestSubmittedEvent): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: "ADMIN", active: true },
+        select: { id: true },
+      });
+      if (admins.length === 0) return;
+      const msg = `${e.requesterName} — ${won(e.amount)}P 충전 요청` + (e.note ? ` (사유: ${e.note})` : "");
+      await this.prisma.notification.createMany({
+        data: admins.map((u) => ({
+          userId: u.id,
+          type: "CHARGE_REQUEST_SUBMITTED",
+          title: "새 충전 요청",
+          message: msg,
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(`CHARGE_REQUEST_SUBMITTED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 충전 승인 → 요청자에게 알림. */
+  @OnEvent(CHARGE_EVENTS.APPROVED)
+  async onChargeApproved(e: ChargeApprovedEvent): Promise<void> {
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: e.requesterId,
+          type: "CHARGE_APPROVED",
+          title: "충전 승인됨 ✅",
+          message: `+${won(e.amount)}P 가 지갑에 적립되었습니다.`,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`CHARGE_APPROVED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 충전 반려 → 요청자에게 알림(사유 포함). */
+  @OnEvent(CHARGE_EVENTS.REJECTED)
+  async onChargeRejected(e: ChargeRejectedEvent): Promise<void> {
+    try {
+      const tail = e.decisionNote ? ` — ${e.decisionNote}` : "";
+      await this.prisma.notification.create({
+        data: {
+          userId: e.requesterId,
+          type: "CHARGE_REJECTED",
+          title: "충전 요청 반려",
+          message: `${won(e.amount)}P 충전 요청이 반려되었습니다.${tail}`,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`CHARGE_REJECTED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
     }
   }
 

@@ -2,12 +2,13 @@
 import { useNavigate } from "react-router-dom";
 import type { Palette } from "@/lib/tokens";
 
-type AdminTab = "ops" | "ledger" | "members";
+type AdminTab = "ops" | "ledger" | "members" | "charges";
 
 const TABS: { id: AdminTab; label: string; route: string }[] = [
   { id: "ops", label: "운영", route: "/admin/ops" },
   { id: "ledger", label: "원장", route: "/admin/ledger" },
   { id: "members", label: "회원관리", route: "/admin/members" },
+  { id: "charges", label: "충전 요청", route: "/admin/charges" },
 ];
 
 export function AdminTabs({ p, active }: { p: Palette; active: AdminTab }) {

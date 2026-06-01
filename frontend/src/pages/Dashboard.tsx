@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import {
   Btn,
@@ -10,13 +11,39 @@ import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { useCurrentUser } from "@/lib/current-user";
 import { useQuery } from "@/lib/use-query";
-import { getBalance, getLeave, getMyDividend, listAuctions } from "@/lib/queries";
+import { useToast } from "@/lib/toast";
+import { getBalance, getLeave, getMyDividend, listAuctions, submitChargeRequest } from "@/lib/queries";
 import { useNavigate } from "react-router-dom";
 
 export default function DashboardPage() {
   const p = PALETTES.cobalt;
   const navigate = useNavigate();
+  const toast = useToast();
   const { user } = useCurrentUser();
+  const [chargeOpen, setChargeOpen] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState<string>("");
+  const [chargeNote, setChargeNote] = useState("");
+  const [charging, setCharging] = useState(false);
+
+  const submitCharge = async () => {
+    const amount = Number(chargeAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.push("error", "금액은 1P 이상의 숫자여야 합니다");
+      return;
+    }
+    setCharging(true);
+    try {
+      await submitChargeRequest(amount, chargeNote.trim() || undefined);
+      toast.push("success", `${fmt.point(amount)}P 충전 요청 등록 — 관리자 승인 대기`);
+      setChargeOpen(false);
+      setChargeAmount("");
+      setChargeNote("");
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setCharging(false);
+    }
+  };
 
   const balanceQ = useQuery(() => getBalance(user.id), [user.id]);
   const auctionsQ = useQuery(() => listAuctions(["OPEN"]), []);
@@ -144,9 +171,18 @@ export default function DashboardPage() {
                     실시간 잔액
                   </Pill>
                 </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
                   <Btn p={p} variant="primary" size="sm" onClick={() => navigate("/activity")}>
                     거래 내역
+                  </Btn>
+                  <Btn
+                    p={p}
+                    variant="ghost"
+                    size="sm"
+                    style={{ color: "#fff", borderColor: "rgba(255,255,255,0.25)" }}
+                    onClick={() => setChargeOpen(true)}
+                  >
+                    충전 요청
                   </Btn>
                   <Btn
                     p={p}
@@ -502,6 +538,69 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* 충전 요청 모달 (ADR-024) */}
+      {chargeOpen && (
+        <div
+          onClick={() => !charging && setChargeOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 420, background: p.surface, borderRadius: 16, padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 6 }}>충전 요청</div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 16 }}>
+              관리자 승인 시 자동으로 잔액에 적립돼요.
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 6 }}>금액 (P)</div>
+              <input
+                type="number"
+                value={chargeAmount}
+                min={1}
+                step={1000}
+                onChange={(e) => setChargeAmount(e.target.value)}
+                placeholder="예: 50000"
+                style={{
+                  width: "100%", padding: "9px 12px", borderRadius: 9,
+                  border: `1px solid ${p.line}`, fontSize: 14, color: p.ink, background: p.bg,
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 6 }}>사유 (선택)</div>
+              <textarea
+                value={chargeNote}
+                onChange={(e) => setChargeNote(e.target.value)}
+                placeholder="예: 회식비로 사용 예정"
+                rows={3}
+                style={{
+                  width: "100%", padding: "9px 12px", borderRadius: 9,
+                  border: `1px solid ${p.line}`, fontSize: 13, color: p.ink, background: p.bg,
+                  boxSizing: "border-box", fontFamily: "inherit", resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={charging} onClick={() => setChargeOpen(false)}>취소</Btn>
+              <Btn p={p} variant="primary" size="md" disabled={charging || !chargeAmount} onClick={submitCharge}>
+                {charging ? "요청 중…" : "요청하기"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenFrame>
   );
 }

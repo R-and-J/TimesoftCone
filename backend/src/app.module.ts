@@ -52,6 +52,10 @@ import { MarkNotificationsReadUseCase } from "./application/notification/mark-no
 import { ListRedemptionItemsUseCase } from "./application/redemption/list-redemption-items.use-case";
 import { RedeemItemUseCase } from "./application/redemption/redeem-item.use-case";
 import { ListMyRedemptionOrdersUseCase } from "./application/redemption/list-my-redemption-orders.use-case";
+import { SubmitChargeRequestUseCase } from "./application/wallet/charge/submit-charge-request.use-case";
+import { ApproveChargeRequestUseCase } from "./application/wallet/charge/approve-charge-request.use-case";
+import { RejectChargeRequestUseCase } from "./application/wallet/charge/reject-charge-request.use-case";
+import { ListChargeRequestsUseCase } from "./application/wallet/charge/list-charge-requests.use-case";
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
@@ -71,6 +75,8 @@ import { AdminExportController } from "./interfaces/http/admin-export.controller
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { RedemptionController, UserRedemptionOrdersController } from "./interfaces/http/redemption.controller";
+import { WalletChargeController } from "./interfaces/http/wallet-charge.controller";
+import { AdminChargesController } from "./interfaces/http/admin-charges.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
 import { AdminDividendController } from "./interfaces/http/admin-dividend.controller";
 import { AdminLeavePoolController } from "./interfaces/http/admin-leave-pool.controller";
@@ -121,6 +127,8 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     NotificationsController,
     RedemptionController,
     UserRedemptionOrdersController,
+    WalletChargeController,
+    AdminChargesController,
     DividendController,
     AdminDividendController,
     AdminLeavePoolController,
@@ -195,6 +203,10 @@ import { LEAVE_ADMIN } from "./ports/leave-admin.port";
     ListRedemptionItemsUseCase,
     RedeemItemUseCase,
     ListMyRedemptionOrdersUseCase,
+    SubmitChargeRequestUseCase,
+    ApproveChargeRequestUseCase,
+    RejectChargeRequestUseCase,
+    ListChargeRequestsUseCase,
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
     CollectLeavePoolUseCase,

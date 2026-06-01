@@ -64,6 +64,8 @@ model User {
   notifications    Notification[]
   stakes           Stake[]
   redemptionOrders RedemptionOrder[]
+  chargeRequests   ChargeRequest[]   @relation("ChargeRequester")
+  chargeDecisions  ChargeRequest[]   @relation("ChargeApprover")
 
   @@map("users")
 }
@@ -325,4 +327,33 @@ model RedemptionOrder {
 
   @@index([userId, createdAt])
   @@map("redemption_order")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CHARGE_REQUEST — 사용자 주도 충전 요청, 관리자 승인 워크플로 (ADR-024).
+// 사용자: PENDING 등록 → 관리자: APPROVED(같은 tx에 CreditWalletAdmin 실행)
+// 또는 REJECTED. 결정 이벤트가 NotificationObserver에 도달해 양방향 알림.
+// ─────────────────────────────────────────────────────────────
+model ChargeRequest {
+  id           Int       @id @default(autoincrement())
+  userId       BigInt    @map("user_id")
+  amount       BigInt
+  /// 사용자 요청 사유(선택).
+  note         String?
+  /// PENDING | APPROVED | REJECTED.
+  status       String    @default("PENDING")
+  /// 결정한 관리자.
+  decidedBy    BigInt?   @map("decided_by")
+  decidedAt    DateTime? @map("decided_at")
+  /// 관리자 결정 사유(주로 REJECTED).
+  decisionNote String?   @map("decision_note")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user          User  @relation("ChargeRequester", fields: [userId], references: [id])
+  decidedByUser User? @relation("ChargeApprover", fields: [decidedBy], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("charge_request")
 }

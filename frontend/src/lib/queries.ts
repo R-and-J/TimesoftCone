@@ -383,6 +383,49 @@ export function listMyRedemptionOrders(userId: string | number) {
   return apiGet<RedemptionOrder[]>(`/users/${userId}/redemption-orders`);
 }
 
+// ── 충전 요청 워크플로 (ADR-024) ─────────────────────────────────
+export type ChargeRequestRow = {
+  id: number;
+  userId: string;
+  userName: string;
+  amount: string;
+  note: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  decidedByName: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+};
+
+export function submitChargeRequest(amount: number, note?: string) {
+  return apiPost<{ id: number; amount: string; status: string; createdAt: string }>(
+    "/wallet/charge-requests",
+    note ? { amount, note } : { amount },
+  );
+}
+
+export function listMyChargeRequests() {
+  return apiGet<ChargeRequestRow[]>("/wallet/charge-requests");
+}
+
+export function listAdminChargeRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+  return apiGet<ChargeRequestRow[]>(`/admin/charge-requests${status ? `?status=${status}` : ""}`);
+}
+
+export function approveChargeRequest(id: number, note?: string) {
+  return apiPost<{ requestId: number; userId: string; amount: string; newBalance: string }>(
+    `/admin/charge-requests/${id}/approve`,
+    note ? { note } : {},
+  );
+}
+
+export function rejectChargeRequest(id: number, note?: string) {
+  return apiPost<{ requestId: number; status: "REJECTED" }>(
+    `/admin/charge-requests/${id}/reject`,
+    note ? { note } : {},
+  );
+}
+
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
 export type NotificationItem = {
   id: string;
