@@ -99,7 +99,8 @@ export class NotificationObserver {
           type: "CHARGE_REQUEST_SUBMITTED",
           title: "새 충전 요청",
           message: msg,
-          linkPath: "/admin/charges",
+          // 클릭 시 회원관리에서 해당 요청의 승인/반려 모달이 바로 열림.
+          linkPath: `/admin/members?chargeRequest=${e.requestId}`,
         })),
       });
     } catch (err) {

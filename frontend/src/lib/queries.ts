@@ -500,6 +500,10 @@ export function listAdminChargeRequests(status?: "PENDING" | "APPROVED" | "REJEC
   return apiGet<ChargeRequestRow[]>(`/admin/charge-requests${status ? `?status=${status}` : ""}`);
 }
 
+export function getAdminChargeRequest(id: number) {
+  return apiGet<ChargeRequestRow>(`/admin/charge-requests/${id}`);
+}
+
 export function approveChargeRequest(id: number, note?: string) {
   return apiPost<{ requestId: number; userId: string; amount: string; newBalance: string }>(
     `/admin/charge-requests/${id}/approve`,

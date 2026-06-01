@@ -1,4 +1,5 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
@@ -8,10 +9,14 @@ import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
   adminCreditWallet,
+  approveChargeRequest,
+  getAdminChargeRequest,
   listMembers,
+  rejectChargeRequest,
   syncMembers,
   createMember,
   updateMember,
+  type ChargeRequestRow,
   type MemberRow,
 } from "@/lib/queries";
 
@@ -56,15 +61,24 @@ export default function AdminMembersPage() {
     : "120px 1fr 220px 1.2fr 160px 90px 110px 80px";
 
   // 충전 모달 상태.
+  // free: 관리자 자유 충전. request: 알림에서 들어온 충전 요청(승인/반려).
   const [creditFor, setCreditFor] = useState<MemberRow | null>(null);
   const [creditAmount, setCreditAmount] = useState("");
   const [creditReason, setCreditReason] = useState("");
   const [crediting, setCrediting] = useState(false);
+  const [chargeReq, setChargeReq] = useState<ChargeRequestRow | null>(null);
 
   const openCredit = (m: MemberRow) => {
     setCreditFor(m);
     setCreditAmount("");
     setCreditReason("");
+    setChargeReq(null);
+  };
+  const openCreditFromRequest = (m: MemberRow, req: ChargeRequestRow) => {
+    setCreditFor(m);
+    setCreditAmount(req.amount);
+    setCreditReason(req.note ?? "");
+    setChargeReq(req);
   };
   const doCredit = async () => {
     if (!creditFor) return;
@@ -92,6 +106,79 @@ export default function AdminMembersPage() {
       setCrediting(false);
     }
   };
+  const doApproveRequest = async () => {
+    if (!creditFor || !chargeReq) return;
+    setCrediting(true);
+    try {
+      const r = await approveChargeRequest(chargeReq.id);
+      toast.push(
+        "success",
+        `${creditFor.name} 승인 — +${fmt.point(Number(r.amount))} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+      );
+      setCreditFor(null);
+      setChargeReq(null);
+      clearParam();
+      await membersQ.refetch();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setCrediting(false);
+    }
+  };
+  const doRejectRequest = async () => {
+    if (!creditFor || !chargeReq) return;
+    const note = prompt("반려 사유(선택)") ?? undefined;
+    setCrediting(true);
+    try {
+      await rejectChargeRequest(chargeReq.id, note);
+      toast.push("success", `${creditFor.name} 충전 요청 반려`);
+      setCreditFor(null);
+      setChargeReq(null);
+      clearParam();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setCrediting(false);
+    }
+  };
+
+  // 알림 deep-link: /admin/members?chargeRequest=N → 자동으로 요청 모달 오픈.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clearParam = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("chargeRequest");
+    setSearchParams(next, { replace: true });
+  };
+  useEffect(() => {
+    const idStr = searchParams.get("chargeRequest");
+    if (!idStr || !data) return;
+    const id = Number(idStr);
+    if (!Number.isFinite(id)) return;
+    (async () => {
+      try {
+        const req = await getAdminChargeRequest(id);
+        const member = data.members.find((m) => m.userId === req.userId);
+        if (!member) {
+          toast.push("error", `요청자(#${req.userId})를 회원 목록에서 찾을 수 없습니다`);
+          clearParam();
+          return;
+        }
+        if (req.status !== "PENDING") {
+          toast.push(
+            "error",
+            `이 요청은 이미 ${req.status === "APPROVED" ? "승인" : "반려"}되었습니다`,
+          );
+          clearParam();
+          return;
+        }
+        openCreditFromRequest(member, req);
+      } catch (e) {
+        toast.push("error", (e as Error).message);
+        clearParam();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, data]);
 
   const doSync = async () => {
     setSyncing(true);
@@ -281,18 +368,28 @@ export default function AdminMembersPage() {
             )}
           </div>
 
-          <Card p={p} padding={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Card
+            p={p}
+            padding={0}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+              border: `1px solid ${p.bgDeep}`,
+              overflow: "hidden",
+            }}
+          >
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: cols,
-                padding: "12px 20px",
+                padding: "13px 20px",
                 fontSize: 11,
-                color: p.inkMuted,
+                color: p.inkSoft,
                 fontWeight: 700,
                 letterSpacing: 0.4,
                 borderBottom: `1px solid ${p.line}`,
-                background: p.bg,
+                background: p.bgDeep,
               }}
             >
               <div>사번</div>
@@ -408,7 +505,12 @@ export default function AdminMembersPage() {
 
       {creditFor && (
         <div
-          onClick={() => !crediting && setCreditFor(null)}
+          onClick={() => {
+            if (crediting) return;
+            setCreditFor(null);
+            setChargeReq(null);
+            if (chargeReq) clearParam();
+          }}
           style={{
             position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200,
@@ -418,37 +520,62 @@ export default function AdminMembersPage() {
             onClick={(e) => e.stopPropagation()}
             style={{ width: 440, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>포인트 충전</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
+              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "포인트 충전"}
+            </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>
               <b>{creditFor.name}</b> · 사번 {creditFor.empId}
+              {chargeReq && (
+                <span style={{ marginLeft: 8, color: p.inkSoft }}>
+                  · 요청일 {new Date(chargeReq.createdAt).toLocaleString("ko-KR")}
+                </span>
+              )}
             </div>
             <div className="mono" style={{ fontSize: 12, color: p.inkSoft, marginBottom: 16 }}>
               현재 잔액 {fmt.point(Number(creditFor.balance))} P
             </div>
 
-            <Field label="충전 금액 (P)">
+            <Field label={chargeReq ? "요청 금액 (P)" : "충전 금액 (P)"}>
               <input
-                style={inp(p)}
+                style={{ ...inp(p), background: chargeReq ? p.bgDeep : p.bg }}
                 type="number" min={1} step={100}
                 value={creditAmount}
                 onChange={(e) => setCreditAmount(e.target.value)}
                 placeholder="예: 10000"
+                readOnly={!!chargeReq}
               />
             </Field>
-            <Field label="사유 (감사 로그 — 필수)">
+            <Field label={chargeReq ? "사용자 사유" : "사유 (감사 로그 — 필수)"}>
               <input
-                style={inp(p)}
+                style={{ ...inp(p), background: chargeReq ? p.bgDeep : p.bg }}
                 value={creditReason}
                 onChange={(e) => setCreditReason(e.target.value)}
-                placeholder="예: 입사 환영 보너스 / 충전 요청 승인"
+                placeholder={chargeReq ? "(사유 없음)" : "예: 입사 환영 보너스"}
+                readOnly={!!chargeReq}
               />
             </Field>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-              <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => setCreditFor(null)}>취소</Btn>
-              <Btn p={p} variant="primary" size="md" disabled={crediting} onClick={doCredit}>
-                {crediting ? "충전 중…" : "충전"}
-              </Btn>
+            <div style={{ display: "flex", justifyContent: chargeReq ? "space-between" : "flex-end", gap: 8, marginTop: 14 }}>
+              {chargeReq ? (
+                <>
+                  <Btn p={p} variant="danger" size="md" disabled={crediting} onClick={doRejectRequest}>
+                    {crediting ? "처리 중…" : "반려"}
+                  </Btn>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => { setCreditFor(null); setChargeReq(null); clearParam(); }}>닫기</Btn>
+                    <Btn p={p} variant="primary" size="md" disabled={crediting} onClick={doApproveRequest}>
+                      {crediting ? "처리 중…" : "승인 (충전)"}
+                    </Btn>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => setCreditFor(null)}>취소</Btn>
+                  <Btn p={p} variant="primary" size="md" disabled={crediting} onClick={doCredit}>
+                    {crediting ? "충전 중…" : "충전"}
+                  </Btn>
+                </>
+              )}
             </div>
           </div>
         </div>

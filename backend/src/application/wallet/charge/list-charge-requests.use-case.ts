@@ -36,6 +36,18 @@ export class ListChargeRequestsUseCase {
     return rows.map(this.toRow);
   }
 
+  /** 단건 조회 — 알림 deep-link에서 회원관리 모달이 prefill에 사용. */
+  async byId(id: number): Promise<ChargeRequestRow | null> {
+    const row = await this.prisma.chargeRequest.findUnique({
+      where: { id },
+      include: {
+        user: { select: { name: true } },
+        decidedByUser: { select: { name: true } },
+      },
+    });
+    return row ? this.toRow(row) : null;
+  }
+
   /** 관리자 — status 필터(미지정 = 전체, 최근순). */
   async forAdmin(status?: Status, limit = 50): Promise<ChargeRequestRow[]> {
     const rows = await this.prisma.chargeRequest.findMany({

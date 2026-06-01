@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
@@ -51,7 +50,6 @@ type SettleDueResponse = {
 export default function AdminOpsPage() {
   const p = PALETTES.cobalt;
   const toast = useToast();
-  const navigate = useNavigate();
   const statsQ = useQuery(() => getAdminStats(), []);
   // 유찰 재고는 운영자가 보는 본 연도가 기본. (오픈 예정 목록은 "경매관리" 탭으로 분리.)
   const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
@@ -266,19 +264,6 @@ export default function AdminOpsPage() {
               v={statsQ.data?.awardedToday ?? "—"}
               sub="AWARDED today"
               good
-            />
-            <KpiCard
-              k="교환 신청 대기"
-              v={statsQ.data?.redemptionPending ?? "—"}
-              sub="승인/반려 필요"
-              alert={(statsQ.data?.redemptionPending ?? 0) > 0}
-              onClick={() => navigate("/admin/redemption")}
-            />
-            <KpiCard
-              k="수령 대기"
-              v={statsQ.data?.redemptionAwaitingReceipt ?? "—"}
-              sub="승인 후 사용자 컨펌 대기"
-              onClick={() => navigate("/admin/redemption")}
             />
           </div>
 
