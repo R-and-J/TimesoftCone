@@ -20,6 +20,13 @@ import {
   type ChargeApprovedEvent,
   type ChargeRejectedEvent,
 } from "@/application/events/charge-events";
+import {
+  REDEMPTION_EVENTS,
+  type RedemptionRequestSubmittedEvent,
+  type RedemptionApprovedEvent,
+  type RedemptionRejectedEvent,
+  type RedemptionReceivedEvent,
+} from "@/application/events/redemption-events";
 
 const won = (n: bigint) => Number(n).toLocaleString("ko-KR");
 
@@ -134,6 +141,89 @@ export class NotificationObserver {
       });
     } catch (err) {
       this.logger.warn(`CHARGE_REJECTED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 교환 신청 등록 → 모든 ADMIN에게 알림 (ADR-023 v2). */
+  @OnEvent(REDEMPTION_EVENTS.SUBMITTED)
+  async onRedemptionSubmitted(e: RedemptionRequestSubmittedEvent): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: "ADMIN", active: true },
+        select: { id: true },
+      });
+      if (admins.length === 0) return;
+      await this.prisma.notification.createMany({
+        data: admins.map((u) => ({
+          userId: u.id,
+          type: "REDEMPTION_REQUEST_SUBMITTED",
+          title: "새 교환 신청",
+          message: `${e.requesterName} — ${e.itemName} (${won(e.priceP)}P) 신청`,
+          linkPath: "/admin/redemption",
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(`REDEMPTION_REQUEST_SUBMITTED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 교환 승인 + 쿠폰 발급 → 요청자에게 알림(/redemption에서 쿠폰 확인 후 수령 컨펌). */
+  @OnEvent(REDEMPTION_EVENTS.APPROVED)
+  async onRedemptionApproved(e: RedemptionApprovedEvent): Promise<void> {
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: e.requesterId,
+          type: "REDEMPTION_APPROVED",
+          title: "교환 승인됨 — 쿠폰 발급",
+          message: `${e.itemName} 신청이 승인됐어요. 쿠폰을 확인하고 수령 완료를 눌러주세요.`,
+          linkPath: "/redemption",
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`REDEMPTION_APPROVED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 교환 반려 → 요청자에게 알림(환불됨 + 사유). */
+  @OnEvent(REDEMPTION_EVENTS.REJECTED)
+  async onRedemptionRejected(e: RedemptionRejectedEvent): Promise<void> {
+    try {
+      const tail = e.decisionNote ? ` — ${e.decisionNote}` : "";
+      await this.prisma.notification.create({
+        data: {
+          userId: e.requesterId,
+          type: "REDEMPTION_REJECTED",
+          title: "교환 신청 반려",
+          message: `${e.itemName} 신청이 반려됐어요. ${won(e.refundP)}P 환불 완료.${tail}`,
+          linkPath: "/redemption",
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`REDEMPTION_REJECTED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
+    }
+  }
+
+  /** 사용자 수령 컨펌 → 모든 ADMIN에게 알림(처리 종결). */
+  @OnEvent(REDEMPTION_EVENTS.RECEIVED)
+  async onRedemptionReceived(e: RedemptionReceivedEvent): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: "ADMIN", active: true },
+        select: { id: true },
+      });
+      if (admins.length === 0) return;
+      await this.prisma.notification.createMany({
+        data: admins.map((u) => ({
+          userId: u.id,
+          type: "REDEMPTION_RECEIVED",
+          title: "교환 수령 확인",
+          message: `${e.requesterName} — ${e.itemName} 수령 완료`,
+          linkPath: "/admin/redemption",
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(`REDEMPTION_RECEIVED 알림 적재 실패 (#${e.requestId}): ${(err as Error).message}`);
     }
   }
 

@@ -14,6 +14,7 @@ import AdminOpsPage from "@/pages/AdminOps";
 import AdminLedgerPage from "@/pages/AdminLedger";
 import AdminMembersPage from "@/pages/AdminMembers";
 import AdminChargesPage from "@/pages/AdminCharges";
+import AdminRedemptionPage from "@/pages/AdminRedemption";
 import AdminAuctionsPage from "@/pages/AdminAuctions";
 import { useAuth } from "@/lib/current-user";
 
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/admin/ledger" element={<RequireAuth><AdminLedgerPage /></RequireAuth>} />
         <Route path="/admin/members" element={<RequireAuth><AdminMembersPage /></RequireAuth>} />
         <Route path="/admin/charges" element={<RequireAuth><AdminChargesPage /></RequireAuth>} />
+        <Route path="/admin/redemption" element={<RequireAuth><AdminRedemptionPage /></RequireAuth>} />
         <Route path="/admin/auctions" element={<RequireAuth><AdminAuctionsPage /></RequireAuth>} />
 
         {/* Developer escape hatch — full 12-screen catalog. */}

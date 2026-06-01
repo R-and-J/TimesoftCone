@@ -63,9 +63,11 @@ model User {
   leaveBalances    LeaveBalance[]
   notifications    Notification[]
   stakes           Stake[]
-  redemptionOrders RedemptionOrder[]
-  chargeRequests   ChargeRequest[]   @relation("ChargeRequester")
-  chargeDecisions  ChargeRequest[]   @relation("ChargeApprover")
+  redemptionOrders     RedemptionOrder[]
+  chargeRequests       ChargeRequest[]     @relation("ChargeRequester")
+  chargeDecisions      ChargeRequest[]     @relation("ChargeApprover")
+  redemptionRequests   RedemptionRequest[] @relation("RedemptionRequester")
+  redemptionDecisions  RedemptionRequest[] @relation("RedemptionApprover")
 
   @@map("users")
 }
@@ -301,7 +303,8 @@ model RedemptionItem {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  orders RedemptionOrder[]
+  orders   RedemptionOrder[]
+  requests RedemptionRequest[]
 
   @@index([active, category])
   @@map("redemption_item")
@@ -331,6 +334,44 @@ model RedemptionOrder {
 
   @@index([userId, createdAt])
   @@map("redemption_order")
+}
+
+// ─────────────────────────────────────────────────────────────
+// REDEMPTION_REQUEST — 사용자 주도 교환 신청, 관리자 승인+쿠폰 발급, 사용자 수령 컨펌.
+// 흐름: PENDING(차감/잠금) → APPROVED(couponCode 발급) → RECEIVED(사용자 확정)
+//                       ↘ REJECTED(REDEEM_REFUND 보상)
+// 차감 시점은 신청 — 잔액·재고 잠금이 ADR-001 escrow 모델과 정합.
+// 즉시 결제(RedemptionOrder)는 더 이상 신규 흐름 아님 — 옛 데이터는 그대로 보존.
+// ─────────────────────────────────────────────────────────────
+model RedemptionRequest {
+  id              Int       @id @default(autoincrement())
+  userId          BigInt    @map("user_id")
+  itemId          Int       @map("item_id")
+  /// 신청 시점의 가격 스냅샷(이후 priceP가 바뀌어도 신청 건은 그대로).
+  pricePAtRequest BigInt    @map("price_p_at_request")
+  /// 사용자 메모(선택 — 배송지/특이사항/사이즈 등).
+  note            String?
+  /// PENDING | APPROVED | RECEIVED | REJECTED.
+  status          String    @default("PENDING")
+  /// 관리자가 승인 시 발급한 쿠폰코드/링크/안내문(그냥 텍스트).
+  couponCode      String?   @map("coupon_code")
+  /// 결정한 관리자(승인·반려).
+  decidedBy       BigInt?   @map("decided_by")
+  decidedAt       DateTime? @map("decided_at")
+  /// 관리자 결정 사유(주로 REJECTED).
+  decisionNote    String?   @map("decision_note")
+  /// 사용자가 "수령 완료" 버튼을 누른 시각(RECEIVED).
+  receivedAt      DateTime? @map("received_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user          User           @relation("RedemptionRequester", fields: [userId], references: [id])
+  decidedByUser User?          @relation("RedemptionApprover", fields: [decidedBy], references: [id])
+  item          RedemptionItem @relation(fields: [itemId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("redemption_request")
 }
 
 // ─────────────────────────────────────────────────────────────
