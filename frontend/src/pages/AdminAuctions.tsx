@@ -1,9 +1,9 @@
 // 관리자 — 경매관리 탭.
-// 1일권 매물은 동질재 — 개별 매물 식별이 의미 없으므로 행/체크박스/개별 모달 없음.
-// 보이는 것: 카운터 5개, 현 정책 한 줄, 일괄 액션(정책 설정 / 수동 추가 / 보류·예정 일괄 취소).
+// 상단: 카운터(총/오픈 예정/진행 중/종료) · 우상단 액션(정책 설정 · 수동 추가)
+// 본문: 오픈 예정 매물 목록 — 행 체크박스 + "선택 N건 취소" / 행 클릭 → 예약 저장·즉시 오픈 모달
 
-import { useState } from "react";
-import { PALETTES, FONT } from "@/lib/tokens";
+import { useMemo, useState } from "react";
+import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import { Btn, Card, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
@@ -16,7 +16,10 @@ import {
   getAuctionsSummary,
   getReleasePolicy,
   listAuctions,
+  openAuction,
+  scheduleAuction,
   updateReleasePolicy,
+  type AuctionListItem,
   type ReleasePolicy,
 } from "@/lib/queries";
 
@@ -27,35 +30,122 @@ export default function AdminAuctionsPage() {
   const toast = useToast();
   const policyQ = useQuery(() => getReleasePolicy(), []);
   const summaryQ = useQuery(() => getAuctionsSummary(), []);
+  const upcomingQ = useQuery(() => listAuctions(["CREATED"]), []);
 
-  const [policyOpen, setPolicyOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  const refreshAll = async () => {
-    await Promise.all([summaryQ.refetch(), policyQ.refetch()]);
+  // 행 선택 — id Set.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+  const allManageableIds = useMemo(
+    () => (upcomingQ.data ?? []).map((a) => a.id),
+    [upcomingQ.data],
+  );
+  const allSelected = allManageableIds.length > 0 && allManageableIds.every((id) => selected.has(id));
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(allManageableIds));
   };
 
-  const cancelByStatus = async (status: "DRAFT" | "CREATED", label: string) => {
-    if (!confirm(`${label} 매물을 전부 취소합니다.`)) return;
-    setBusy(true);
+  // 모달 상태.
+  const [policyOpen, setPolicyOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editingFor, setEditingFor] = useState<AuctionListItem | null>(null);
+  const [editForm, setEditForm] = useState({ startedAt: "", endsAt: "", startPrice: "", leaveDays: "" });
+  const [acting, setActing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const refreshAll = async () => {
+    await Promise.all([summaryQ.refetch(), upcomingQ.refetch(), policyQ.refetch()]);
+  };
+
+  // ── 다중 취소 ─────────────────────────────────────────────────
+  const doCancel = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`${selected.size}건의 오픈 예정 매물을 취소(삭제)합니다.`)) return;
+    setCancelling(true);
     try {
-      const items = await listAuctions([status]);
-      if (items.length === 0) {
-        toast.push("error", `${label} 매물이 없습니다`);
-        return;
-      }
-      const r = await cancelAuctions(items.map((i) => i.id));
+      const r = await cancelAuctions([...selected]);
       const parts = [`삭제 ${r.deletedIds.length}건`];
       if (r.protectedIds.length > 0) parts.push(`풀 매물 보호 ${r.protectedIds.length}건`);
       if (r.skippedIds.length > 0) parts.push(`무시 ${r.skippedIds.length}건`);
       const hasIssue = r.protectedIds.length > 0 || r.skippedIds.length > 0;
-      toast.push(hasIssue ? "error" : "success", `${label} 취소 — ${parts.join(" / ")}`);
-      await summaryQ.refetch();
+      toast.push(hasIssue ? "error" : "success", `취소 — ${parts.join(" / ")}`);
+      setSelected(new Set());
+      await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
-      setBusy(false);
+      setCancelling(false);
+    }
+  };
+
+  // ── 행 모달: 예약 저장 / 즉시 오픈 ─────────────────────────────
+  const openEditModal = (a: AuctionListItem) => {
+    setEditingFor(a);
+    // DRAFT는 placeholder(epoch)라 그대로 보여주면 1970년이 떠 — 합리적 기본값으로 대체.
+    const isDraft = a.status === "DRAFT";
+    const defStart = isDraft ? roundToHour(new Date(Date.now() + 3600_000)) : new Date(a.startedAt);
+    const defEnd = isDraft ? roundToHour(new Date(Date.now() + 8 * 3600_000)) : new Date(a.endsAt);
+    setEditForm({
+      startedAt: toLocalDatetimeInput(defStart),
+      endsAt: toLocalDatetimeInput(defEnd),
+      startPrice: a.startPrice,
+      leaveDays: String(a.leaveDays),
+    });
+  };
+  const doSchedule = async () => {
+    if (!editingFor) return;
+    const startedAt = new Date(editForm.startedAt);
+    const endsAt = new Date(editForm.endsAt);
+    if (!(endsAt > startedAt)) {
+      toast.push("error", "마감 시각이 시작 시각보다 늦어야 합니다");
+      return;
+    }
+    setActing(true);
+    try {
+      const r = await scheduleAuction(editingFor.id, {
+        startedAt: startedAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        startPrice: editForm.startPrice,
+        leaveDays: Number(editForm.leaveDays),
+      });
+      toast.push("success", `${r.id} 예약 저장 — 오픈 ${new Date(r.startedAt).toLocaleString("ko-KR")}`);
+      setEditingFor(null);
+      await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setActing(false);
+    }
+  };
+  const doOpenNow = async () => {
+    if (!editingFor) return;
+    const startedAt = new Date(editForm.startedAt);
+    const endsAt = new Date(editForm.endsAt);
+    if (!(endsAt > startedAt)) {
+      toast.push("error", "마감 시각이 시작 시각보다 늦어야 합니다");
+      return;
+    }
+    setActing(true);
+    try {
+      const r = await openAuction(editingFor.id, {
+        startedAt: startedAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        startPrice: editForm.startPrice,
+        leaveDays: Number(editForm.leaveDays),
+      });
+      toast.push("success", `${r.id} 즉시 OPEN — 마감 ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
+      setEditingFor(null);
+      await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setActing(false);
     }
   };
 
@@ -88,7 +178,7 @@ export default function AdminAuctionsPage() {
             </div>
           </div>
 
-          {/* 카운터 — 1일권 동질재라 갯수만 본다 */}
+          {/* 카운터 — 총 / 보류 / 오픈 예정 / 진행 중 / 종료 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
             <KpiCard k="총 매물" v={summaryQ.data?.total ?? "—"} sub="모든 상태" />
             <KpiCard k="보류" v={summaryQ.data?.draft ?? "—"} sub="DRAFT · 오픈 미정" />
@@ -102,7 +192,7 @@ export default function AdminAuctionsPage() {
             />
           </div>
 
-          {/* 현 정책 한 줄 요약 */}
+          {/* 현재 정책 요약 한 줄 */}
           <Card p={p} padding={14} style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
             <Pill p={p} tone="neutral" size="sm">현 정책</Pill>
             <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>
@@ -110,35 +200,50 @@ export default function AdminAuctionsPage() {
             </div>
             <div style={{ flex: 1 }} />
             <div style={{ fontSize: 11, color: p.inkMuted }}>
-              풀 수집 시 새 매물의 시작 시각 분산. 이미 만들어진 매물엔 영향 없음.
+              풀 수집 시 새 매물의 시작 시각 분산 방식. 이미 만들어진 매물엔 영향 없음.
             </div>
           </Card>
 
-          {/* 일괄 액션 — 동질재라 "전부 취소"만 */}
-          <Card p={p} padding={20}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: p.ink, marginBottom: 4 }}>일괄 액션</div>
-            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 14 }}>
-              1일권은 모두 같은 매물이라 개별 관리하지 않고 갯수 단위로 처리합니다. 풀 수집(LeavePoolRun) 매물은 자동 보호됨.
+          {/* 다중 선택 액션 바 */}
+          {selected.size > 0 && (
+            <Card p={p} padding={12} style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: p.ink }}>선택 {selected.size}건</div>
+              <div style={{ flex: 1 }} />
+              <Btn p={p} variant="ghost" size="sm" disabled={cancelling} onClick={() => setSelected(new Set())}>선택 해제</Btn>
+              <Btn p={p} variant="primary" size="sm" disabled={cancelling} onClick={doCancel}>
+                {cancelling ? "취소 중…" : `선택 ${selected.size}건 취소`}
+              </Btn>
+            </Card>
+          )}
+
+          {/* 오픈 예정 목록 — CREATED */}
+          <Card p={p} padding={0}>
+            <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${p.line}` }}>
+              <Pill p={p} tone="neutral" size="sm">예정</Pill>
+              <div style={{ fontSize: 13, fontWeight: 700, color: p.ink }}>
+                오픈 예정 ({upcomingQ.data?.length ?? "—"}건)
+              </div>
+              <div style={{ flex: 1 }} />
+              <div style={{ fontSize: 11, color: p.inkMuted }}>시간 되면 자동 OPEN</div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Btn
-                p={p}
-                variant="ghost"
-                size="md"
-                disabled={busy || (summaryQ.data?.draft ?? 0) === 0}
-                onClick={() => cancelByStatus("DRAFT", `보류 ${summaryQ.data?.draft ?? 0}개`)}
-              >
-                보류 {summaryQ.data?.draft ?? 0}개 전부 취소
-              </Btn>
-              <Btn
-                p={p}
-                variant="ghost"
-                size="md"
-                disabled={busy || (summaryQ.data?.upcoming ?? 0) === 0}
-                onClick={() => cancelByStatus("CREATED", `오픈 예정 ${summaryQ.data?.upcoming ?? 0}개`)}
-              >
-                오픈 예정 {summaryQ.data?.upcoming ?? 0}개 전부 취소
-              </Btn>
+            <div style={{ padding: 12, maxHeight: 480, overflow: "auto" }}>
+              {upcomingQ.data?.length === 0 && (
+                <div style={{ padding: 18, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
+                  예정된 경매가 없습니다.
+                </div>
+              )}
+              {upcomingQ.data?.map((a) => (
+                <ManageableRow
+                  key={a.id}
+                  p={p}
+                  a={a}
+                  variant="upcoming"
+                  checked={selected.has(a.id)}
+                  onCheck={() => toggle(a.id)}
+                  onClick={() => openEditModal(a)}
+                />
+              ))}
             </div>
           </Card>
         </div>
@@ -162,11 +267,74 @@ export default function AdminAuctionsPage() {
           onClose={() => setCreateOpen(false)}
           onCreated={async (n, mode) => {
             setCreateOpen(false);
-            await summaryQ.refetch();
+            await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
             toast.push("success", `1일권 ${n}개 ${mode === "draft" ? "보류" : "예약"} 추가 완료`);
           }}
           onError={(m) => toast.push("error", m)}
         />
+      )}
+
+      {editingFor && (
+        <div
+          onClick={() => !acting && setEditingFor(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 460, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)", maxHeight: "86vh", overflow: "auto" }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>경매 설정</div>
+            <div className="mono" style={{ fontSize: 12, color: p.inkMuted, marginBottom: 16 }}>{editingFor.id}</div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
+              <b>예약 저장</b> — 시간이 되면 자동 OPEN. <b>즉시 오픈</b> — 예약 시작 전이라도 강제 OPEN.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <FieldBlock p={p} label="연차 일수">
+                <input
+                  type="number" min={1} step={1}
+                  value={editForm.leaveDays}
+                  onChange={(e) => setEditForm((f) => ({ ...f, leaveDays: e.target.value }))}
+                  style={inputStyle(p)}
+                />
+              </FieldBlock>
+              <FieldBlock p={p} label="시작가 (P)">
+                <input
+                  type="number" min={0} step={100}
+                  value={editForm.startPrice}
+                  onChange={(e) => setEditForm((f) => ({ ...f, startPrice: e.target.value }))}
+                  style={inputStyle(p)}
+                />
+              </FieldBlock>
+            </div>
+            <FieldBlock p={p} label="오픈 시각">
+              <input
+                type="datetime-local"
+                value={editForm.startedAt}
+                onChange={(e) => setEditForm((f) => ({ ...f, startedAt: e.target.value }))}
+                style={inputStyle(p)}
+              />
+            </FieldBlock>
+            <FieldBlock p={p} label="마감 시각">
+              <input
+                type="datetime-local"
+                value={editForm.endsAt}
+                onChange={(e) => setEditForm((f) => ({ ...f, endsAt: e.target.value }))}
+                style={inputStyle(p)}
+              />
+            </FieldBlock>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <Btn p={p} variant="ghost" size="md" disabled={acting} onClick={() => setEditingFor(null)}>취소</Btn>
+              <Btn p={p} variant="ghost" size="md" disabled={acting} onClick={doSchedule}>
+                {acting ? "처리 중…" : "예약 저장"}
+              </Btn>
+              <Btn p={p} variant="primary" size="md" disabled={acting} onClick={doOpenNow}>
+                {acting ? "처리 중…" : "즉시 오픈"}
+              </Btn>
+            </div>
+          </div>
+        </div>
       )}
     </ScreenFrame>
   );
@@ -217,7 +385,7 @@ function PolicyModal({
       >
         <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>분산 오픈 정책</div>
         <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
-          풀 수집 시 새 매물의 시작 시각 분산 방식. <b>배치 미사용</b>이면 모두 보류로 만들고 수동 운영.
+          풀 수집 시 새 매물의 시작 시각 분산 방식. <b>배치 미사용</b>이면 모두 즉시 시작.
         </div>
 
         <FieldBlock p={p} label="주기">
@@ -329,6 +497,7 @@ function CreateAuctionModal({
           <b>1일권</b>을 N개 만듭니다 (ADR-007). ID는 자동 채번.
         </div>
 
+        {/* 모드 선택 */}
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           <ModeChip p={p} active={mode === "draft"} onClick={() => setMode("draft")}
             title="보류로 만들기" sub="시간 미정 · 나중에 결정" />
@@ -392,6 +561,51 @@ function ModeChip({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+function ManageableRow({
+  p, a, variant, checked, onCheck, onClick,
+}: {
+  p: typeof PALETTES.cobalt;
+  a: AuctionListItem;
+  variant: "draft" | "upcoming";
+  checked: boolean;
+  onCheck: () => void;
+  onClick: () => void;
+}) {
+  const isDraft = variant === "draft";
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 14, padding: "10px 8px",
+        borderBottom: `1px solid ${p.line}`, borderRadius: 6, transition: "background 120ms",
+        background: checked ? p.accentSoft : undefined,
+      }}
+      onMouseEnter={(e) => !checked && (e.currentTarget.style.background = p.bg)}
+      onMouseLeave={(e) => !checked && (e.currentTarget.style.background = "transparent")}
+    >
+      <input type="checkbox" checked={checked} onChange={onCheck} onClick={(e) => e.stopPropagation()} />
+      <div
+        onClick={onClick}
+        title={isDraft ? "클릭해서 시간 정하기(예약) / 즉시 오픈" : "클릭해서 예약 변경 / 즉시 오픈"}
+        style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, cursor: "pointer" }}
+      >
+        <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>{a.id}</div>
+        <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
+        <div className="mono" style={{ fontSize: 12, color: p.inkSoft, width: 110, textAlign: "right" }}>
+          시작가 {fmt.point(Number(a.startPrice))} P
+        </div>
+        <div style={{ fontSize: 12, color: isDraft ? p.inkMuted : p.inkSoft, width: 130 }}>
+          {isDraft ? "오픈 시각 미정" : `오픈 ${formatTime(new Date(a.startedAt))}`}
+        </div>
+        <div style={{ fontSize: 12, color: isDraft ? p.inkMuted : p.inkSoft, width: 130 }}>
+          {isDraft ? "마감 시각 미정" : `마감 ${formatTime(new Date(a.endsAt))}`}
+        </div>
+        <Pill p={p} tone={isDraft ? "warn" : "neutral"} size="sm">{isDraft ? "보류" : "예정"}</Pill>
+      </div>
+    </div>
+  );
+}
+
 function KpiCard({ k, v, sub, good }: { k: string; v: string | number; sub: string; good?: boolean }) {
   const p = PALETTES.cobalt;
   return (
@@ -418,6 +632,10 @@ function inputStyle(p: typeof PALETTES.cobalt): React.CSSProperties {
     border: `1px solid ${p.line}`, fontSize: 13, color: p.ink, background: p.bg,
     boxSizing: "border-box", fontFamily: "inherit",
   };
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function toLocalDatetimeInput(d: Date): string {
