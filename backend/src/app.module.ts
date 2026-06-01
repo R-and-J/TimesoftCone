@@ -43,6 +43,8 @@ import { OpenDueAuctionsUseCase } from "./application/auction/open-due-auctions.
 import { CancelAuctionsUseCase } from "./application/auction/cancel-auctions.use-case";
 import { GetAuctionsSummaryUseCase } from "./application/auction/get-auctions-summary.use-case";
 import { GetNextAuctionIdUseCase } from "./application/auction/get-next-auction-id.use-case";
+import { ExtendAuctionDeadlineUseCase } from "./application/auction/extend-auction-deadline.use-case";
+import { CloseAuctionImmediatelyUseCase } from "./application/auction/close-auction-immediately.use-case";
 import { ListAuctionsUseCase } from "./application/auction/list-auctions.use-case";
 import { GetAuctionDetailUseCase } from "./application/auction/get-auction-detail.use-case";
 import { PlaceBidUseCase } from "./application/auction/place-bid.use-case";
@@ -62,6 +64,11 @@ import { MarkNotificationsReadUseCase } from "./application/notification/mark-no
 import { ListRedemptionItemsUseCase } from "./application/redemption/list-redemption-items.use-case";
 import { RedeemItemUseCase } from "./application/redemption/redeem-item.use-case";
 import { ListMyRedemptionOrdersUseCase } from "./application/redemption/list-my-redemption-orders.use-case";
+import { SubmitRedemptionRequestUseCase } from "./application/redemption/submit-redemption-request.use-case";
+import { ApproveRedemptionRequestUseCase } from "./application/redemption/approve-redemption-request.use-case";
+import { RejectRedemptionRequestUseCase } from "./application/redemption/reject-redemption-request.use-case";
+import { ConfirmRedemptionReceivedUseCase } from "./application/redemption/confirm-redemption-received.use-case";
+import { ListRedemptionRequestsUseCase } from "./application/redemption/list-redemption-requests.use-case";
 import { SubmitChargeRequestUseCase } from "./application/wallet/charge/submit-charge-request.use-case";
 import { ApproveChargeRequestUseCase } from "./application/wallet/charge/approve-charge-request.use-case";
 import { RejectChargeRequestUseCase } from "./application/wallet/charge/reject-charge-request.use-case";
@@ -87,6 +94,8 @@ import { AdminExportController } from "./interfaces/http/admin-export.controller
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { RedemptionController, UserRedemptionOrdersController } from "./interfaces/http/redemption.controller";
+import { RedemptionRequestsController } from "./interfaces/http/redemption-requests.controller";
+import { AdminRedemptionRequestsController } from "./interfaces/http/admin-redemption-requests.controller";
 import { WalletChargeController } from "./interfaces/http/wallet-charge.controller";
 import { AdminChargesController } from "./interfaces/http/admin-charges.controller";
 import { DividendController } from "./interfaces/http/dividend.controller";
@@ -141,6 +150,8 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     NotificationsController,
     RedemptionController,
     UserRedemptionOrdersController,
+    RedemptionRequestsController,
+    AdminRedemptionRequestsController,
     WalletChargeController,
     AdminChargesController,
     DividendController,
@@ -220,6 +231,8 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     CancelAuctionsUseCase,
     GetAuctionsSummaryUseCase,
     GetNextAuctionIdUseCase,
+    ExtendAuctionDeadlineUseCase,
+    CloseAuctionImmediatelyUseCase,
     ListAuctionsUseCase,
     GetAuctionDetailUseCase,
     PlaceBidUseCase,
@@ -239,6 +252,11 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     ListRedemptionItemsUseCase,
     RedeemItemUseCase,
     ListMyRedemptionOrdersUseCase,
+    SubmitRedemptionRequestUseCase,
+    ApproveRedemptionRequestUseCase,
+    RejectRedemptionRequestUseCase,
+    ConfirmRedemptionReceivedUseCase,
+    ListRedemptionRequestsUseCase,
     SubmitChargeRequestUseCase,
     ApproveChargeRequestUseCase,
     RejectChargeRequestUseCase,

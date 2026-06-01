@@ -375,12 +375,73 @@ export function listRedemptionItems() {
   return apiGet<RedemptionItem[]>("/redemption/items");
 }
 
-export function redeemItem(itemId: number) {
-  return apiPost<RedeemResult>("/redemption/orders", { itemId });
-}
-
 export function listMyRedemptionOrders(userId: string | number) {
   return apiGet<RedemptionOrder[]>(`/users/${userId}/redemption-orders`);
+}
+
+// ── 교환 신청 워크플로 (ADR-023 v2) ─────────────────────────────────
+// 흐름: PENDING(차감/잠금) → APPROVED(쿠폰 발급) → RECEIVED(사용자 컨펌)
+//                       ↘ REJECTED(환불)
+
+export type RedemptionRequestStatus = "PENDING" | "APPROVED" | "RECEIVED" | "REJECTED";
+
+export type RedemptionRequestRow = {
+  id: number;
+  userId: string;
+  userName: string;
+  itemId: number;
+  itemName: string;
+  pricePAtRequest: string;
+  note: string | null;
+  status: RedemptionRequestStatus;
+  couponCode: string | null;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  receivedAt: string | null;
+  createdAt: string;
+};
+
+export function submitRedemptionRequest(itemId: number, note?: string) {
+  return apiPost<{
+    id: number;
+    itemId: number;
+    itemName: string;
+    pricePAtRequest: string;
+    status: "PENDING";
+    createdAt: string;
+  }>("/redemption/requests", note ? { itemId, note } : { itemId });
+}
+
+export function listMyRedemptionRequests() {
+  return apiGet<RedemptionRequestRow[]>("/redemption/requests");
+}
+
+export function confirmRedemptionReceived(id: number) {
+  return apiPost<{ requestId: number; receivedAt: string }>(
+    `/redemption/requests/${id}/confirm`,
+    {},
+  );
+}
+
+export function listAdminRedemptionRequests(status?: RedemptionRequestStatus) {
+  return apiGet<RedemptionRequestRow[]>(
+    `/admin/redemption-requests${status ? `?status=${status}` : ""}`,
+  );
+}
+
+export function approveRedemptionRequest(id: number, couponCode: string, note?: string) {
+  return apiPost<{ requestId: number; userId: string; itemName: string; couponCode: string }>(
+    `/admin/redemption-requests/${id}/approve`,
+    note ? { couponCode, note } : { couponCode },
+  );
+}
+
+export function rejectRedemptionRequest(id: number, note: string) {
+  return apiPost<{ requestId: number; userId: string; refundedP: string; newBalance: string }>(
+    `/admin/redemption-requests/${id}/reject`,
+    { note },
+  );
 }
 
 // ── 충전 요청 워크플로 (ADR-024) ─────────────────────────────────
@@ -452,6 +513,22 @@ export function openAuction(id: string, opts: OpenAuctionInput = {}) {
 /** 상태는 CREATED 유지 — 예약만 저장. 시간이 되면 OpenDueAuctionsScheduler가 OPEN. */
 export function scheduleAuction(id: string, opts: Omit<OpenAuctionInput, "force">) {
   return apiPost<OpenAuctionResult>(`/admin/auctions/${id}/schedule`, opts);
+}
+
+/** OPEN 매물 마감 시각 연장 — 미래 시각만 허용. */
+export function extendAuctionDeadline(id: string, endsAt: string) {
+  return apiPost<{ id: string; endsAt: string }>(`/admin/auctions/${id}/extend`, { endsAt });
+}
+
+/** OPEN 매물 즉시 마감 + 정산. */
+export function closeAuctionNow(id: string) {
+  return apiPost<{
+    auctionId: string;
+    outcome: "AWARDED" | "UNSOLD";
+    winnerId?: string;
+    amount?: string;
+    leaveDays?: number;
+  }>(`/admin/auctions/${id}/close-now`, {});
 }
 
 // ── 풀 분산 정책 (관리자 경매관리 탭) ─────────────────────────────

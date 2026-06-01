@@ -20,6 +20,8 @@ import { OpenDueAuctionsUseCase } from "@/application/auction/open-due-auctions.
 import { CancelAuctionsUseCase } from "@/application/auction/cancel-auctions.use-case";
 import { GetAuctionsSummaryUseCase } from "@/application/auction/get-auctions-summary.use-case";
 import { GetNextAuctionIdUseCase } from "@/application/auction/get-next-auction-id.use-case";
+import { ExtendAuctionDeadlineUseCase } from "@/application/auction/extend-auction-deadline.use-case";
+import { CloseAuctionImmediatelyUseCase } from "@/application/auction/close-auction-immediately.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
 import { Roles } from "./auth/auth.decorators";
@@ -46,6 +48,8 @@ const cancelSchema = z.object({
   ids: z.array(z.string().regex(/^A-\d{4}-\d{3,}$/, "id must match A-YYYY-NNN")).min(1),
 });
 
+const extendSchema = z.object({ endsAt: isoDate });
+
 const openSchema = z.object({
   startedAt: isoDate.optional(),
   endsAt: isoDate.optional(),
@@ -71,6 +75,8 @@ export class AdminAuctionsController {
     private readonly cancelUC: CancelAuctionsUseCase,
     private readonly summaryUC: GetAuctionsSummaryUseCase,
     private readonly nextIdUC: GetNextAuctionIdUseCase,
+    private readonly extendUC: ExtendAuctionDeadlineUseCase,
+    private readonly closeNowUC: CloseAuctionImmediatelyUseCase,
   ) {}
 
   @Post()
@@ -149,6 +155,31 @@ export class AdminAuctionsController {
   @Get("next-id")
   async nextId(@Query("year") year?: string) {
     return this.nextIdUC.execute(year ? Number(year) : undefined);
+  }
+
+  /** OPEN 매물의 마감 시각 연장(앞으로 당기기는 close-now). */
+  @Post(":id/extend")
+  async extend(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(extendSchema)) body: z.infer<typeof extendSchema>,
+  ) {
+    try {
+      return await this.extendUC.execute(id, body);
+    } catch (e) {
+      if (e instanceof DomainError) throw new BadRequestException(e.message);
+      throw e;
+    }
+  }
+
+  /** OPEN 매물을 즉시 마감 + 정산(낙찰/유찰 처리). */
+  @Post(":id/close-now")
+  async closeNow(@Param("id") id: string) {
+    try {
+      return await this.closeNowUC.execute(id);
+    } catch (e) {
+      if (e instanceof DomainError) throw new BadRequestException(e.message);
+      throw e;
+    }
   }
 
   /** CREATED 매물 다중 취소(삭제). OPEN 이상은 skipped로 응답. */

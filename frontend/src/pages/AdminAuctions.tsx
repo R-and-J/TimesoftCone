@@ -12,7 +12,9 @@ import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
   cancelAuctions,
+  closeAuctionNow,
   createAuction,
+  extendAuctionDeadline,
   getAuctionsSummary,
   getReleasePolicy,
   listAuctions,
@@ -31,6 +33,7 @@ export default function AdminAuctionsPage() {
   const policyQ = useQuery(() => getReleasePolicy(), []);
   const summaryQ = useQuery(() => getAuctionsSummary(), []);
   const upcomingQ = useQuery(() => listAuctions(["CREATED"]), []);
+  const openQ = useQuery(() => listAuctions(["OPEN"]), []);
 
   // 행 선택 — id Set.
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -59,8 +62,57 @@ export default function AdminAuctionsPage() {
   const [acting, setActing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
+  // 진행 중(OPEN) 매물 액션 모달.
+  const [openModalFor, setOpenModalFor] = useState<AuctionListItem | null>(null);
+  const [extendForm, setExtendForm] = useState("");
+  const [openActing, setOpenActing] = useState(false);
+
   const refreshAll = async () => {
-    await Promise.all([summaryQ.refetch(), upcomingQ.refetch(), policyQ.refetch()]);
+    await Promise.all([summaryQ.refetch(), upcomingQ.refetch(), openQ.refetch(), policyQ.refetch()]);
+  };
+
+  // ── 진행 중 매물 — 마감 연장 / 즉시 마감 ────────────────────────
+  const openOpenModal = (a: AuctionListItem) => {
+    setOpenModalFor(a);
+    // 기본값: 현재 마감 + 1시간
+    setExtendForm(toLocalDatetimeInput(new Date(new Date(a.endsAt).getTime() + 3600_000)));
+  };
+  const doExtend = async () => {
+    if (!openModalFor) return;
+    const newEndsAt = new Date(extendForm);
+    if (newEndsAt <= new Date(openModalFor.endsAt)) {
+      toast.push("error", "새 마감은 현재 마감보다 늦어야 합니다");
+      return;
+    }
+    setOpenActing(true);
+    try {
+      const r = await extendAuctionDeadline(openModalFor.id, newEndsAt.toISOString());
+      toast.push("success", `${r.id} 마감 연장 — ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
+      setOpenModalFor(null);
+      await Promise.all([summaryQ.refetch(), openQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setOpenActing(false);
+    }
+  };
+  const doCloseNow = async () => {
+    if (!openModalFor) return;
+    if (!confirm(`${openModalFor.id} 즉시 마감합니다.\n현재 최고가 입찰자가 있으면 낙찰됩니다.`)) return;
+    setOpenActing(true);
+    try {
+      const r = await closeAuctionNow(openModalFor.id);
+      toast.push(
+        "success",
+        r.outcome === "AWARDED" ? `${r.auctionId} 즉시 낙찰` : `${r.auctionId} 유찰 처리`,
+      );
+      setOpenModalFor(null);
+      await Promise.all([summaryQ.refetch(), openQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setOpenActing(false);
+    }
   };
 
   // ── 다중 취소 ─────────────────────────────────────────────────
@@ -216,6 +268,28 @@ export default function AdminAuctionsPage() {
             </Card>
           )}
 
+          {/* 진행 중 목록 — OPEN. 마감 연장 / 즉시 마감 가능. */}
+          <Card p={p} padding={0} style={{ marginBottom: 16 }}>
+            <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${p.line}` }}>
+              <Pill p={p} tone="success" size="sm">진행</Pill>
+              <div style={{ fontSize: 13, fontWeight: 700, color: p.ink }}>
+                진행 중 ({openQ.data?.length ?? "—"}건)
+              </div>
+              <div style={{ flex: 1 }} />
+              <div style={{ fontSize: 11, color: p.inkMuted }}>클릭 → 마감 연장 / 즉시 마감</div>
+            </div>
+            <div style={{ padding: 12, maxHeight: 360, overflow: "auto" }}>
+              {openQ.data?.length === 0 && (
+                <div style={{ padding: 18, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
+                  진행 중 경매가 없습니다.
+                </div>
+              )}
+              {openQ.data?.map((a) => (
+                <OpenRow key={a.id} p={p} a={a} onClick={() => openOpenModal(a)} />
+              ))}
+            </div>
+          </Card>
+
           {/* 오픈 예정 목록 — CREATED */}
           <Card p={p} padding={0}>
             <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${p.line}` }}>
@@ -271,6 +345,47 @@ export default function AdminAuctionsPage() {
           }}
           onError={(m) => toast.push("error", m)}
         />
+      )}
+
+      {openModalFor && (
+        <div
+          onClick={() => !openActing && setOpenModalFor(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 460, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>진행 중 경매 — 마감 관리</div>
+            <div className="mono" style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>{openModalFor.id}</div>
+            <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+              현재 마감 <b>{new Date(openModalFor.endsAt).toLocaleString("ko-KR")}</b>
+              {" · "}최고가 <b>{Number(openModalFor.highest).toLocaleString("ko-KR")} P</b>
+              {" · "}입찰 {openModalFor.bidCount}회
+            </div>
+
+            <FieldBlock p={p} label="새 마감 시각 (연장 — 현재 마감보다 늦어야 함)">
+              <input
+                type="datetime-local"
+                value={extendForm}
+                onChange={(e) => setExtendForm(e.target.value)}
+                style={inputStyle(p)}
+              />
+            </FieldBlock>
+
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 14 }}>
+              <Btn p={p} variant="danger" size="md" disabled={openActing} onClick={doCloseNow}>
+                {openActing ? "처리 중…" : "즉시 마감"}
+              </Btn>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn p={p} variant="ghost" size="md" disabled={openActing} onClick={() => setOpenModalFor(null)}>닫기</Btn>
+                <Btn p={p} variant="primary" size="md" disabled={openActing} onClick={doExtend}>
+                  {openActing ? "처리 중…" : "마감 연장"}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {editingFor && (
@@ -486,7 +601,7 @@ function CreateAuctionModal({
       >
         <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>매물 수동 추가</div>
         <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
-          <b>1일권</b>을 N개 만듭니다 (ADR-007). ID는 자동 채번 · 시간 되면 자동 OPEN.
+          <b>1일권</b>을 N개 만듭니다. 번호는 자동 채번되고, 시작 시간이 되면 자동으로 열립니다.
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -557,6 +672,36 @@ function ManageableRow({
         </div>
         <Pill p={p} tone={isDraft ? "warn" : "neutral"} size="sm">{isDraft ? "보류" : "예정"}</Pill>
       </div>
+    </div>
+  );
+}
+
+function OpenRow({ p, a, onClick }: { p: typeof PALETTES.cobalt; a: AuctionListItem; onClick: () => void }) {
+  const msLeft = new Date(a.endsAt).getTime() - Date.now();
+  const isHot = msLeft > 0 && msLeft < 30 * 60_000;
+  return (
+    <div
+      onClick={onClick}
+      title="클릭해서 마감 연장 / 즉시 마감"
+      style={{
+        display: "flex", alignItems: "center", gap: 16, padding: "10px 8px",
+        borderBottom: `1px solid ${p.line}`, borderRadius: 6, cursor: "pointer", transition: "background 120ms",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = p.bg)}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>{a.id}</div>
+      <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
+      <div className="mono" style={{ fontSize: 12, color: p.ink, width: 110, textAlign: "right", fontWeight: 700 }}>
+        최고가 {fmt.point(Number(a.highest))} P
+      </div>
+      <div style={{ fontSize: 12, color: p.inkMuted, width: 80, textAlign: "right" }}>
+        입찰 {a.bidCount}회
+      </div>
+      <div style={{ fontSize: 12, color: isHot ? "#D93838" : p.inkSoft, width: 130, fontWeight: isHot ? 700 : 400 }}>
+        마감 {formatTime(new Date(a.endsAt))}
+      </div>
+      <Pill p={p} tone="success" size="sm">진행</Pill>
     </div>
   );
 }

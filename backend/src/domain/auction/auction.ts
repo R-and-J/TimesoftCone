@@ -285,6 +285,24 @@ export class Auction {
     return previous;
   }
 
+  /** 관리자가 OPEN 매물의 마감을 늘리거나 즉시 마감으로 당긴다.
+   *  - newEndsAt > now: 연장(입찰자 보호 — 늘리기만 허용)
+   *  - newEndsAt <= now: 즉시 마감 준비(now까지 당김 → settle 가능 상태) */
+  adminAdjustDeadline(newEndsAt: Date, now: Date): void {
+    if (this._status !== "OPEN") {
+      throw new AuctionNotOpenError(`Cannot adjust deadline in status ${this._status}`);
+    }
+    if (newEndsAt <= now) {
+      // 즉시 마감 — endsAt을 now로 박아 정산 가능 상태로.
+      this._endsAt = now;
+      return;
+    }
+    if (newEndsAt <= this._endsAt) {
+      throw new Error("새 마감 시각은 현재 마감보다 늦어야 합니다 (앞으로 당기려면 즉시 마감)");
+    }
+    this._endsAt = newEndsAt;
+  }
+
   /**
    * Anti-snipe (scope-cuts.md CUT-5): if a bid lands within `windowMs` of the
    * deadline, push `endsAt` out so there's always at least `extendMs` left —
