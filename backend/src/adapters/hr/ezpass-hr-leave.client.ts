@@ -37,11 +37,49 @@ type HttpJsonResult = { status: number; body: string };
 @Injectable()
 export class EzpassHrLeaveClient implements HrLeaveClient {
   private readonly logger = new Logger(EzpassHrLeaveClient.name);
+  /** 회사 정책 캐시 — 회계년도 계산에 필요. lifecycle: 모듈 메모리. */
+  private cmpnyInfo: { yrycStdrCode: string; fsyrStdrMonth: string } | null = null;
 
   constructor(
     @Inject(ConfigService) private readonly config: ConfigService,
     private readonly admin: EzpassAdminTokenService,
   ) {}
+
+  /** 회사 정책 한 번 가져와 캐시 (CmnDlz0020P/selectCmpnyInfo). */
+  private async getCmpnyInfo(): Promise<{ yrycStdrCode: string; fsyrStdrMonth: string }> {
+    if (this.cmpnyInfo) return this.cmpnyInfo;
+    const token = await this.admin.getToken();
+    const base = this.requireBase();
+    const r = await this.callJson("POST", `${base}/v1/cmn/dlz/CmnDlz0020P/selectCmpnyInfo`, {}, token);
+    if (r.status !== 200) {
+      throw new Error(`selectCmpnyInfo 실패 (status=${r.status}): ${r.body.slice(0, 200)}`);
+    }
+    this.cmpnyInfo = JSON.parse(r.body);
+    this.logger.log(`ezpass cmpnyInfo 캐시: ${JSON.stringify(this.cmpnyInfo)}`);
+    return this.cmpnyInfo!;
+  }
+
+  /** ezpass CmnDlz0000Service.getAccnutStartDe와 동일 로직 — 회사 정책 기반 회계년도 시작일. */
+  private async computeAccnutStartDe(year: number): Promise<string> {
+    const info = await this.getCmpnyInfo();
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (info.yrycStdrCode === "Y1") {
+      const month = Number(info.fsyrStdrMonth);
+      const stdDe = new Date(year, month - 1, 1);
+      const now = new Date();
+      const nowYear = now.getFullYear();
+      let accnutDe: Date;
+      if (nowYear === year) {
+        accnutDe = now < stdDe ? new Date(year - 1, month - 1, 1) : stdDe;
+      } else {
+        accnutDe = stdDe;
+      }
+      return fmt(accnutDe);
+    }
+    // Y2 (입사일 기준) — 해당 연도 1월 1일
+    return `${year}-01-01`;
+  }
 
   async grantLeave(grant: HrLeaveGrant): Promise<void> {
     if (!grant.email) {
@@ -116,7 +154,11 @@ export class EzpassHrLeaveClient implements HrLeaveClient {
   private async fetchCurrentMdat(userNo: number, year: number, token: string): Promise<number> {
     const base = this.requireBase();
     const url = `${base}/v1/cmn/dlz/CmnDlz0020P/selectUserYrycInfo`;
-    const body = { submitUserNo: userNo, startDe: `${year}-01-01` };
+    // ezpass selectUserYrycInfo는 accnut_start_de로 매칭 — 회사 정책(Y1/Y2 + fsyrStdrMonth)
+    // 기반으로 정확한 회계년도 시작일 계산해야 row가 잡힘. 우리는 그냥 ${year}-01-01를
+    // 보내선 안 되고(cmpny 7은 3월 시작), ezpass의 getAccnutStartDe 로직 재현.
+    const startDe = await this.computeAccnutStartDe(year);
+    const body = { submitUserNo: userNo, startDe };
     const res = await this.callJson("POST", url, body, token);
     const handled = await this.handleAuthRetry(res, () => this.callJson("POST", url, body, token));
     if (handled.status !== 200) {
