@@ -67,18 +67,9 @@ BEGIN
     SELECT RAISE(ABORT, 'DB-RULE-1: ledger_entry is INSERT-ONLY. DELETE blocked. Use a compensating INSERT (REFUND / CREDIT_ADMIN).');
 END;
 
--- 5) 유니크 인덱스 회사 포함으로 교체
-DROP INDEX "wallet_user_id_currency_key";
-CREATE UNIQUE INDEX "wallet_company_id_user_id_currency_key" ON "wallet"("company_id","user_id","currency");
-DROP INDEX "leave_balance_user_id_year_leave_type_key";
-CREATE UNIQUE INDEX "leave_balance_company_id_user_id_year_leave_type_key" ON "leave_balance"("company_id","user_id","year","leave_type");
-DROP INDEX "stake_user_id_year_key";
-CREATE UNIQUE INDEX "stake_company_id_user_id_year_key" ON "stake"("company_id","user_id","year");
-DROP INDEX "leave_pool_run_target_year_key";
-CREATE UNIQUE INDEX "leave_pool_run_company_id_target_year_key" ON "leave_pool_run"("company_id","target_year");
-DROP INDEX "redemption_item_sku_key";
-CREATE UNIQUE INDEX "redemption_item_company_id_sku_key" ON "redemption_item"("company_id","sku");
-CREATE UNIQUE INDEX "release_policy_company_id_key" ON "release_policy"("company_id");
+-- 5) (중간단계) user-스코프 유니크는 그대로 유지 — 사용자가 한 회사 소속이라
+--    (userId,...) 유니크가 이미 충분. 비-user 유니크(redemption_item/leave_pool_run)도
+--    중간단계에선 유지. 회사별 유니크 강화는 읽기 격리와 함께 후속 마이그레이션에서.
 
 -- 6) 보조 인덱스(@@index 대응)
 CREATE INDEX "users_company_id_idx" ON "users"("company_id");
