@@ -47,18 +47,20 @@ export class GetMyDividendUseCase {
     const myId = UserId.of(userIdRaw).toBigInt();
     const targetYear = year ?? new Date().getFullYear();
 
-    const [me, stakeRows, { escrowBalance }] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: myId } }),
+    const me = await this.prisma.user.findUnique({ where: { id: myId } });
+    if (!me) throw new NotFoundException(`User ${userIdRaw} not found`);
+    // 배당은 회사별. 본인 회사의 stake/escrow만 본다(super는 companyId=null → 전 회사).
+    const co = me.companyId != null ? { companyId: me.companyId } : {};
+
+    const [stakeRows, { escrowBalance }] = await Promise.all([
       // 연도별 stake 행을 읽는다(ADR-017). user.contributedDays는 더 이상 권위 아님.
       this.prisma.stake.findMany({
-        where: { year: targetYear, days: { gt: 0 } },
+        where: { year: targetYear, days: { gt: 0 }, ...co },
         orderBy: { days: "desc" },
         include: { user: { select: { name: true } } },
       }),
-      this.stats.execute(),
+      this.stats.execute(me.companyId ?? null),
     ]);
-
-    if (!me) throw new NotFoundException(`User ${userIdRaw} not found`);
 
     const contributors = stakeRows.map((s) => ({
       id: s.userId,

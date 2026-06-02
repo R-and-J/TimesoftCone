@@ -22,7 +22,7 @@ import { PlaceBidUseCase } from "@/application/auction/place-bid.use-case";
 import { AUCTION_STREAM, type AuctionStreamPort } from "@/ports/auction-stream.port";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
-import { CurrentUser, Public, type AuthUser } from "./auth/auth.decorators";
+import { CurrentUser, CompanyScope, Public, type AuthUser } from "./auth/auth.decorators";
 import type { AuctionStatus } from "@/domain/auction/auction-status";
 
 // 입찰자는 토큰 주체로 고정 — body의 userId는 받지 않는다(타인 명의 입찰 차단, AC-3).
@@ -53,7 +53,7 @@ export class AuctionsController {
 
   @Get()
   async list(
-    @CurrentUser() user: AuthUser,
+    @CompanyScope() companyId: bigint | null,
     @Query("status") status?: string,
     @Query("year") year?: string,
   ) {
@@ -61,8 +61,6 @@ export class AuctionsController {
       | AuctionStatus[]
       | undefined;
     const y = year ? Number(year) : undefined;
-    // 회사 스코프: super ADMIN(companyId=null)은 전 회사, 그 외는 자기 회사만.
-    const companyId = user.role === "ADMIN" ? null : user.companyId;
     const opts: { status?: AuctionStatus[]; year?: number; companyId?: bigint | null } = { companyId };
     if (parsed) opts.status = parsed;
     if (y !== undefined && Number.isFinite(y)) opts.year = y;

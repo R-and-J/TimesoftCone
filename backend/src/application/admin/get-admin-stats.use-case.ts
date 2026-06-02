@@ -25,7 +25,9 @@ export type AdminStats = {
 export class GetAdminStatsUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(): Promise<AdminStats> {
+  /** companyId가 있으면 그 회사로 스코프(에스크로·집계 per company). null=전 회사(super). */
+  async execute(companyId?: bigint | null): Promise<AdminStats> {
+    const co = companyId != null ? { companyId } : {};
     const [
       bidWinSum,
       refundDividendSum,
@@ -39,25 +41,27 @@ export class GetAdminStatsUseCase {
       // Equivalent: sum of all BID amount absolutes.
       this.prisma.ledgerEntry.aggregate({
         _sum: { amount: true },
-        where: { actionType: "BID" },
+        where: { actionType: "BID", ...co },
       }),
       this.prisma.ledgerEntry.aggregate({
         _sum: { amount: true },
-        where: { actionType: { in: ["REFUND", "DIVIDEND"] } },
+        where: { actionType: { in: ["REFUND", "DIVIDEND"] }, ...co },
       }),
       this.prisma.auction.groupBy({
         by: ["status"],
         _count: { _all: true },
+        where: companyId != null ? { companyId } : undefined,
       }),
       this.prisma.auction.count({
         where: {
           status: "AWARDED",
           settledAt: { gte: startOfToday() },
+          ...co,
         },
       }),
-      this.prisma.outboxMessage.count({ where: { status: "DEAD" } }),
-      this.prisma.redemptionRequest.count({ where: { status: "PENDING" } }),
-      this.prisma.redemptionRequest.count({ where: { status: "APPROVED" } }),
+      this.prisma.outboxMessage.count({ where: { status: "DEAD", ...co } }),
+      this.prisma.redemptionRequest.count({ where: { status: "PENDING", ...co } }),
+      this.prisma.redemptionRequest.count({ where: { status: "APPROVED", ...co } }),
     ]);
 
     const bidSum = bidWinSum._sum.amount ?? 0n; // negative
