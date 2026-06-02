@@ -5,7 +5,7 @@ import { Btn, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
-import { DataGrid } from "@/components/DataGrid";
+import { DataGrid, type GridColumn } from "@/components/DataGrid";
 import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
@@ -17,12 +17,8 @@ import {
   syncMembers,
   createMember,
   updateMember,
-  checkLeaveSync,
-  reconcileUserLeave,
   type ChargeRequestRow,
   type MemberRow,
-  type LeaveSyncReport,
-  type LeaveSyncRow,
 } from "@/lib/queries";
 import { roleLabel, canManageEzpass, canManageExam } from "@/lib/roles";
 import { useCurrentUser } from "@/lib/current-user";
@@ -82,10 +78,12 @@ export default function AdminMembersPage() {
       : m.role === "EXAM" || m.role === "EXAM_ADMIN" || m.role === "ADMIN",
   );
 
-  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트/휴가/작업). 위임형은 작업이 충전 한 개라 좁다.
+  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트(+관리)/휴가/작업).
+  // 포인트 컬럼이 "잔액 + 관리 버튼"을 같이 담아 넓어졌고, 작업은 수정/비활성만 남아 좁아졌다.
+  // EZPASS 탭에선 작업 컬럼 자체를 제외하므로 w[8]은 EXAM 탭에서만 의미가 있다.
   const w = isLocal
-    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "110px", "120px", "220px"]
-    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "110px", "120px", "80px"];
+    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "200px", "120px", "150px"]
+    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "200px", "120px", "150px"];
 
   // 충전 모달 상태.
   // free: 관리자 자유 충전. request: 알림에서 들어온 충전 요청(승인/반려).
@@ -94,42 +92,6 @@ export default function AdminMembersPage() {
   const [creditReason, setCreditReason] = useState("");
   const [crediting, setCrediting] = useState(false);
   const [chargeReq, setChargeReq] = useState<ChargeRequestRow | null>(null);
-
-  // ezpass 연차 정합 점검 — 평소 자동 sync(낙찰→Outbox→streYryc)면 항상 일치.
-  // drift 발생 시(데이터 이슈 등)에만 [점검] 트리거 → 행별 [동기] 비상조치.
-  const [syncReport, setSyncReport] = useState<LeaveSyncReport | null>(null);
-  const [syncChecking, setSyncChecking] = useState(false);
-  const [reconciling, setReconciling] = useState<string | null>(null);
-
-  const runLeaveSyncCheck = async () => {
-    setSyncChecking(true);
-    try {
-      const r = await checkLeaveSync();
-      setSyncReport(r);
-      if (r.driftCount === 0) toast.push("success", "ezpass 연차 정합 OK");
-      else toast.push("info", `drift ${r.driftCount}명 발견`);
-    } catch (e) {
-      toast.push("error", (e as Error).message);
-    } finally {
-      setSyncChecking(false);
-    }
-  };
-
-  const doReconcile = async (userId: string) => {
-    setReconciling(userId);
-    try {
-      const r = await reconcileUserLeave(userId);
-      toast.push(
-        "success",
-        `동기됨 — ezpass mdat ${r.ezpassMdatBefore}→${r.ezpassMdatApplied} (atmc ${r.ezpassAtmc} + mdat ${r.ezpassMdatApplied} = ${r.ourTotal})`,
-      );
-      await runLeaveSyncCheck();
-    } catch (e) {
-      toast.push("error", (e as Error).message);
-    } finally {
-      setReconciling(null);
-    }
-  };
 
   const openCredit = (m: MemberRow) => {
     setCreditFor(m);
@@ -364,7 +326,7 @@ export default function AdminMembersPage() {
                   gap: 6,
                 }}
               >
-                <Icon.shield size={14} /> 회원관리 · {isLocal ? "자립형 (자체 관리)" : "위임형 (ezpass 미러)"}
+                <Icon.shield size={14} /> 회원관리
               </div>
               <div
                 style={{
@@ -377,11 +339,11 @@ export default function AdminMembersPage() {
               >
                 회원 ({data?.total ?? "—"})
               </div>
-              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                {isLocal ? "신원 정본은 이 시스템" : "신원 정본은 ezpass"} · 관리자{" "}
-                {data?.admins ?? "—"}명
-                {lastSync ? ` · 마지막 동기화 ${lastSync}` : ""}
-              </div>
+              {lastSync && (
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
+                  마지막 동기화 {lastSync}
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <Btn p={p} variant="ghost" size="md" onClick={() => membersQ.refetch()}>
@@ -446,89 +408,6 @@ export default function AdminMembersPage() {
             </div>
           )}
 
-          <div
-            style={{
-              padding: 12,
-              background: isLocal ? "#EEF2F7" : "#FFF4E0",
-              borderRadius: 10,
-              fontSize: 12,
-              color: isLocal ? p.inkSoft : p.warn,
-              lineHeight: 1.5,
-              marginBottom: 16,
-            }}
-          >
-            {isLocal ? (
-              <>
-                <strong>자립형 모드</strong>{" "}
-                <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-                  외부 그룹웨어 없이 이 시스템이 회원·인증을 직접 관리합니다. 회원 추가 시
-                  비밀번호로 로그인됩니다. 연차·경매금도 우리 시스템 소유입니다.
-                </span>
-              </>
-            ) : (
-              <>
-                <strong>⚠ 읽기 전용 (위임형)</strong>{" "}
-                <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-                  회원 추가·수정은 ezpass(그룹웨어)에서 합니다. 여기서는 미러된 명단을 보고
-                  「지금 동기화」로 최신 상태를 당겨옵니다. 연차·경매금은 우리 시스템이 소유합니다.
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* ezpass 연차 정합 점검 — drift 있을 때만 페이지 상단에 노란 배너로 노출(평소엔 작은 점검 버튼) */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: syncReport ? 8 : 0 }}>
-              <div style={{ fontSize: 11, color: p.inkMuted }}>
-                평소엔 낙찰 자동 sync. 이슈로 어긋날 때만 점검·동기.
-              </div>
-              <Btn p={p} variant="ghost" size="sm" disabled={syncChecking} onClick={runLeaveSyncCheck}>
-                {syncChecking ? "점검 중…" : "ezpass 연차 동기 점검"}
-              </Btn>
-            </div>
-            {syncReport && syncReport.driftCount > 0 && (
-              <div style={{ padding: 12, background: "#FFF4E0", border: `1px solid #F3CD7F`, borderRadius: 10, fontSize: 12 }}>
-                <div style={{ fontWeight: 700, color: p.warn, marginBottom: 8 }}>
-                  ⚠ ezpass와 어긋난 사용자 {syncReport.driftCount}명 ({syncReport.year}년 기준)
-                </div>
-                {syncReport.rows.filter((r) => !r.inSync).map((r: LeaveSyncRow) => {
-                  const targetMdat = r.ezpassAtmc !== null ? r.ourTotal - r.ezpassAtmc : null;
-                  return (
-                    <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "1.2fr 2fr 1fr 130px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: `1px solid #F3CD7F` }}>
-                      <div style={{ color: p.ink, fontWeight: 600 }}>{r.name} <span style={{ color: p.inkMuted, fontWeight: 400 }}>· {r.email}</span></div>
-                      <div className="mono" style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.5 }}>
-                        <div>
-                          우리 합 <b style={{ color: p.ink }}>{r.ourTotal}</b> (REG {r.ourRegular} + AUC {r.ourAuctionDays})
-                        </div>
-                        <div>
-                          ezpass 합 <b style={{ color: p.ink }}>{r.ezpassTotal ?? "?"}</b> (atmc {r.ezpassAtmc ?? "?"} + mdat {r.ezpassMdat ?? "?"})
-                          {targetMdat !== null && ` → 동기 시 mdat=${targetMdat}`}
-                        </div>
-                      </div>
-                      <div style={{ color: p.inkMuted, fontSize: 11 }}>{r.error ?? "—"}</div>
-                      <div style={{ textAlign: "right" }}>
-                        <Btn
-                          p={p}
-                          variant="primary"
-                          size="sm"
-                          disabled={reconciling === r.userId || !!r.error}
-                          onClick={() => doReconcile(r.userId)}
-                        >
-                          {reconciling === r.userId ? "동기 중…" : "ezpass에 동기"}
-                        </Btn>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {syncReport && syncReport.driftCount === 0 && (
-              <div style={{ padding: 8, fontSize: 11, color: p.success, marginTop: 8 }}>
-                ✓ 정합 OK · {new Date(syncReport.checkedAt).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </div>
-            )}
-          </div>
-
           <DataGrid<MemberRow>
             p={p}
             rows={shownMembers}
@@ -542,115 +421,14 @@ export default function AdminMembersPage() {
             }
             rowStyle={(m) => ({ opacity: m.active ? 1 : 0.5 })}
             maxHeight={560}
-            columns={[
-              {
-                key: "empId",
-                header: "사번",
-                width: w[0],
-                render: (m) => (
-                  <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
-                    {m.empId}
-                  </span>
-                ),
-              },
-              {
-                key: "name",
-                header: "이름",
-                width: w[1],
-                render: (m) => (
-                  <span style={{ color: p.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {m.name}
-                    {!m.active && (
-                      <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
-                        비활성
-                      </Pill>
-                    )}
-                  </span>
-                ),
-              },
-              {
-                key: "email",
-                header: "이메일",
-                width: w[2],
-                render: (m) => (
-                  <span className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
-                    {m.email ?? "—"}
-                  </span>
-                ),
-              },
-              {
-                key: "team",
-                header: "부서",
-                width: w[3],
-                render: (m) => <span style={{ color: p.inkSoft }}>{m.team ?? "—"}</span>,
-              },
-              {
-                key: "rank",
-                header: "직급 / 직책",
-                width: w[4],
-                render: (m) => (
-                  <span style={{ color: p.inkSoft }}>
-                    {[m.jobRank, m.jobTitle].filter(Boolean).join(" / ") || "—"}
-                  </span>
-                ),
-              },
-              {
-                key: "role",
-                header: "권한",
-                width: w[5],
-                render: (m) => (
-                  <Pill
-                    p={p}
-                    size="sm"
-                    tone={m.role === "ADMIN" ? "accent" : m.role === "EXAM" ? "warn" : "neutral"}
-                    style={{ fontSize: 10, fontWeight: 700 }}
-                  >
-                    {roleLabel(m.role)}
-                  </Pill>
-                ),
-              },
-              {
-                key: "balance",
-                header: "포인트",
-                width: w[6],
-                align: "right",
-                render: (m) => (
-                  <span className="mono" style={{ color: p.ink, fontWeight: 700, fontSize: 12 }}>
-                    {fmt.point(Number(m.balance))} P
-                  </span>
-                ),
-              },
-              {
-                key: "leave",
-                header: "휴가",
-                width: w[7],
-                render: (m) => <LeaveBar lv={m.leave} p={p} />,
-              },
-              {
-                key: "actions",
-                header: "작업",
-                width: w[8],
-                align: "right",
-                render: (m) => (
-                  <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
-                    <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
-                      관리
-                    </Btn>
-                    {/* exam 영역(EXAM/EXAM_ADMIN)만 수정·비활성. EZPASS·ADMIN은 읽기. */}
-                    {(m.role === "EXAM" || m.role === "EXAM_ADMIN") && (
-                      <>
-                        <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
-                          수정
-                        </Btn>
-                        <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
-                          {m.active ? "비활성" : "활성"}
-                        </Btn>
-                      </>
-                    )}
-                  </span>
-                ),
-              },
-            ]}
+            columns={memberColumns({
+              w,
+              p,
+              onEzpassTab,
+              openCredit,
+              openEdit,
+              toggleActive,
+            })}
             footer={
               <span>
                 {onEzpassTab ? "ezpass 연동" : "exam 독립"} {shownMembers.length}명 · 전체 {data?.total ?? 0}명
@@ -889,4 +667,152 @@ function LeaveBar({ lv, p }: { lv: MemberRow["leave"]; p: Palette }) {
       </div>
     </div>
   );
+}
+
+// 회원 표 컬럼 정의 — 모든 컬럼을 좌측 정렬로 통일하고, Pill/Btn 같은 inline 박스의
+// 자체 padding(Pill sm 0/8, Btn sm 0/14)을 negative margin으로 상쇄해
+// "박스 내부 텍스트"가 헤더 텍스트와 같은 x좌표에서 시작하게 한다.
+// EZPASS 탭에선 작업 컬럼(수정/비활성)을 통째로 제외 — EZPASS·ADMIN은 어차피 작업 권한이 없어 빈 칸만 남기 때문.
+function memberColumns({
+  w,
+  p,
+  onEzpassTab,
+  openCredit,
+  openEdit,
+  toggleActive,
+}: {
+  w: string[];
+  p: Palette;
+  onEzpassTab: boolean;
+  openCredit: (m: MemberRow) => void;
+  openEdit: (m: MemberRow) => void;
+  toggleActive: (m: MemberRow) => void;
+}): GridColumn<MemberRow>[] {
+  const cols: GridColumn<MemberRow>[] = [
+    {
+      key: "empId",
+      header: "사번",
+      width: w[0],
+      align: "left",
+      render: (m) => (
+        <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
+          {m.empId}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      header: "이름",
+      width: w[1],
+      align: "left",
+      render: (m) => (
+        <span style={{ color: p.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {m.name}
+          {!m.active && (
+            // 비활성 Pill은 좌측 마진 -8로 자체 padding 상쇄(인접 텍스트 기준 정렬).
+            <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
+              비활성
+            </Pill>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "email",
+      header: "이메일",
+      width: w[2],
+      align: "left",
+      render: (m) => (
+        <span className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
+          {m.email ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "team",
+      header: "부서",
+      width: w[3],
+      align: "left",
+      render: (m) => <span style={{ color: p.inkSoft }}>{m.team ?? "—"}</span>,
+    },
+    {
+      key: "rank",
+      header: "직급 / 직책",
+      width: w[4],
+      align: "left",
+      render: (m) => (
+        <span style={{ color: p.inkSoft }}>
+          {[m.jobRank, m.jobTitle].filter(Boolean).join(" / ") || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "role",
+      header: "권한",
+      width: w[5],
+      align: "left",
+      render: (m) => (
+        // marginLeft -8: Pill 자체 padding(0 8) 상쇄 → 박스 안 텍스트가 컬럼 좌측 0에서 시작.
+        <Pill
+          p={p}
+          size="sm"
+          tone={m.role === "ADMIN" ? "accent" : m.role === "EXAM" ? "warn" : "neutral"}
+          style={{ fontSize: 10, fontWeight: 700, marginLeft: -8 }}
+        >
+          {roleLabel(m.role)}
+        </Pill>
+      ),
+    },
+    {
+      key: "balance",
+      header: "포인트",
+      width: w[6],
+      align: "left",
+      render: (m) => (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <span className="mono" style={{ color: p.ink, fontWeight: 700, fontSize: 12 }}>
+            {fmt.point(Number(m.balance))} P
+          </span>
+          <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
+            관리
+          </Btn>
+        </span>
+      ),
+    },
+    {
+      key: "leave",
+      header: "휴가",
+      width: w[7],
+      align: "left",
+      render: (m) => <LeaveBar lv={m.leave} p={p} />,
+    },
+  ];
+
+  if (!onEzpassTab) {
+    cols.push({
+      key: "actions",
+      header: "작업",
+      width: w[8],
+      align: "left",
+      render: (m) => {
+        // EXAM 영역(EXAM/EXAM_ADMIN)만 수정·비활성. 그 외(ADMIN 등)는 작업 권한 없음 → 빈 셀.
+        if (m.role !== "EXAM" && m.role !== "EXAM_ADMIN") {
+          return <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>;
+        }
+        return (
+          // 첫 Btn의 marginLeft -14로 자체 padding 상쇄 → 버튼 라벨이 컬럼 좌측 0에서 시작.
+          <span style={{ display: "inline-flex", gap: 6, marginLeft: -14 }}>
+            <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
+              수정
+            </Btn>
+            <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
+              {m.active ? "비활성" : "활성"}
+            </Btn>
+          </span>
+        );
+      },
+    });
+  }
+
+  return cols;
 }
