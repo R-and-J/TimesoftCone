@@ -295,6 +295,14 @@ export type MemberRow = {
   active: boolean;
   /** WELFARE_POINT 잔액(bigint 문자열). */
   balance: string;
+  /** 올해 연차(ADR-002 3-flag). 시각화: 파(REGULAR) + 노(AUCTION+EVENT) + 회(used). */
+  leave: {
+    regular: number;
+    auction: number;
+    event: number;
+    used: number;
+    total: number;
+  };
 };
 
 export type MemberListResponse = {

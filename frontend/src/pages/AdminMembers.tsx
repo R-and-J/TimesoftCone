@@ -82,10 +82,10 @@ export default function AdminMembersPage() {
       : m.role === "EXAM" || m.role === "EXAM_ADMIN" || m.role === "ADMIN",
   );
 
-  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트/작업). 위임형은 작업이 충전 한 개라 좁다.
+  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트/휴가/작업). 위임형은 작업이 충전 한 개라 좁다.
   const w = isLocal
-    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "110px", "220px"]
-    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "110px", "80px"];
+    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "110px", "120px", "220px"]
+    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "110px", "120px", "80px"];
 
   // 충전 모달 상태.
   // free: 관리자 자유 충전. request: 알림에서 들어온 충전 요청(승인/반려).
@@ -621,9 +621,15 @@ export default function AdminMembersPage() {
                 ),
               },
               {
+                key: "leave",
+                header: "휴가",
+                width: w[7],
+                render: (m) => <LeaveBar lv={m.leave} p={p} />,
+              },
+              {
                 key: "actions",
                 header: "작업",
-                width: w[7],
+                width: w[8],
                 align: "right",
                 render: (m) => (
                   <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
@@ -853,4 +859,34 @@ function inp(p: Palette): CSSProperties {
     background: p.bg,
     boxSizing: "border-box",
   };
+}
+
+// 연차 시각화 — 파(REGULAR) + 노(AUCTION+EVENT) + 회(used). title에 상세.
+function LeaveBar({ lv, p }: { lv: MemberRow["leave"]; p: Palette }) {
+  const grand = lv.regular + lv.auction + lv.event + lv.used;
+  if (grand === 0) return <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>;
+  const pct = (n: number) => (n / grand) * 100;
+  const noAucEvt = lv.auction + lv.event;
+  return (
+    <div title={`일반 ${lv.regular}일 · 경매/이벤트 ${noAucEvt}일 · 사용 ${lv.used}일 · 잔여 ${lv.total}일`}>
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          maxWidth: 100,
+          height: 7,
+          borderRadius: 4,
+          overflow: "hidden",
+          background: p.bg,
+        }}
+      >
+        {lv.regular > 0 && <div style={{ width: `${pct(lv.regular)}%`, background: "#3b82f6" }} />}
+        {noAucEvt > 0 && <div style={{ width: `${pct(noAucEvt)}%`, background: "#f59e0b" }} />}
+        {lv.used > 0 && <div style={{ width: `${pct(lv.used)}%`, background: p.inkMuted }} />}
+      </div>
+      <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2, fontWeight: 600 }}>
+        잔여 <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}</span>일
+      </div>
+    </div>
+  );
 }
