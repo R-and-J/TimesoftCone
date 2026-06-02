@@ -213,11 +213,16 @@ export class EzpassHrLeaveClient implements HrLeaveClient {
   ): Promise<void> {
     const base = this.requireBase();
     const url = `${base}/v1/adm/dlz/AdmDlz0070M/streYryc`;
+    // 이지패스의 *잔여 위젯*은 mdat 일 컬럼이 아니라 mdat **분** 컬럼을 분 단위로 합산해
+    // 계산한다(UsrDlz0010MService line 112-114). 분을 0으로 박으면 일만 박혀도 잔여 화면에
+    // 반영 안 됨. 1일 = 법정근무시간(cmpny 7 = 8시간) × 60분 = 480분으로 환산해 같이 박는다.
+    const legalStdWorkDayHourQty = 8; // cmpny 7 기본값
+    const mdatMinute = Math.round(newMdat * legalStdWorkDayHourQty * 60);
     const body = [
       {
         userNo,
         mdatYrycDayQty: newMdat,
-        mdatYrycDayQtyMinute: 0,
+        mdatYrycDayQtyMinute: mdatMinute,
         yrycYear: year,
         content,
       },
