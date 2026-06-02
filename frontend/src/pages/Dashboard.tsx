@@ -15,6 +15,11 @@ import { useToast } from "@/lib/toast";
 import { getBalance, getLeave, getMyDividend, listAuctions, submitChargeRequest } from "@/lib/queries";
 import { useNavigate } from "react-router-dom";
 
+// 휴가 기안/승인은 외부 그룹웨어(ezpass) 담당(out of scope) — 신청 화면으로 새 탭 유도. env로 덮어씀.
+const EZPASS_LEAVE_URL =
+  (import.meta.env.VITE_EZPASS_LEAVE_URL as string | undefined) ??
+  "https://dev.performax.timesoft.internal/";
+
 export default function DashboardPage() {
   const p = PALETTES.cobalt;
   const navigate = useNavigate();
@@ -97,11 +102,19 @@ export default function DashboardPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn p={p} variant="ghost" size="md">
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <Icon.cal size={16} /> 휴가 사용 신청
-                </span>
-              </Btn>
+              {/* 휴가 신청은 외부 그룹웨어(ezpass) 담당 — EZPASS 연동 사용자에게만 노출. */}
+              {(user.role === "EZPASS" || user.role === "EZPASS_ADMIN") && (
+                <Btn
+                  p={p}
+                  variant="ghost"
+                  size="md"
+                  onClick={() => window.open(EZPASS_LEAVE_URL, "_blank", "noopener")}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Icon.cal size={16} /> 휴가 사용 신청 ↗
+                  </span>
+                </Btn>
+              )}
               <Btn p={p} variant="dark" size="md" onClick={() => navigate("/auction")}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                   <Icon.hammer size={16} /> 경매장 입장

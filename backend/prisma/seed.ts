@@ -99,8 +99,9 @@ async function syncMembersAndLeave() {
     for (const m of members) {
       const email = String(m.email);
       const empId = m.emp_no && String(m.emp_no).trim() ? String(m.emp_no).trim() : `EZP-${Number(m.user_no)}`;
-      // ezpass cmpny 회원 = 회사 도메인 연동 → EZPASS(관리자 권한 보유면 ADMIN).
-      const role = m.mngr_author_no && String(m.mngr_author_no).trim() ? "ADMIN" : "EZPASS";
+      // ezpass cmpny 회원 = 회사 도메인 연동 → EZPASS(관리자 권한 보유면 EZPASS_ADMIN).
+      // 최고 ADMIN은 별도 로컬 계정(super@admin.local). admin@timesoftcon도 여기선 EZPASS_ADMIN.
+      const role = m.mngr_author_no && String(m.mngr_author_no).trim() ? "EZPASS_ADMIN" : "EZPASS";
       const name = m.name ? String(m.name) : email.split("@")[0];
       const team = m.team ? String(m.team) : null;
       const jobRank = m.job_rank ? String(m.job_rank) : null;
@@ -289,33 +290,33 @@ async function setupExamMembers() {
   console.log(`  EXAM 데모 ${exam.length}명 (EXAM ${exam.length - 1} + EXAM_ADMIN 1, 로컬 비번 1234)`);
 }
 
-/** 데모용 EZPASS_ADMIN 1명 지정 — ezpass 회원(empId T001)을 ezpass 영역 관리자로.
- *  login resolveRole이 관리자 계열은 고정(sticky)이라 유지된다. */
-async function designateDemoEzpassAdmin() {
-  const r = await prisma.user.updateMany({ where: { empId: "T001" }, data: { role: "EZPASS_ADMIN" } });
-  console.log(`  EZPASS_ADMIN 데모 지정 — empId T001 (updated ${r.count})`);
-}
-
-async function setupDemoAdmin() {
-  const ADMIN_EMAIL = "admin@timesoftcon.co.kr";
-  const DEMO_PW = "!12345qwertY"; // 데모 전용
-  const hash = await bcrypt.hash(DEMO_PW, 10);
-  const r = await prisma.user.updateMany({
-    where: { email: ADMIN_EMAIL },
-    data: { role: "ADMIN", passwordHash: hash, active: true },
+/** 최고관리자(ADMIN) — ezpass와 무관한 전용 로컬 계정. admin@timesoftcon은 ezpass
+ *  회사 관리자(mngr_author)라 동기화로 EZPASS_ADMIN이 되므로, 최고관리자는 별도 계정으로 둔다. */
+async function setupSuperAdmin() {
+  const EMAIL = "super@admin.local";
+  const hash = await bcrypt.hash("!12345qwertY", 10); // 데모 전용
+  await prisma.user.upsert({
+    where: { email: EMAIL },
+    update: { role: "ADMIN", passwordHash: hash, active: true },
+    create: {
+      empId: "SUPER-001",
+      email: EMAIL,
+      name: "최고관리자",
+      role: "ADMIN",
+      passwordHash: hash,
+      active: true,
+    },
   });
-  console.log(`  데모 관리자: ${ADMIN_EMAIL} → ADMIN + 로컬 비번 (updated ${r.count})`);
+  console.log(`  최고관리자: ${EMAIL} → ADMIN + 로컬 비번`);
 }
 
 async function main() {
   console.log("== 1) ezpass 회원 미러 + REGULAR 연차 ==");
   await syncMembersAndLeave();
-  console.log("== 1b) 데모 관리자 (로컬 비번) ==");
-  await setupDemoAdmin();
+  console.log("== 1b) 최고관리자 (별도 로컬 계정) ==");
+  await setupSuperAdmin();
   console.log("== 1b-2) EXAM 데모 계정 (비연동, 로컬 비번) ==");
   await setupExamMembers();
-  console.log("== 1b-3) EZPASS_ADMIN 데모 지정 ==");
-  await designateDemoEzpassAdmin();
   console.log("== 1c) 스토어 카탈로그 (ADR-023) ==");
   await seedRedemptionCatalog();
   console.log("== 2) 회원 펀딩 ==");

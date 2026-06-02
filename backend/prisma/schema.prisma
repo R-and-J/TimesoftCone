@@ -26,6 +26,26 @@ datasource db {
 }
 
 // ─────────────────────────────────────────────────────────────
+// COMPANY — 멀티테넌시 루트. 회사별 완전 독립 환경(EZPASS 연동사 / EXAM 독립사).
+// 모든 테넌트 데이터는 company_id로 스코프된다. super ADMIN(user.companyId=null)만
+// 전 회사 통합/스위처로 접근. FK는 마이그레이션에서 부여(스키마는 스칼라만 — 백릴레이션 클러터 회피).
+// ─────────────────────────────────────────────────────────────
+model Company {
+  id        BigInt   @id @default(autoincrement())
+  /// 내부 코드: "EZPASS" | "EXAM". UNIQUE.
+  code      String   @unique
+  name      String
+  /// ezpass cmpny_no(연동사). EXAM 등 비연동사는 null.
+  cmpnyNo   Int?     @map("cmpny_no")
+  /// "EZPASS"(연동) | "EXAM"(독립).
+  kind      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("company")
+}
+
+// ─────────────────────────────────────────────────────────────
 // USERS — minimal stub. Full HR sync is out of scope.
 // ─────────────────────────────────────────────────────────────
 model User {
@@ -45,6 +65,8 @@ model User {
   /// 도메인으로 분기(EZPASS_EMAIL_DOMAIN=EZPASS, 그 외=EXAM). 관리자 계열은 고정(강등 안 함).
   /// EZPASS_ADMIN=ezpass 영역, EXAM_ADMIN=exam 영역, ADMIN=최고. DB CHECK로 값 제한.
   role            String   @default("EXAM")
+  /// 소속 회사(멀티테넌시). null = super ADMIN(전 회사 통합). 그 외 모든 사용자는 NOT NULL.
+  companyId       BigInt?  @map("company_id")
   /// 자립형(AUTH_MODE=local) 배포 전용 bcrypt 비밀번호 해시. 위임형(ezpass)에선 null
   /// (비번 검증은 ezpass가 함). (ADR-022)
   passwordHash    String?  @map("password_hash")
@@ -70,6 +92,7 @@ model User {
   redemptionRequests   RedemptionRequest[] @relation("RedemptionRequester")
   redemptionDecisions  RedemptionRequest[] @relation("RedemptionApprover")
 
+  @@index([companyId])
   @@map("users")
 }
 
@@ -93,10 +116,13 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
+  companyId BigInt   @map("company_id")
+
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, read])
   @@index([userId, createdAt])
+  @@index([companyId])
   @@map("notification")
 }
 
@@ -109,10 +135,12 @@ model Wallet {
   currency  String
   balance   BigInt   @default(0)
   updatedAt DateTime @updatedAt @map("updated_at")
+  companyId BigInt   @map("company_id")
 
   user User @relation(fields: [userId], references: [id])
 
-  @@unique([userId, currency], name: "uq_wallet_user_currency")
+  @@unique([companyId, userId, currency], name: "uq_wallet_user_currency")
+  @@index([companyId])
   @@map("wallet")
 }
 
@@ -129,11 +157,13 @@ model LedgerEntry {
   balanceAfter BigInt          @map("balance_after")
   auctionId    String?         @map("auction_id")
   refNote      String?         @map("ref_note")
+  companyId    BigInt          @map("company_id")
 
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, occurredAt])
   @@index([actionType, occurredAt])
+  @@index([companyId, actionType])
   @@map("ledger_entry")
 }
 
@@ -160,10 +190,13 @@ model Auction {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
+  companyId       BigInt         @map("company_id")
+
   winner User?      @relation("AuctionWinner", fields: [highestBidder], references: [id])
   bids   BidEvent[]
 
   @@index([status, endsAt])
+  @@index([companyId, status])
   @@map("auction")
 }
 
@@ -179,10 +212,13 @@ model BidEvent {
   amount    BigInt
   placedAt  DateTime @default(now()) @map("placed_at")
 
+  companyId BigInt   @map("company_id")
+
   auction Auction @relation(fields: [auctionId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
   @@index([auctionId, placedAt(sort: Desc)])
+  @@index([companyId])
   @@map("bid_event")
 }
 
@@ -211,10 +247,13 @@ model LeaveBalance {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
+  companyId    BigInt    @map("company_id")
+
   user User @relation(fields: [userId], references: [id])
 
-  @@unique([userId, year, leaveType], name: "uq_leave_user_year_type")
+  @@unique([companyId, userId, year, leaveType], name: "uq_leave_user_year_type")
   @@index([userId, year])
+  @@index([companyId])
   @@map("leave_balance")
 }
 
@@ -238,10 +277,12 @@ model Stake {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  companyId BigInt   @map("company_id")
+
   user User @relation(fields: [userId], references: [id])
 
-  @@unique([userId, year], name: "uq_stake_user_year")
-  @@index([year])
+  @@unique([companyId, userId, year], name: "uq_stake_user_year")
+  @@index([companyId, year])
   @@map("stake")
 }
 
@@ -250,13 +291,15 @@ model LeavePoolRun {
   /// 수집 대상 연도(이 해의 REGULAR 미사용을 취합).
   sourceYear       Int      @map("source_year")
   /// 생성된 매물이 속한 연도(= sourceYear + 1). 멱등 키.
-  targetYear       Int      @unique @map("target_year")
+  targetYear       Int      @map("target_year")
+  companyId        BigInt   @map("company_id")
   contributorCount Int      @map("contributor_count")
   daysCollected    Int      @map("days_collected")
   auctionsCreated  Int      @map("auctions_created")
   status           String   @default("DONE")
   ranAt            DateTime @default(now()) @map("ran_at")
 
+  @@unique([companyId, targetYear], name: "target_year")
   @@map("leave_pool_run")
 }
 
@@ -279,8 +322,10 @@ model OutboxMessage {
   lastError     String?   @map("last_error")
   createdAt     DateTime  @default(now()) @map("created_at")
   sentAt        DateTime? @map("sent_at")
+  companyId     BigInt    @map("company_id")
 
   @@index([status, nextAttemptAt])
+  @@index([companyId])
   @@map("outbox")
 }
 
@@ -291,7 +336,8 @@ model OutboxMessage {
 // ─────────────────────────────────────────────────────────────
 model RedemptionItem {
   id          Int      @id @default(autoincrement())
-  sku         String   @unique
+  companyId   BigInt   @map("company_id")
+  sku         String
   name        String
   description String?
   /// 1개 교환 시 차감되는 포인트.
@@ -307,6 +353,7 @@ model RedemptionItem {
   orders   RedemptionOrder[]
   requests RedemptionRequest[]
 
+  @@unique([companyId, sku], name: "uq_redemption_item_company_sku")
   @@index([active, category])
   @@map("redemption_item")
 }
@@ -330,10 +377,13 @@ model RedemptionOrder {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  companyId      BigInt   @map("company_id")
+
   user User           @relation(fields: [userId], references: [id])
   item RedemptionItem @relation(fields: [itemId], references: [id])
 
   @@index([userId, createdAt])
+  @@index([companyId])
   @@map("redemption_order")
 }
 
@@ -366,12 +416,15 @@ model RedemptionRequest {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
+  companyId       BigInt    @map("company_id")
+
   user          User           @relation("RedemptionRequester", fields: [userId], references: [id])
   decidedByUser User?          @relation("RedemptionApprover", fields: [decidedBy], references: [id])
   item          RedemptionItem @relation(fields: [itemId], references: [id])
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+  @@index([companyId, status])
   @@map("redemption_request")
 }
 
@@ -396,11 +449,14 @@ model ChargeRequest {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
+  companyId    BigInt    @map("company_id")
+
   user          User  @relation("ChargeRequester", fields: [userId], references: [id])
   decidedByUser User? @relation("ChargeApprover", fields: [decidedBy], references: [id])
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+  @@index([companyId, status])
   @@map("charge_request")
 }
 
@@ -413,7 +469,9 @@ model ChargeRequest {
 // id INTEGER(autoincrement BigInt drift 회피 — 본 파일 상단 주석).
 // ─────────────────────────────────────────────────────────────
 model ReleasePolicy {
-  id          Int      @id @default(1)
+  id          Int      @id @default(autoincrement())
+  /// 회사별 1행(멀티테넌시). 과거 싱글톤(id=1)에서 회사 스코프로 전환.
+  companyId   BigInt   @map("company_id")
   /// "none" | "daily" | "weekly" | "monthly". none = 자동 분산 비활성.
   cadence     String
   /// weekly 일 때 0(일)~6(토). 그 외 cadence엔 무시.
@@ -426,5 +484,6 @@ model ReleasePolicy {
   quantity    Int?
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  @@unique([companyId], name: "uq_release_policy_company")
   @@map("release_policy")
 }
