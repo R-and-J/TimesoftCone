@@ -82,8 +82,8 @@ export default function AdminMembersPage() {
   // 포인트 컬럼이 "잔액 + 관리 버튼"을 같이 담아 넓어졌고, 작업은 수정/비활성만 남아 좁아졌다.
   // EZPASS 탭에선 작업 컬럼 자체를 제외하므로 w[8]은 EXAM 탭에서만 의미가 있다.
   const w = isLocal
-    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "200px", "120px", "150px"]
-    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "200px", "120px", "150px"];
+    ? ["110px", "1fr", "200px", "1fr", "150px", "130px", "180px", "120px", "150px"]
+    : ["120px", "1fr", "220px", "1.2fr", "160px", "130px", "180px", "120px", "150px"];
 
   // 충전 모달 상태.
   // free: 관리자 자유 충전. request: 알림에서 들어온 충전 요청(승인/반려).
@@ -669,9 +669,10 @@ function LeaveBar({ lv, p }: { lv: MemberRow["leave"]; p: Palette }) {
   );
 }
 
-// 회원 표 컬럼 정의 — 모든 컬럼을 좌측 정렬로 통일하고, Pill/Btn 같은 inline 박스의
-// 자체 padding(Pill sm 0/8, Btn sm 0/14)을 negative margin으로 상쇄해
-// "박스 내부 텍스트"가 헤더 텍스트와 같은 x좌표에서 시작하게 한다.
+// 회원 표 컬럼 정의 — 모든 컬럼을 좌측 정렬로 통일.
+// Pill/Btn 같은 inline 박스는 컬럼 좌측에 그대로 두되, 헤더 텍스트에 박스 padding과
+// 같은 paddingLeft를 줘서 "박스 내부 텍스트"와 "헤더 텍스트"의 x좌표를 일치시킨다.
+// (Pill sm: padding 0 8 → 헤더 paddingLeft 8 / Btn sm: padding 0 14 → 헤더 paddingLeft 14)
 // EZPASS 탭에선 작업 컬럼(수정/비활성)을 통째로 제외 — EZPASS·ADMIN은 어차피 작업 권한이 없어 빈 칸만 남기 때문.
 function memberColumns({
   w,
@@ -748,16 +749,16 @@ function memberColumns({
     },
     {
       key: "role",
-      header: "권한",
+      // 헤더에 Pill padding(8)과 같은 paddingLeft → 박스 내부 텍스트와 정확히 정렬.
+      header: <span style={{ paddingLeft: 8 }}>권한</span>,
       width: w[5],
       align: "left",
       render: (m) => (
-        // marginLeft -8: Pill 자체 padding(0 8) 상쇄 → 박스 안 텍스트가 컬럼 좌측 0에서 시작.
         <Pill
           p={p}
           size="sm"
           tone={m.role === "ADMIN" ? "accent" : m.role === "EXAM" ? "warn" : "neutral"}
-          style={{ fontSize: 10, fontWeight: 700, marginLeft: -8 }}
+          style={{ fontSize: 10, fontWeight: 700 }}
         >
           {roleLabel(m.role)}
         </Pill>
@@ -791,17 +792,17 @@ function memberColumns({
   if (!onEzpassTab) {
     cols.push({
       key: "actions",
-      header: "작업",
+      // 헤더에 Btn padding(14)과 같은 paddingLeft → 버튼 라벨과 정확히 정렬.
+      header: <span style={{ paddingLeft: 14 }}>작업</span>,
       width: w[8],
       align: "left",
       render: (m) => {
         // EXAM 영역(EXAM/EXAM_ADMIN)만 수정·비활성. 그 외(ADMIN 등)는 작업 권한 없음 → 빈 셀.
         if (m.role !== "EXAM" && m.role !== "EXAM_ADMIN") {
-          return <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>;
+          return <span style={{ color: p.inkMuted, fontSize: 11, paddingLeft: 14 }}>—</span>;
         }
         return (
-          // 첫 Btn의 marginLeft -14로 자체 padding 상쇄 → 버튼 라벨이 컬럼 좌측 0에서 시작.
-          <span style={{ display: "inline-flex", gap: 6, marginLeft: -14 }}>
+          <span style={{ display: "inline-flex", gap: 6 }}>
             <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
               수정
             </Btn>
