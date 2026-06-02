@@ -85,6 +85,7 @@ export class AuctionsController {
         auctionId: id,
         userId: user.userId, // 토큰 주체 = 입찰자 (body 신뢰 안 함)
         amount: body.amount,
+        bidderCompanyId: user.companyId, // 멀티테넌시: 타사 경매 입찰 차단
       });
     } catch (e) {
       if (e instanceof DomainError) {

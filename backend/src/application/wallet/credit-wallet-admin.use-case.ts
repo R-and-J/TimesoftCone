@@ -42,6 +42,11 @@ export class CreditWalletAdminUseCase {
           `잔액 부족 — 현재 ${before}P, 차감 요청 ${amount}P`,
         );
       }
+      // 멀티테넌시: 지갑/원장을 대상 사용자 회사로 태깅(지갑 있으면 그 값, 없으면 user 조회).
+      const co =
+        wallet?.companyId ??
+        (await tx.user.findUnique({ where: { id: userId }, select: { companyId: true } }))?.companyId ??
+        1n;
       if (wallet) {
         await tx.wallet.update({
           where: { uq_wallet_user_currency: { userId, currency: "WELFARE_POINT" } },
@@ -49,7 +54,7 @@ export class CreditWalletAdminUseCase {
         });
       } else {
         await tx.wallet.create({
-          data: { userId, currency: "WELFARE_POINT", balance: after },
+          data: { userId, currency: "WELFARE_POINT", balance: after, companyId: co },
         });
       }
       await tx.ledgerEntry.create({
@@ -60,6 +65,7 @@ export class CreditWalletAdminUseCase {
           amount,
           balanceAfter: after,
           refNote: input.reason.trim(),
+          companyId: co,
         },
       });
       return after;

@@ -92,10 +92,13 @@ export class YearEndDividendScheduler
 
     this.running = true;
     try {
-      const r = await this.useCase.execute(); // dryRun=false → 실지급
-      this.logger.log(
-        `Year-end dividend paid: ${r.lines.length} recipients, total=${r.totalDistributed} (escrow=${r.escrowBalance})`,
-      );
+      // 멀티테넌시: 회사별로 분리 정산(NFR-2 per company). 이미 정산된 회사는 멱등 처리.
+      const results = await this.useCase.executeAll(); // dryRun=false → 실지급
+      for (const r of results) {
+        this.logger.log(
+          `Year-end dividend paid: ${r.lines.length} recipients, total=${r.totalDistributed} (escrow=${r.escrowBalance})`,
+        );
+      }
     } catch (err) {
       // 이미 정산됨(멱등) — 정상 경로이므로 조용히 종료, 타이머는 계속 돌되 매번 409.
       if (err instanceof ConflictException) {

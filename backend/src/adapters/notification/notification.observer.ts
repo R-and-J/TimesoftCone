@@ -36,6 +36,33 @@ export class NotificationObserver {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** 멀티테넌시: 특정 회사 관리자 + 최고관리자(super, role=ADMIN·무소속) id 목록.
+   *  companyId=null이면 전 회사 관리자(super 수집 등). */
+  private async adminRecipients(
+    companyId: bigint | null,
+  ): Promise<{ id: bigint; companyId: bigint | null }[]> {
+    const where =
+      companyId == null
+        ? { active: true, role: { in: ["ADMIN", "EZPASS_ADMIN", "EXAM_ADMIN"] } }
+        : {
+            active: true,
+            OR: [
+              { role: "ADMIN" }, // 최고관리자는 전 회사 알림 수신
+              { role: { in: ["EZPASS_ADMIN", "EXAM_ADMIN"] }, companyId },
+            ],
+          };
+    return this.prisma.user.findMany({ where, select: { id: true, companyId: true } });
+  }
+
+  /** 회사 미상인 수령자 회사 조회(개인 알림 태깅용). */
+  private async companyOf(userId: bigint): Promise<bigint | null> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true },
+    });
+    return u?.companyId ?? null;
+  }
+
   /** 입찰 밀림 → 직전 최고가 입찰자에게 알림. */
   @OnEvent(AUCTION_EVENTS.BID_PLACED)
   async onBidPlaced(e: BidPlacedEvent): Promise<void> {
@@ -49,6 +76,7 @@ export class NotificationObserver {
           message: `경매 ${e.auctionId}에서 더 높은 입찰이 나왔습니다. 현재가 ${won(e.amount)}P — 다시 입찰하시겠어요?`,
           auctionId: e.auctionId,
           linkPath: `/auction/detail/${e.auctionId}`,
+          companyId: (await this.companyOf(e.previousHighBidderId)) ?? 1n,
         },
       });
     } catch (err) {
@@ -60,10 +88,8 @@ export class NotificationObserver {
   @OnEvent(AUCTION_EVENTS.INVENTORY_CREATED)
   async onInventoryCreated(e: AuctionInventoryCreatedEvent): Promise<void> {
     try {
-      const admins = await this.prisma.user.findMany({
-        where: { role: "ADMIN", active: true },
-        select: { id: true },
-      });
+      const source = e.companyId ?? 1n;
+      const admins = await this.adminRecipients(e.companyId);
       if (admins.length === 0) return;
       const message = `${e.targetYear}년 경매 매물 ${e.auctionsCreated}개가 생성되었습니다 (기여자 ${e.contributorCount}명).`;
       await this.prisma.notification.createMany({
@@ -74,6 +100,7 @@ export class NotificationObserver {
           message,
           auctionId: null,
           linkPath: "/admin/auctions",
+          companyId: source,
         })),
       });
     } catch (err) {
@@ -87,10 +114,8 @@ export class NotificationObserver {
   @OnEvent(CHARGE_EVENTS.SUBMITTED)
   async onChargeRequestSubmitted(e: ChargeRequestSubmittedEvent): Promise<void> {
     try {
-      const admins = await this.prisma.user.findMany({
-        where: { role: "ADMIN", active: true },
-        select: { id: true },
-      });
+      const source = (await this.companyOf(e.requesterId)) ?? 1n;
+      const admins = await this.adminRecipients(source);
       if (admins.length === 0) return;
       const msg = `${e.requesterName} — ${won(e.amount)}P 충전 요청` + (e.note ? ` (사유: ${e.note})` : "");
       await this.prisma.notification.createMany({
@@ -101,6 +126,7 @@ export class NotificationObserver {
           message: msg,
           // 클릭 시 회원관리에서 해당 요청의 승인/반려 모달이 바로 열림.
           linkPath: `/admin/members?chargeRequest=${e.requestId}`,
+          companyId: source,
         })),
       });
     } catch (err) {
@@ -119,6 +145,7 @@ export class NotificationObserver {
           title: "충전 승인됨 ✅",
           message: `+${won(e.amount)}P 가 지갑에 적립되었습니다.`,
           linkPath: "/activity",
+          companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },
       });
     } catch (err) {
@@ -138,6 +165,7 @@ export class NotificationObserver {
           title: "충전 요청 반려",
           message: `${won(e.amount)}P 충전 요청이 반려되었습니다.${tail}`,
           linkPath: "/activity",
+          companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },
       });
     } catch (err) {
@@ -149,10 +177,8 @@ export class NotificationObserver {
   @OnEvent(REDEMPTION_EVENTS.SUBMITTED)
   async onRedemptionSubmitted(e: RedemptionRequestSubmittedEvent): Promise<void> {
     try {
-      const admins = await this.prisma.user.findMany({
-        where: { role: "ADMIN", active: true },
-        select: { id: true },
-      });
+      const source = (await this.companyOf(e.requesterId)) ?? 1n;
+      const admins = await this.adminRecipients(source);
       if (admins.length === 0) return;
       await this.prisma.notification.createMany({
         data: admins.map((u) => ({
@@ -161,6 +187,7 @@ export class NotificationObserver {
           title: "새 교환 신청",
           message: `${e.requesterName} — ${e.itemName} (${won(e.priceP)}P) 신청`,
           linkPath: "/admin/redemption",
+          companyId: source,
         })),
       });
     } catch (err) {
@@ -179,6 +206,7 @@ export class NotificationObserver {
           title: "교환 승인됨 — 쿠폰 발급",
           message: `${e.itemName} 신청이 승인됐어요. 쿠폰을 확인하고 수령 완료를 눌러주세요.`,
           linkPath: "/redemption",
+          companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },
       });
     } catch (err) {
@@ -198,6 +226,7 @@ export class NotificationObserver {
           title: "교환 신청 반려",
           message: `${e.itemName} 신청이 반려됐어요. ${won(e.refundP)}P 환불 완료.${tail}`,
           linkPath: "/redemption",
+          companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },
       });
     } catch (err) {
@@ -209,10 +238,8 @@ export class NotificationObserver {
   @OnEvent(REDEMPTION_EVENTS.RECEIVED)
   async onRedemptionReceived(e: RedemptionReceivedEvent): Promise<void> {
     try {
-      const admins = await this.prisma.user.findMany({
-        where: { role: "ADMIN", active: true },
-        select: { id: true },
-      });
+      const source = (await this.companyOf(e.requesterId)) ?? 1n;
+      const admins = await this.adminRecipients(source);
       if (admins.length === 0) return;
       await this.prisma.notification.createMany({
         data: admins.map((u) => ({
@@ -221,6 +248,7 @@ export class NotificationObserver {
           title: "교환 수령 확인",
           message: `${e.requesterName} — ${e.itemName} 수령 완료`,
           linkPath: "/admin/redemption",
+          companyId: source,
         })),
       });
     } catch (err) {
@@ -240,6 +268,7 @@ export class NotificationObserver {
           message: `경매 ${e.auctionId} 낙찰 — 연차 ${e.leaveDays}일권을 ${won(e.amount)}P에 획득했습니다.`,
           auctionId: e.auctionId,
           linkPath: `/auction/detail/${e.auctionId}`,
+          companyId: (await this.companyOf(e.winnerId)) ?? 1n,
         },
       });
     } catch (err) {

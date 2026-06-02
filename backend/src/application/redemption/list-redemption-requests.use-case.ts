@@ -40,9 +40,12 @@ export class ListRedemptionRequestsUseCase {
     return rows.map(this.toRow);
   }
 
-  async forAdmin(status?: Status, limit = 50): Promise<RedemptionRequestRow[]> {
+  async forAdmin(status?: Status, limit = 50, companyId?: bigint | null): Promise<RedemptionRequestRow[]> {
     const rows = await this.prisma.redemptionRequest.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(companyId != null ? { companyId } : {}), // 멀티테넌시: 회사 관리자는 자기 회사만
+      },
       orderBy: { createdAt: "desc" },
       take: limit,
       include: {

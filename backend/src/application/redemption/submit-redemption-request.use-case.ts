@@ -29,9 +29,10 @@ export class SubmitRedemptionRequestUseCase {
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: input.userId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, companyId: true },
       });
       if (!user) throw new NotFoundException("사용자를 찾을 수 없습니다.");
+      const co = user.companyId ?? 1n; // 멀티테넌시: 원장·신청을 신청자 회사로 태깅
 
       const item = await tx.redemptionItem.findUnique({ where: { id: input.itemId } });
       if (!item) throw new NotFoundException(`상품 #${input.itemId}을 찾을 수 없습니다.`);
@@ -66,6 +67,7 @@ export class SubmitRedemptionRequestUseCase {
           amount: -item.priceP,
           balanceAfter: newBalance,
           refNote: `교환 신청 — ${item.name}`,
+          companyId: co,
         },
       });
 
@@ -77,6 +79,7 @@ export class SubmitRedemptionRequestUseCase {
           pricePAtRequest: item.priceP,
           note: input.note ?? null,
           status: "PENDING",
+          companyId: co,
         },
       });
 

@@ -48,10 +48,13 @@ export class ListChargeRequestsUseCase {
     return row ? this.toRow(row) : null;
   }
 
-  /** 관리자 — status 필터(미지정 = 전체, 최근순). */
-  async forAdmin(status?: Status, limit = 50): Promise<ChargeRequestRow[]> {
+  /** 관리자 — status 필터(미지정 = 전체, 최근순). 멀티테넌시 회사 스코프. */
+  async forAdmin(status?: Status, limit = 50, companyId?: bigint | null): Promise<ChargeRequestRow[]> {
     const rows = await this.prisma.chargeRequest.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(companyId != null ? { companyId } : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: limit,
       include: {

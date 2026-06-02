@@ -16,8 +16,8 @@ export type AuctionsSummary = {
 export class GetAuctionsSummaryUseCase {
   constructor(@Inject(AUCTION_REPOSITORY) private readonly auctions: AuctionRepository) {}
 
-  async execute(): Promise<AuctionsSummary> {
-    const c = await this.auctions.countsByStatus();
+  async execute(companyId?: bigint | null): Promise<AuctionsSummary> {
+    const c = await this.auctions.countsByStatus(companyId);
     return {
       total: c.DRAFT + c.CREATED + c.OPEN + c.AWARDED + c.UNSOLD,
       draft: c.DRAFT,

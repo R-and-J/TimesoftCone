@@ -5,7 +5,7 @@
 
 import { Controller, Post, Query } from "@nestjs/common";
 import { CollectLeavePoolUseCase } from "@/application/leave-pool/collect-leave-pool.use-case";
-import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES, CompanyScope } from "./auth/auth.decorators";
 
 @Roles(...ADMIN_ROLES)
 @Controller("api/admin/leave-pool")
@@ -14,12 +14,16 @@ export class AdminLeavePoolController {
 
   @Post("collect")
   async collectPool(
+    @CompanyScope() companyId: bigint | null,
     @Query("dryRun") dryRun?: string,
     @Query("sourceYear") sourceYear?: string,
   ) {
-    return this.collect.execute({
+    const opts = {
       dryRun: dryRun === "true" || dryRun === "1",
       sourceYear: sourceYear ? Number(sourceYear) : undefined,
-    });
+    };
+    // 회사 관리자 → 자기 회사. super "전체"(null) → 전 회사 일괄 수집.
+    if (companyId == null) return this.collect.executeAll(opts);
+    return this.collect.execute({ ...opts, companyId });
   }
 }

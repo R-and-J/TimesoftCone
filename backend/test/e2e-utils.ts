@@ -53,7 +53,9 @@ export async function createUser(
     name?: string;
     balance?: number | bigint;
     contributedDays?: number;
-    role?: "EMPLOYEE" | "ADMIN";
+    // 역할 분리 후(5-role): 일반 사용자 기본은 EZPASS. (구 "EMPLOYEE"는 CHECK 제약 위반)
+    role?: "ADMIN" | "EZPASS_ADMIN" | "EXAM_ADMIN" | "EZPASS" | "EXAM";
+    companyId?: number | bigint | null;
   },
 ): Promise<void> {
   const id = BigInt(opts.id);
@@ -63,8 +65,9 @@ export async function createUser(
       empId: `E2E-${id}`,
       name: opts.name ?? `User ${id}`,
       email: `u${id}@e2e.test`,
-      role: opts.role ?? "EMPLOYEE",
+      role: opts.role ?? "EZPASS",
       contributedDays: opts.contributedDays ?? 0,
+      companyId: opts.companyId === undefined ? 1n : opts.companyId === null ? null : BigInt(opts.companyId),
     },
   });
   if (opts.balance !== undefined) {
@@ -94,7 +97,10 @@ export async function createAuction(
       highest: BigInt(opts.startPrice),
       minIncrement: BigInt(opts.minIncrement ?? 100),
       leaveDays: opts.leaveDays ?? 1,
-      startedAt: opts.startedAt ?? new Date(Date.now() - 3_600_000),
+      // 기본 startedAt = min(now−1h, endsAt−1s). startedAt<endsAt(auction_time_ordering CHECK)를
+      // endsAt이 과거든 미래든 만족하고, 동시에 과거 시점이라 endsAt이 나중에 과거로
+      // 당겨져도 순서가 유지된다(날짜 의존/사후 마감당김 실패 방지).
+      startedAt: opts.startedAt ?? new Date(Math.min(Date.now() - 3_600_000, opts.endsAt.getTime() - 1000)),
       endsAt: opts.endsAt,
     },
   });

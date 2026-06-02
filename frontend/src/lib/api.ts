@@ -10,6 +10,9 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 // current-user(localStorage)와 별개 키 — 토큰은 자격증명, 프로필은 표시용.
 const TOKEN_KEY = "timesoftcone.token";
 const USER_KEY = "timesoftcone.currentUser";
+// 멀티테넌시 회사 스위처(super ADMIN 전용). 선택한 회사 id를 모든 요청에 X-Company-Id로 첨부.
+// 일반 사용자는 백엔드가 이 헤더를 무시(JWT 회사로 고정)하므로 항상 보내도 안전.
+const COMPANY_KEY = "timesoftcone.companyScope";
 
 export function setAuthToken(token: string): void {
   try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
@@ -21,10 +24,23 @@ function getAuthToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
+/** super ADMIN 회사 스위처 선택값 저장. null이면 "전 회사". */
+export function setCompanyScope(companyId: string | null): void {
+  try {
+    if (companyId) localStorage.setItem(COMPANY_KEY, companyId);
+    else localStorage.removeItem(COMPANY_KEY);
+  } catch { /* ignore */ }
+}
+export function getCompanyScope(): string | null {
+  try { return localStorage.getItem(COMPANY_KEY); } catch { return null; }
+}
+
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...(extra ?? {}) };
   const token = getAuthToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  const company = getCompanyScope();
+  if (company) headers["X-Company-Id"] = company;
   return headers;
 }
 

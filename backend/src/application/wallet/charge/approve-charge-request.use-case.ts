@@ -52,7 +52,7 @@ export class ApproveChargeRequestUseCase {
         });
       } else {
         await tx.wallet.create({
-          data: { userId: req.userId, currency: "WELFARE_POINT", balance: newBalance },
+          data: { userId: req.userId, currency: "WELFARE_POINT", balance: newBalance, companyId: req.companyId },
         });
       }
       await tx.ledgerEntry.create({
@@ -63,6 +63,7 @@ export class ApproveChargeRequestUseCase {
           amount: req.amount,
           balanceAfter: newBalance,
           refNote: `충전요청 #${requestId} 승인` + (decisionNote ? ` — ${decisionNote}` : ""),
+          companyId: req.companyId, // 멀티테넌시: 요청자 회사로 태깅
         },
       });
 

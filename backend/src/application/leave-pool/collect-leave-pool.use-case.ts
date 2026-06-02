@@ -24,7 +24,12 @@ import {
   AuctionInventoryCreatedEvent,
 } from "@/application/events/auction-events";
 
-export type CollectLeavePoolInput = { sourceYear?: number; dryRun?: boolean };
+export type CollectLeavePoolInput = {
+  sourceYear?: number;
+  dryRun?: boolean;
+  /** 멀티테넌시: 수집 대상 회사. 생략(super "전체") 시 EZPASS(1). */
+  companyId?: bigint | null;
+};
 
 export type CollectLeavePoolResult = {
   sourceYear: number;
@@ -50,12 +55,30 @@ export class CollectLeavePoolUseCase {
     private readonly events: EventEmitter2,
   ) {}
 
+  /** 멀티테넌시: 모든 활성 회사에 대해 수집(스케줄러용). 회사별 결과 배열 반환. */
+  async executeAll(input?: Omit<CollectLeavePoolInput, "companyId">): Promise<CollectLeavePoolResult[]> {
+    const companyIds = await this.pool.activeCompanyIds();
+    const results: CollectLeavePoolResult[] = [];
+    for (const companyId of companyIds) {
+      try {
+        results.push(await this.execute({ ...input, companyId }));
+      } catch (err) {
+        // 이미 수집된 회사는 건너뛰고 나머지 계속(멱등). 그 외 오류는 전파.
+        if (err instanceof ConflictException) continue;
+        throw err;
+      }
+    }
+    return results;
+  }
+
   async execute(input?: CollectLeavePoolInput): Promise<CollectLeavePoolResult> {
     const sourceYear = input?.sourceYear ?? new Date().getFullYear();
     const targetYear = sourceYear + 1;
     const dryRun = input?.dryRun ?? false;
+    // super "전체"(null)면 EZPASS(1) 기본 — 회사를 특정해 수집.
+    const companyId = input?.companyId ?? 1n;
 
-    const alreadyCollected = await this.pool.isCollected(targetYear);
+    const alreadyCollected = await this.pool.isCollected(targetYear, companyId);
     // 멱등성: 실제 수집은 targetYear당 1회. (미리보기는 항상 허용.)
     if (alreadyCollected && !dryRun) {
       throw new ConflictException(
@@ -63,7 +86,7 @@ export class CollectLeavePoolUseCase {
       );
     }
 
-    const contributions = await this.pool.regularContributions(sourceYear);
+    const contributions = await this.pool.regularContributions(sourceYear, companyId);
     const opts = this.options(targetYear);
 
     // 분산 정책 — 행이 없으면 폴백(none = 즉시 baseDate).
@@ -102,6 +125,7 @@ export class CollectLeavePoolUseCase {
     await this.pool.commit({
       sourceYear,
       targetYear,
+      companyId,
       stakes: plan.stakes,
       items: plan.items,
       summary: plan.summary,
@@ -115,6 +139,7 @@ export class CollectLeavePoolUseCase {
         targetYear,
         plan.summary.auctionsCreated,
         plan.summary.contributorCount,
+        companyId,
       ),
     );
 

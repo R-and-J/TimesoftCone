@@ -290,8 +290,8 @@ model LeavePoolRun {
   id               Int      @id @default(autoincrement())
   /// 수집 대상 연도(이 해의 REGULAR 미사용을 취합).
   sourceYear       Int      @map("source_year")
-  /// 생성된 매물이 속한 연도(= sourceYear + 1). 멱등 키.
-  targetYear       Int      @unique @map("target_year")
+  /// 생성된 매물이 속한 연도(= sourceYear + 1). 회사별 멱등 키.
+  targetYear       Int      @map("target_year")
   companyId        BigInt   @default(1) @map("company_id")
   contributorCount Int      @map("contributor_count")
   daysCollected    Int      @map("days_collected")
@@ -299,6 +299,8 @@ model LeavePoolRun {
   status           String   @default("DONE")
   ranAt            DateTime @default(now()) @map("ran_at")
 
+  // 멀티테넌시: 멱등 키를 (회사, targetYear)로 — 회사별로 같은 연도를 독립 수집.
+  @@unique([companyId, targetYear], name: "uq_pool_company_target")
   @@map("leave_pool_run")
 }
 

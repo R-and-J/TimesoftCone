@@ -72,7 +72,9 @@ describe("CollectLeavePool (integration, real SQLite)", () => {
     expect(u3?.contributedDays).toBe(0); // 기여 없음
 
     // 멱등 마커.
-    const run = await prisma.leavePoolRun.findUnique({ where: { targetYear: 2027 } });
+    const run = await prisma.leavePoolRun.findUnique({
+      where: { uq_pool_company_target: { companyId: 1n, targetYear: 2027 } },
+    });
     expect(run?.daysCollected).toBe(6);
     expect(run?.auctionsCreated).toBe(6);
   });
@@ -98,7 +100,11 @@ describe("CollectLeavePool (integration, real SQLite)", () => {
     expect(r.auctionsCreated).toBe(4);
 
     expect(await prisma.auction.count({ where: { id: { startsWith: "A-2027-" } } })).toBe(0);
-    expect(await prisma.leavePoolRun.findUnique({ where: { targetYear: 2027 } })).toBeNull();
+    expect(
+      await prisma.leavePoolRun.findUnique({
+        where: { uq_pool_company_target: { companyId: 1n, targetYear: 2027 } },
+      }),
+    ).toBeNull();
     // 기여자 contributedDays도 아직 안 건드림.
     expect((await prisma.user.findUnique({ where: { id: 1n } }))?.contributedDays).toBe(0);
   });

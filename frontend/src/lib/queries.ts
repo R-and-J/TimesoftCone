@@ -122,6 +122,10 @@ export type LoginResponse = {
   jobRank: string | null;
   jobTitle: string | null;
   email: string | null;
+  /** 소속 회사 id(멀티테넌시). super ADMIN은 null. */
+  companyId: string | null;
+  /** 소속 회사 코드("EZPASS"|"EXAM"). super는 null. */
+  companyCode: string | null;
   provisioned: boolean;
   /** 자체 발급 JWT(RBAC) — 이후 모든 요청에 Bearer로 붙인다. */
   token: string;

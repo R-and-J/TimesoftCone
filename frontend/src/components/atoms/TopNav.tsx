@@ -5,6 +5,7 @@ import { Brand } from "./Brand";
 import { Avatar } from "./Avatar";
 import { Icon } from "../icons";
 import { useCurrentUser } from "@/lib/current-user";
+import { getCompanyScope, setCompanyScope } from "@/lib/api";
 import { roleLabel, isAdmin } from "@/lib/roles";
 import {
   listNotifications,
@@ -72,6 +73,16 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
     }
   };
 
+  // 최고관리자(super ADMIN, role=ADMIN·무소속)는 회사 스위처로 전 회사를 넘나든다.
+  //   "전체"=null(통합 집계), 이지패스=1, EXAM=2. 선택값은 api.ts가 X-Company-Id로 첨부.
+  const isSuper = current.role === "ADMIN";
+  const [companyScope, setCompanyScopeState] = useState<string>(getCompanyScope() ?? "");
+  const onSwitchCompany = (v: string) => {
+    setCompanyScopeState(v);
+    setCompanyScope(v || null);
+    window.location.reload(); // 스코프 변경을 모든 화면에 즉시 반영
+  };
+
   const displayName = user ?? current.name;
   // 직급(ezpass clsf_nm)을 우선 표시. 없으면 role 라벨로 폴백. (ADR-020)
   const displayRole = role ?? current.jobRank ?? roleLabel(current.role);
@@ -124,6 +135,28 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, color: p.inkSoft }}>
+        {isSuper && (
+          <select
+            value={companyScope}
+            onChange={(e) => onSwitchCompany(e.target.value)}
+            title="회사 전환(최고관리자)"
+            style={{
+              height: 34,
+              borderRadius: 10,
+              border: `1px solid ${p.line}`,
+              background: p.bg,
+              color: p.ink,
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "0 10px",
+              cursor: "pointer",
+            }}
+          >
+            <option value="">전체 회사</option>
+            <option value="1">이지패스</option>
+            <option value="2">EXAM</option>
+          </select>
+        )}
         <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <Icon.search />
         </div>

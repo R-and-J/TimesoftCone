@@ -11,15 +11,26 @@ import type { PoolContribution } from "@/domain/leave-pool/leave-pool-plan";
 export class PrismaLeavePoolAdapter implements LeavePoolPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async isCollected(targetYear: number): Promise<boolean> {
-    const run = await this.prisma.leavePoolRun.findUnique({ where: { targetYear } });
+  async isCollected(targetYear: number, companyId: bigint): Promise<boolean> {
+    const run = await this.prisma.leavePoolRun.findUnique({
+      where: { uq_pool_company_target: { companyId, targetYear } },
+    });
     return run !== null;
   }
 
-  async regularContributions(sourceYear: number): Promise<PoolContribution[]> {
-    // REGULAR만 풀 대상(ADR-002). remaining = granted + adjusted − used.
+  async activeCompanyIds(): Promise<bigint[]> {
+    const rows = await this.prisma.company.findMany({
+      where: { active: true },
+      select: { id: true },
+      orderBy: { id: "asc" },
+    });
+    return rows.map((r) => r.id);
+  }
+
+  async regularContributions(sourceYear: number, companyId: bigint): Promise<PoolContribution[]> {
+    // REGULAR만 풀 대상(ADR-002). remaining = granted + adjusted − used. 회사 스코프.
     const rows = await this.prisma.leaveBalance.findMany({
-      where: { leaveType: "REGULAR", year: sourceYear },
+      where: { leaveType: "REGULAR", year: sourceYear, companyId },
       select: {
         userId: true,
         grantedDays: true,
@@ -64,6 +75,7 @@ export class PrismaLeavePoolAdapter implements LeavePoolPort {
           leaveDays: it.leaveDays,
           startedAt: it.startedAt,
           endsAt: it.endsAt,
+          companyId: c.companyId, // 멀티테넌시: 매물을 수집 회사로 태깅.
         };
       });
       if (data.length > 0) await tx.auction.createMany({ data });
@@ -74,7 +86,7 @@ export class PrismaLeavePoolAdapter implements LeavePoolPort {
         await tx.stake.upsert({
           where: { uq_stake_user_year: { userId: s.userId, year: c.targetYear } },
           update: { days: s.days },
-          create: { userId: s.userId, year: c.targetYear, days: s.days },
+          create: { userId: s.userId, year: c.targetYear, days: s.days, companyId: c.companyId },
         });
         await tx.user.update({
           where: { id: s.userId },
@@ -87,6 +99,7 @@ export class PrismaLeavePoolAdapter implements LeavePoolPort {
         data: {
           sourceYear: c.sourceYear,
           targetYear: c.targetYear,
+          companyId: c.companyId,
           contributorCount: c.summary.contributorCount,
           daysCollected: c.summary.daysCollected,
           auctionsCreated: c.summary.auctionsCreated,

@@ -10,6 +10,8 @@ export const LEAVE_POOL = Symbol("LeavePool");
 export type LeavePoolCommit = {
   sourceYear: number;
   targetYear: number;
+  /** 멀티테넌시: 이 수집이 속한 회사. 매물·Stake·run 마커 모두 이 회사로 태깅. */
+  companyId: bigint;
   /** 기여자별 Stake(= contributedDays)로 기록. */
   stakes: { userId: bigint; days: number }[];
   items: InventoryItem[];
@@ -19,10 +21,12 @@ export type LeavePoolCommit = {
 };
 
 export interface LeavePoolPort {
-  /** 해당 targetYear 풀이 이미 수집됐는가(멱등 키). */
-  isCollected(targetYear: number): Promise<boolean>;
-  /** sourceYear의 REGULAR 미사용 잔액을 기여 목록으로(잔여 > 0만). */
-  regularContributions(sourceYear: number): Promise<PoolContribution[]>;
+  /** 해당 (회사, targetYear) 풀이 이미 수집됐는가(멱등 키). */
+  isCollected(targetYear: number, companyId: bigint): Promise<boolean>;
+  /** sourceYear의 REGULAR 미사용 잔액을 기여 목록으로(회사 스코프, 잔여 > 0만). */
+  regularContributions(sourceYear: number, companyId: bigint): Promise<PoolContribution[]>;
   /** 매물·Stake·run 마커를 한 트랜잭션에 커밋. 생성된 경매 ID들을 반환. */
   commit(c: LeavePoolCommit): Promise<{ auctionIds: string[] }>;
+  /** 멀티테넌시: 풀 수집 대상(활성) 회사 id 목록(스케줄러 루프용). */
+  activeCompanyIds(): Promise<bigint[]>;
 }

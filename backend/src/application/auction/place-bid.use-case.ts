@@ -36,6 +36,9 @@ export type PlaceBidInput = {
   auctionId: string;
   userId: bigint | number | string;
   amount: bigint | number | string;
+  /** 멀티테넌시: 입찰자 회사. 경매 회사와 다르면 거부(타사 경매 입찰 차단).
+   *  super ADMIN(null)은 검증 면제. */
+  bidderCompanyId?: bigint | null;
 };
 
 export type PlaceBidResult = {
@@ -85,6 +88,14 @@ export class PlaceBidUseCase {
         // Throw a domain error rather than NotFoundException — the controller
         // converts both into appropriate HTTP statuses.
         throw new (class extends DomainError {})(`Auction ${input.auctionId} not found`);
+      }
+
+      // 멀티테넌시: 타사 경매 입찰 차단(에스크로 회사 경계 보호). super(null)는 면제.
+      if (input.bidderCompanyId != null) {
+        const auctionCompany = await tx.auctionCompanyId(auctionId);
+        if (auctionCompany != null && auctionCompany !== input.bidderCompanyId) {
+          throw new (class extends DomainError {})("다른 회사의 경매에는 입찰할 수 없습니다");
+        }
       }
 
       // 입찰 검증과 anti-snipe 판정에 동일한 시각을 써야 일관적.

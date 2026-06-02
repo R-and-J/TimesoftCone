@@ -36,40 +36,41 @@ async function setWallet(userId: bigint, newBal: bigint) {
     data: { balance: newBal },
   });
 }
-async function ledger(userId: bigint, actionType: string, amount: bigint, balanceAfter: bigint, auctionId: string, refNote: string | null) {
+// companyId 기본 1n(EZPASS). EXAM 활동은 2n을 넘겨 회사별 정합(escrow per company)을 지킨다.
+async function ledger(userId: bigint, actionType: string, amount: bigint, balanceAfter: bigint, auctionId: string, refNote: string | null, companyId: bigint = 1n) {
   await prisma.ledgerEntry.create({
-    data: { userId, currency: "WELFARE_POINT", actionType, amount, balanceAfter, auctionId, refNote },
+    data: { userId, currency: "WELFARE_POINT", actionType, amount, balanceAfter, auctionId, refNote, companyId },
   });
 }
-async function putAuction(id: string, status: string, leaveDays: number, startPrice: number, startedAt: Date, endsAt: Date) {
-  const data = { status, startPrice: BigInt(startPrice), highest: BigInt(startPrice), highestBidder: null as bigint | null, bidCount: 0, minIncrement: 100n, leaveDays, startedAt, endsAt, settledAt: null as Date | null };
+async function putAuction(id: string, status: string, leaveDays: number, startPrice: number, startedAt: Date, endsAt: Date, companyId: bigint = 1n) {
+  const data = { status, startPrice: BigInt(startPrice), highest: BigInt(startPrice), highestBidder: null as bigint | null, bidCount: 0, minIncrement: 100n, leaveDays, startedAt, endsAt, settledAt: null as Date | null, companyId };
   await prisma.auction.upsert({ where: { id }, update: data, create: { id, ...data } });
 }
-async function bid(id: string, bidderId: bigint, amount: number) {
+async function bid(id: string, bidderId: bigint, amount: number, companyId: bigint = 1n) {
   const amt = BigInt(amount);
   const a = await prisma.auction.findUnique({ where: { id } });
   if (!a) throw new Error(`auction ${id} missing`);
   if (a.highestBidder !== null) {
     const nb = (bal[String(a.highestBidder)] ?? 0n) + a.highest;
     await setWallet(a.highestBidder, nb);
-    await ledger(a.highestBidder, "REFUND", a.highest, nb, id, "Outbid — auto refund");
+    await ledger(a.highestBidder, "REFUND", a.highest, nb, id, "Outbid — auto refund", companyId);
   }
   const myBal = (bal[String(bidderId)] ?? 0n) - amt;
   if (myBal < 0n) throw new Error(`insufficient: user ${bidderId} ${bal[String(bidderId)]} < ${amt}`);
   await setWallet(bidderId, myBal);
-  await ledger(bidderId, "BID", -amt, myBal, id, null);
-  await prisma.bidEvent.create({ data: { auctionId: id, userId: bidderId, amount: amt } });
+  await ledger(bidderId, "BID", -amt, myBal, id, null, companyId);
+  await prisma.bidEvent.create({ data: { auctionId: id, userId: bidderId, amount: amt, companyId } });
   await prisma.auction.update({ where: { id }, data: { highest: amt, highestBidder: bidderId, bidCount: { increment: 1 } } });
 }
-async function settle(id: string) {
+async function settle(id: string, companyId: bigint = 1n) {
   const a = await prisma.auction.findUnique({ where: { id } });
   if (!a || a.highestBidder === null) return;
   await prisma.auction.update({ where: { id }, data: { status: "AWARDED", settledAt: new Date(Date.now() - HR) } });
-  await ledger(a.highestBidder, "WIN", 0n, bal[String(a.highestBidder)] ?? 0n, id, "낙찰 확정");
+  await ledger(a.highestBidder, "WIN", 0n, bal[String(a.highestBidder)] ?? 0n, id, "낙찰 확정", companyId);
   await prisma.leaveBalance.upsert({
     where: { uq_leave_user_year_type: { userId: a.highestBidder, year: YEAR, leaveType: "AUCTION" } },
     update: { adjustedDays: { increment: a.leaveDays } },
-    create: { userId: a.highestBidder, year: YEAR, leaveType: "AUCTION", grantedDays: 0, adjustedDays: a.leaveDays, usedDays: 0 },
+    create: { userId: a.highestBidder, year: YEAR, leaveType: "AUCTION", grantedDays: 0, adjustedDays: a.leaveDays, usedDays: 0, companyId },
   });
 }
 
@@ -291,6 +292,64 @@ async function setupExamMembers() {
   console.log(`  EXAM 데모 ${exam.length}명 (EXAM ${exam.length - 1} + EXAM_ADMIN 1, 로컬 비번 1234)`);
 }
 
+/** 멀티테넌시: 회사 2곳(EZPASS·EXAM) idempotent upsert. 마이그레이션이 이미 행을
+ *  넣지만, `db push`/부분 재시드에서도 안전하도록 시드에서도 보장한다. */
+async function setupCompanies() {
+  await prisma.company.upsert({
+    where: { id: 1n },
+    update: { code: "EZPASS", name: "타임소프트콘(이지패스)", cmpnyNo: CMPNY, kind: "EZPASS", active: true },
+    create: { id: 1n, code: "EZPASS", name: "타임소프트콘(이지패스)", cmpnyNo: CMPNY, kind: "EZPASS", active: true },
+  });
+  await prisma.company.upsert({
+    where: { id: 2n },
+    update: { code: "EXAM", name: "EXAM(체험사)", cmpnyNo: null, kind: "EXAM", active: true },
+    create: { id: 2n, code: "EXAM", name: "EXAM(체험사)", cmpnyNo: null, kind: "EXAM", active: true },
+  });
+  console.log("  회사 2곳: EZPASS(1, cmpny 7) / EXAM(2, 로컬)");
+}
+
+/** EXAM 회사 독립 데모 활동 — 회사 2 매물/입찰/낙찰을 EXAM 직원들로 채워 완전 독립을
+ *  시연한다(EZPASS와 별개 escrow). id는 전역 PK라 EZPASS 데모와 겹치지 않는 200번대.
+ *  멱등: 이미 EXAM 매물이 있으면 건너뜀. */
+async function setupExamAuctions() {
+  if ((await prisma.auction.count({ where: { companyId: 2n } })) > 0) {
+    console.log("  (EXAM 매물 존재 → EXAM 활동 시드 건너뜀)");
+    return;
+  }
+  await loadBalances(); // EXAM 지갑까지 포함(setupExamMembers 이후 호출)
+  const exam = await prisma.user.findMany({
+    where: { companyId: 2n, role: { in: ["EXAM", "EXAM_ADMIN"] } },
+    select: { id: true, email: true },
+  });
+  const byLocal = new Map(exam.filter((m) => m.email).map((m) => [m.email!.split("@")[0], m.id]));
+  const E = (local: string) => {
+    const id = byLocal.get(local);
+    if (!id) throw new Error(`EXAM member ${local} missing`);
+    return id;
+  };
+  const now = Date.now();
+  const CO = 2n;
+
+  // 낙찰 1건(과거) — EXAM escrow에 입찰금이 쌓이고 낙찰자에 AUCTION 연차.
+  await putAuction("A-2026-201", "OPEN", 1, 5000, new Date(now - 3 * DAY), new Date(now - 2 * DAY), CO);
+  await bid("A-2026-201", E("exam001"), 5300, CO);
+  await bid("A-2026-201", E("exam002"), 5800, CO);
+  await settle("A-2026-201", CO);
+
+  // 진행 중 1건 — 라이브 입찰 데모.
+  await putAuction("A-2026-202", "OPEN", 1, 5000, new Date(now - 2 * HR), new Date(now + 1 * DAY), CO);
+  await bid("A-2026-202", E("exam003"), 5400, CO);
+  await bid("A-2026-202", E("exam001"), 6000, CO);
+
+  // 오픈 예정 1건.
+  await putAuction("A-2026-203", "CREATED", 2, 5000, new Date(now + 6 * HR), new Date(now + 2 * DAY), CO);
+
+  const esc = await prisma.ledgerEntry.aggregate({ _sum: { amount: true }, where: { actionType: "BID", companyId: 2n } });
+  const ref = await prisma.ledgerEntry.aggregate({ _sum: { amount: true }, where: { actionType: { in: ["REFUND", "DIVIDEND"] }, companyId: 2n } });
+  const escrow = -(esc._sum.amount ?? 0n) - (ref._sum.amount ?? 0n);
+  console.log(`  EXAM 매물 3건(낙찰1·진행1·예정1), EXAM escrow ${Number(escrow)}P`);
+}
+
 /** 최고관리자(ADMIN) — ezpass와 무관한 전용 로컬 계정. admin@timesoftcon은 ezpass
  *  회사 관리자(mngr_author)라 동기화로 EZPASS_ADMIN이 되므로, 최고관리자는 별도 계정으로 둔다. */
 async function setupSuperAdmin() {
@@ -313,6 +372,8 @@ async function setupSuperAdmin() {
 }
 
 async function main() {
+  console.log("== 0) 회사 2곳 (멀티테넌시) ==");
+  await setupCompanies();
   console.log("== 1) ezpass 회원 미러 + REGULAR 연차 ==");
   await syncMembersAndLeave();
   console.log("== 1b) 최고관리자 (별도 로컬 계정) ==");
@@ -323,9 +384,11 @@ async function main() {
   await seedRedemptionCatalog();
   console.log("== 2) 회원 펀딩 ==");
   await fundMembers();
-  console.log("== 3) 경매 데모 활동 ==");
+  console.log("== 3) 경매 데모 활동 (EZPASS) ==");
   await seedActivity();
-  console.log("\n✅ Seed complete (ezpass-backed).");
+  console.log("== 3b) EXAM 회사 독립 데모 활동 ==");
+  await setupExamAuctions();
+  console.log("\n✅ Seed complete (ezpass-backed, 멀티테넌시).");
   console.log("   A-2026-104는 ~2분 후 자동 마감(SettleDueAuctionsScheduler)");
 }
 

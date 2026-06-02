@@ -71,13 +71,14 @@ export class PrismaAuctionRepository implements AuctionRepository {
     return rows.map(rowToAuction);
   }
 
-  async save(auction: Auction): Promise<void> {
-    await this.saveWith(this.prisma, auction);
+  async save(auction: Auction, companyId?: bigint): Promise<void> {
+    await this.saveWith(this.prisma, auction, companyId);
   }
 
   async saveWith(
     tx: PrismaService | Prisma.TransactionClient,
     auction: Auction,
+    companyId?: bigint,
   ): Promise<void> {
     const s = auction.snapshot();
     await tx.auction.upsert({
@@ -108,6 +109,8 @@ export class PrismaAuctionRepository implements AuctionRepository {
         startedAt: s.startedAt,
         endsAt: s.endsAt,
         settledAt: s.settledAt,
+        // 멀티테넌시: 신규 경매만 회사 태깅(생략 시 EZPASS=1). update는 미변경.
+        companyId: companyId ?? 1n,
       },
     });
   }
@@ -155,9 +158,10 @@ export class PrismaAuctionRepository implements AuctionRepository {
     });
   }
 
-  async countsByStatus(): Promise<Record<AuctionStatus, number>> {
+  async countsByStatus(companyId?: bigint | null): Promise<Record<AuctionStatus, number>> {
     const rows = await this.prisma.auction.groupBy({
       by: ["status"],
+      where: companyId != null ? { companyId } : undefined,
       _count: { _all: true },
     });
     const init: Record<AuctionStatus, number> = {

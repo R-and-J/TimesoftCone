@@ -17,6 +17,8 @@ export type CreateAuctionInput = {
   asDraft?: boolean;
   startedAt?: Date | string;
   endsAt?: Date | string;
+  /** 멀티테넌시: 매물이 속할 회사. 생략/ null(super 전체) 시 EZPASS(1). */
+  companyId?: bigint | null;
 };
 
 export type CreateAuctionResult = {
@@ -51,6 +53,8 @@ export class CreateAuctionUseCase {
 
     const startPrice = Point.of(input.startPrice);
     const minIncrement = Point.of(input.minIncrement ?? 100);
+    // super ADMIN이 "전체"로 만들면 회사 미상 → EZPASS(1) 기본.
+    const companyId = input.companyId ?? 1n;
 
     const ids: string[] = [];
     for (let i = 0; i < quantity; i++) {
@@ -70,7 +74,7 @@ export class CreateAuctionUseCase {
             startedAt,
             endsAt,
           });
-      await this.auctions.save(auction);
+      await this.auctions.save(auction, companyId);
       ids.push(id);
     }
     return { ids, created: ids.length };

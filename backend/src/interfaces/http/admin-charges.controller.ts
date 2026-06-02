@@ -8,7 +8,7 @@ import { z } from "zod";
 import { ApproveChargeRequestUseCase } from "@/application/wallet/charge/approve-charge-request.use-case";
 import { RejectChargeRequestUseCase } from "@/application/wallet/charge/reject-charge-request.use-case";
 import { ListChargeRequestsUseCase } from "@/application/wallet/charge/list-charge-requests.use-case";
-import { CurrentUser, Roles, ADMIN_ROLES, type AuthUser } from "./auth/auth.decorators";
+import { CurrentUser, CompanyScope, Roles, ADMIN_ROLES, type AuthUser } from "./auth/auth.decorators";
 import { ZodValidationPipe } from "./zod.pipe";
 
 const decisionSchema = z.object({
@@ -27,9 +27,9 @@ export class AdminChargesController {
   ) {}
 
   @Get()
-  async listAll(@Query("status") status?: string) {
+  async listAll(@CompanyScope() companyId: bigint | null, @Query("status") status?: string) {
     const s = status && (STATUSES as readonly string[]).includes(status) ? (status as (typeof STATUSES)[number]) : undefined;
-    return this.list.forAdmin(s);
+    return this.list.forAdmin(s, 50, companyId);
   }
 
   /** 알림 deep-link이 회원관리에서 prefill에 사용. */

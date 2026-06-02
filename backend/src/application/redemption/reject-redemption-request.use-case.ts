@@ -65,7 +65,7 @@ export class RejectRedemptionRequestUseCase {
         });
       } else {
         await tx.wallet.create({
-          data: { userId: req.userId, currency: "WELFARE_POINT", balance: newBalance },
+          data: { userId: req.userId, currency: "WELFARE_POINT", balance: newBalance, companyId: req.companyId },
         });
       }
       await tx.ledgerEntry.create({
@@ -76,6 +76,7 @@ export class RejectRedemptionRequestUseCase {
           amount: req.pricePAtRequest,
           balanceAfter: newBalance,
           refNote: `교환 신청 #${requestId} 반려 — ${note}`,
+          companyId: req.companyId, // 멀티테넌시: 신청자 회사로 태깅
         },
       });
 
