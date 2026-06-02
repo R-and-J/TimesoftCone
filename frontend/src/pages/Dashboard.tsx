@@ -463,6 +463,25 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
+              {/* 4칸 그리드에서 매물이 적을 때 우측 빈 칸을 placeholder로 채워 시각적 괴리 제거. */}
+              {auctionsQ.data && auctionsQ.data.length > 0 && auctionsQ.data.length < 4 &&
+                Array.from({ length: 4 - Math.min(auctionsQ.data.length, 4) }, (_, i) => (
+                  <div
+                    key={`ph-${i}`}
+                    style={{
+                      background: p.surface,
+                      padding: 20,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: p.inkMuted,
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    더 많은 경매가 곧 공개됩니다
+                  </div>
+                ))}
               {auctionsQ.data && auctionsQ.data.length === 0 && (
                 <div
                   style={{
