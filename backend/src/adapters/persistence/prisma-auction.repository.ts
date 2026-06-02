@@ -61,6 +61,7 @@ export class PrismaAuctionRepository implements AuctionRepository {
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (idFilter) where.id = idFilter;
+    if (filter.companyId != null) where.companyId = filter.companyId;
 
     const rows = await this.prisma.auction.findMany({
       where: Object.keys(where).length > 0 ? where : undefined,

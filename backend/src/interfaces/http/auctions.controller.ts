@@ -53,6 +53,7 @@ export class AuctionsController {
 
   @Get()
   async list(
+    @CurrentUser() user: AuthUser,
     @Query("status") status?: string,
     @Query("year") year?: string,
   ) {
@@ -60,10 +61,12 @@ export class AuctionsController {
       | AuctionStatus[]
       | undefined;
     const y = year ? Number(year) : undefined;
-    const opts: { status?: AuctionStatus[]; year?: number } = {};
+    // 회사 스코프: super ADMIN(companyId=null)은 전 회사, 그 외는 자기 회사만.
+    const companyId = user.role === "ADMIN" ? null : user.companyId;
+    const opts: { status?: AuctionStatus[]; year?: number; companyId?: bigint | null } = { companyId };
     if (parsed) opts.status = parsed;
     if (y !== undefined && Number.isFinite(y)) opts.year = y;
-    return this.listUC.execute(Object.keys(opts).length > 0 ? opts : undefined);
+    return this.listUC.execute(opts);
   }
 
   @Get(":id")

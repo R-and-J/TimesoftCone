@@ -109,8 +109,8 @@ async function syncMembersAndLeave() {
 
       const user = await prisma.user.upsert({
         where: { email },
-        update: { name, team, role, jobRank, jobTitle },
-        create: { empId, email, name, team, role, jobRank, jobTitle },
+        update: { name, team, role, jobRank, jobTitle, companyId: 1n },
+        create: { empId, email, name, team, role, jobRank, jobTitle, companyId: 1n },
       });
 
       // REGULAR 연차 = ezpass tbl_user_yryc 최신연도(atmc+mdat).
@@ -259,7 +259,7 @@ async function setupExamMembers() {
     const e = exam[i];
     const user = await prisma.user.upsert({
       where: { email: e.email },
-      update: { name: e.name, team: e.team, role: e.role, passwordHash: PW, active: true },
+      update: { name: e.name, team: e.team, role: e.role, passwordHash: PW, active: true, companyId: 2n },
       create: {
         empId: `EXAM-${String(i + 1).padStart(3, "0")}`,
         email: e.email,
@@ -268,23 +268,24 @@ async function setupExamMembers() {
         role: e.role,
         passwordHash: PW,
         active: true,
+        companyId: 2n, // EXAM 회사
       },
     });
-    // 자체 로컬 데이터: 지갑(신규일 때만 CREDIT_ADMIN 원장) + REGULAR 연차(동기화 아님).
+    // 자체 로컬 데이터: 지갑(신규일 때만 CREDIT_ADMIN 원장) + REGULAR 연차(동기화 아님). 모두 EXAM 회사(2).
     const existing = await prisma.wallet.findUnique({
       where: { uq_wallet_user_currency: { userId: user.id, currency: "WELFARE_POINT" } },
     });
     if (!existing) {
       const points = 30000n;
-      await prisma.wallet.create({ data: { userId: user.id, currency: "WELFARE_POINT", balance: points } });
+      await prisma.wallet.create({ data: { userId: user.id, currency: "WELFARE_POINT", balance: points, companyId: 2n } });
       await prisma.ledgerEntry.create({
-        data: { userId: user.id, currency: "WELFARE_POINT", actionType: "CREDIT_ADMIN", amount: points, balanceAfter: points, refNote: "Seed: EXAM 초기 복지포인트" },
+        data: { userId: user.id, currency: "WELFARE_POINT", actionType: "CREDIT_ADMIN", amount: points, balanceAfter: points, refNote: "Seed: EXAM 초기 복지포인트", companyId: 2n },
       });
     }
     await prisma.leaveBalance.upsert({
       where: { uq_leave_user_year_type: { userId: user.id, year: YEAR, leaveType: "REGULAR" } },
       update: {},
-      create: { userId: user.id, year: YEAR, leaveType: "REGULAR", grantedDays: 15, adjustedDays: 0, usedDays: 0 },
+      create: { userId: user.id, year: YEAR, leaveType: "REGULAR", grantedDays: 15, adjustedDays: 0, usedDays: 0, companyId: 2n },
     });
   }
   console.log(`  EXAM 데모 ${exam.length}명 (EXAM ${exam.length - 1} + EXAM_ADMIN 1, 로컬 비번 1234)`);
@@ -297,7 +298,7 @@ async function setupSuperAdmin() {
   const hash = await bcrypt.hash("!12345qwertY", 10); // 데모 전용
   await prisma.user.upsert({
     where: { email: EMAIL },
-    update: { role: "ADMIN", passwordHash: hash, active: true },
+    update: { role: "ADMIN", passwordHash: hash, active: true, companyId: null },
     create: {
       empId: "SUPER-001",
       email: EMAIL,
@@ -305,6 +306,7 @@ async function setupSuperAdmin() {
       role: "ADMIN",
       passwordHash: hash,
       active: true,
+      companyId: null, // 전 회사 통합(스위처)
     },
   });
   console.log(`  최고관리자: ${EMAIL} → ADMIN + 로컬 비번`);

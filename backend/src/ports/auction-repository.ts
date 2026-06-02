@@ -9,6 +9,8 @@ export type AuctionListFilter = {
   /** 경매가 속한 연도(id가 A-YYYY-NNN이므로 id prefix로 필터). */
   year?: number;
   limit?: number;
+  /** 회사 스코프(멀티테넌시). null/undefined면 전 회사(super ADMIN). */
+  companyId?: bigint | null;
 };
 
 export interface AuctionRepository {

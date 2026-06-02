@@ -9,7 +9,7 @@ import { ListMembersUseCase } from "@/application/admin/list-members.use-case";
 import { SyncMembersUseCase } from "@/application/admin/sync-members.use-case";
 import { ManageMembersUseCase } from "@/application/admin/manage-members.use-case";
 import { ZodValidationPipe } from "./zod.pipe";
-import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES, CurrentUser, type AuthUser } from "./auth/auth.decorators";
 
 const createSchema = z.object({
   email: z.string().email("올바른 이메일이 아닙니다"),
@@ -42,10 +42,10 @@ export class AdminMembersController {
     private readonly manage: ManageMembersUseCase,
   ) {}
 
-  /** 회원 목록(읽기). 응답의 mode로 프론트가 읽기전용/CRUD 분기. */
+  /** 회원 목록(읽기). 회사 스코프(super ADMIN은 전 회사). 응답 mode로 프론트 분기. */
   @Get()
-  async listMembers() {
-    return this.list.execute();
+  async listMembers(@CurrentUser() user: AuthUser) {
+    return this.list.execute(user.role === "ADMIN" ? null : user.companyId);
   }
 
   /** ezpass org에서 회원 명단을 다시 당겨와 미러 갱신. ezpass 영역 관리자만. */
