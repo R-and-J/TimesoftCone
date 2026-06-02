@@ -29,6 +29,8 @@ export async function resetDb(prisma: PrismaService): Promise<void> {
     await prisma.bidEvent.deleteMany();
     await prisma.ledgerEntry.deleteMany();
     await prisma.leaveBalance.deleteMany();
+    await prisma.leavePoolReleaseRun.deleteMany();
+    await prisma.leavePoolSupply.deleteMany();
     await prisma.leavePoolRun.deleteMany();
     await prisma.stake.deleteMany();
     await prisma.notification.deleteMany();

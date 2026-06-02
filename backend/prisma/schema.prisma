@@ -86,6 +86,7 @@ model User {
   leaveBalances    LeaveBalance[]
   notifications    Notification[]
   stakes           Stake[]
+  poolSupplies     LeavePoolSupply[]
   redemptionOrders     RedemptionOrder[]
   chargeRequests       ChargeRequest[]     @relation("ChargeRequester")
   chargeDecisions      ChargeRequest[]     @relation("ChargeApprover")
@@ -302,6 +303,50 @@ model LeavePoolRun {
   // 멀티테넌시: 멱등 키를 (회사, targetYear)로 — 회사별로 같은 연도를 독립 수집.
   @@unique([companyId, targetYear], name: "uq_pool_company_target")
   @@map("leave_pool_run")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEAVE_POOL_SUPPLY — 풀 "재고". 수집 시점에 한꺼번에 매물을 만들지 않고,
+// 기여자별 잔여 일수(remainingDays)만 적재해두고 ReleaseInventoryScheduler가
+// ReleasePolicy 주기마다 N개씩 매물로 변환한다(2026-06-02 결정).
+// 한 (회사, targetYear, userId)당 1행. remainingDays > 0 인 행만 발행 후보.
+// ─────────────────────────────────────────────────────────────
+model LeavePoolSupply {
+  id              Int      @id @default(autoincrement())
+  targetYear      Int      @map("target_year")
+  companyId       BigInt   @default(1) @map("company_id")
+  userId          BigInt   @map("user_id")
+  /// 처음 수집된 기여 일수(불변, 감사용).
+  contributedDays Int      @map("contributed_days")
+  /// 남은(아직 매물화되지 않은) 일수. 0이 되면 소진.
+  remainingDays   Int      @map("remaining_days")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, targetYear, userId], name: "uq_supply_company_year_user")
+  @@index([companyId, targetYear, remainingDays])
+  @@map("leave_pool_supply")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEAVE_POOL_RELEASE_RUN — Release 회차의 멱등 마커.
+// periodIndex는 cadence별 회차 식별자 — weekly: ISO yyyywww, monthly: yyyymm, daily: yyyymmdd.
+// (회사, targetYear, periodIndex) UNIQUE → 같은 회차 중복 발행 차단.
+// ─────────────────────────────────────────────────────────────
+model LeavePoolReleaseRun {
+  id              Int      @id @default(autoincrement())
+  targetYear      Int      @map("target_year")
+  companyId       BigInt   @default(1) @map("company_id")
+  /// cadence별 식별자(예: "2026-W12", "2026-04", "2026-04-03"). cadence=none은 "ONCE".
+  periodIndex     String   @map("period_index")
+  cadence         String
+  releasedQty     Int      @map("released_qty")
+  ranAt           DateTime @default(now()) @map("ran_at")
+
+  @@unique([companyId, targetYear, periodIndex], name: "uq_release_company_year_period")
+  @@map("leave_pool_release_run")
 }
 
 // ─────────────────────────────────────────────────────────────

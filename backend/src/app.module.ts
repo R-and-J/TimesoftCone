@@ -30,6 +30,7 @@ import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auc
 import { OpenDueAuctionsScheduler } from "./adapters/scheduling/open-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 import { LeavePoolScheduler } from "./adapters/scheduling/leave-pool.scheduler";
+import { ReleaseInventoryScheduler } from "./adapters/scheduling/release-inventory.scheduler";
 import { PurgeUnsoldAuctionsScheduler } from "./adapters/scheduling/purge-unsold.scheduler";
 import { OutboxRelayScheduler } from "./adapters/scheduling/outbox-relay.scheduler";
 
@@ -79,6 +80,7 @@ import { ListChargeRequestsUseCase } from "./application/wallet/charge/list-char
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
+import { ReleaseInventoryUseCase } from "./application/leave-pool/release-inventory.use-case";
 import { GetReleasePolicyUseCase } from "./application/leave-pool/get-release-policy.use-case";
 import { UpdateReleasePolicyUseCase } from "./application/leave-pool/update-release-policy.use-case";
 import { UseLeaveUseCase } from "./application/leave/use-leave.use-case";
@@ -272,6 +274,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
     CollectLeavePoolUseCase,
+    ReleaseInventoryUseCase,
     GetReleasePolicyUseCase,
     UpdateReleasePolicyUseCase,
     UseLeaveUseCase,
@@ -282,6 +285,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     OpenDueAuctionsScheduler,
     YearEndDividendScheduler,
     LeavePoolScheduler,
+    ReleaseInventoryScheduler,
     PurgeUnsoldAuctionsScheduler,
     OutboxRelayScheduler,
   ],

@@ -1,11 +1,9 @@
 // LeavePool 도메인 — 연말 풀 수집(ADR-017)의 순수 계획 로직.
-// "기여(REGULAR 미사용 일수) 목록" → "Stake 기록 + 익년도 매물(1일권) 목록"으로
-// 변환한다. 외부 의존 0(인바리언트 #7) — 영속화/ID 채번은 어댑터 몫.
+// 2026-06-02 점진 발행 결정으로 단순화: 수집 시점에 매물을 만들지 않고,
+// Stake와 supply(기여자별 잔여)만 만든다. 매물은 ReleaseInventoryUseCase가
+// ReleasePolicy 주기마다 supply에서 N개씩 빼서 생성한다.
 //
-// 정책(business-rules OP-2/OP-5/OP-6):
-//   - OP-2 수집 전량 1:1 — 기여 N일 = 1일권 N개.
-//   - OP-6 시작가 — 고정 최소가(모드②, knob). 첫 해엔 작년 데이터 없으니 고정가.
-//   - OP-5 분산 오픈 — weeklyQty>0이면 주당 그만큼씩 startedAt을 주 단위로 분산.
+// 외부 의존 0(인바리언트 #7). InventoryItem/시작가 등은 release 도메인으로 이동.
 
 export type PoolContribution = {
   userId: bigint;
@@ -14,55 +12,20 @@ export type PoolContribution = {
   days: number;
 };
 
-export type InventoryItem = {
-  /** 어느 기여자의 기여분에서 나온 매물인지(감사용 — 매물 자체는 대체가능). */
-  sourceUserId: bigint;
-  startedAt: Date;
-  endsAt: Date;
-  startPrice: bigint;
-  minIncrement: bigint;
-  leaveDays: number;
-};
-
-export type LeavePoolPlanOptions = {
-  /** 매물이 속한 연도(= sourceYear + 1). 스케줄 기준 연도. */
-  targetYear: number;
-  startPrice: bigint;
-  minIncrement: bigint;
-  /** 한 매물의 입찰 가능 기간(일). */
-  auctionDays: number;
-  /** 주당 오픈 개수(0이면 전량 targetYear 1/1 동시 시작). 폴백 전용. */
-  weeklyQty?: number;
-  /**
-   * 매물별 시작 시각 — 외부(분산 정책 planRelease)에서 결정해 주입.
-   * 길이가 총 매물 수(Σdays)와 같아야 함. 지정되면 weeklyQty는 무시.
-   */
-  startedAtSlots?: Date[];
-};
-
 export type LeavePoolPlan = {
-  /** 기여자별 Stake(= contributedDays) 기록. */
+  /** 기여자별 Stake(= contributedDays) 기록. 어댑터가 stake/supply 두 곳에 적재. */
   stakes: { userId: bigint; days: number }[];
-  /** 생성할 1일권 매물(총 Σdays개). */
-  items: InventoryItem[];
   summary: {
     contributorCount: number;
     daysCollected: number;
-    auctionsCreated: number;
   };
 };
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
- * 기여 목록으로부터 Stake와 매물 계획을 만든다(순수). 기여일이 0 이하인 사람은
- * 제외. 결과는 결정적(기여자는 userId 오름차순, 매물은 생성 순서대로).
+ * 기여 목록을 (회사 스코프 가정) 결정적으로 정리한다. 기여 0 이하는 제외,
+ * 결과는 userId 오름차순.
  */
-export function planLeavePool(
-  contributions: PoolContribution[],
-  opts: LeavePoolPlanOptions,
-): LeavePoolPlan {
+export function planLeavePool(contributions: PoolContribution[]): LeavePoolPlan {
   const eligible = contributions
     .filter((c) => c.days > 0)
     .sort((a, b) => (a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0));
@@ -70,45 +33,11 @@ export function planLeavePool(
   const stakes = eligible.map((c) => ({ userId: c.userId, days: c.days }));
   const daysCollected = eligible.reduce((s, c) => s + c.days, 0);
 
-  const totalCount = daysCollected;
-  if (opts.startedAtSlots && opts.startedAtSlots.length !== totalCount) {
-    throw new Error(
-      `planLeavePool: startedAtSlots 길이(${opts.startedAtSlots.length})가 매물 수(${totalCount})와 다릅니다`,
-    );
-  }
-  const yearStart = new Date(Date.UTC(opts.targetYear, 0, 1, 0, 0, 0));
-  const weeklyQty = opts.weeklyQty ?? 0;
-  const items: InventoryItem[] = [];
-  let index = 0; // 전체 매물 순번 — 폴백 주차 분산에 사용
-  for (const c of eligible) {
-    for (let d = 0; d < c.days; d++) {
-      let startedAt: Date;
-      if (opts.startedAtSlots) {
-        startedAt = new Date(opts.startedAtSlots[index].getTime());
-      } else {
-        const weekOffset = weeklyQty > 0 ? Math.floor(index / weeklyQty) : 0;
-        startedAt = new Date(yearStart.getTime() + weekOffset * WEEK_MS);
-      }
-      const endsAt = new Date(startedAt.getTime() + opts.auctionDays * DAY_MS);
-      items.push({
-        sourceUserId: c.userId,
-        startedAt,
-        endsAt,
-        startPrice: opts.startPrice,
-        minIncrement: opts.minIncrement,
-        leaveDays: 1,
-      });
-      index++;
-    }
-  }
-
   return {
     stakes,
-    items,
     summary: {
       contributorCount: eligible.length,
       daysCollected,
-      auctionsCreated: items.length,
     },
   };
 }

@@ -95,7 +95,7 @@ export class LeavePoolScheduler implements OnModuleInit, OnApplicationShutdown {
       const results = await this.useCase.executeAll();
       for (const r of results) {
         this.logger.log(
-          `Year-end leave-pool collected: targetYear=${r.targetYear}, contributors=${r.contributorCount}, days=${r.daysCollected}, auctions=${r.auctionsCreated}`,
+          `Year-end leave-pool collected: targetYear=${r.targetYear}, contributors=${r.contributorCount}, days=${r.daysCollected} (점진 발행 — 매물은 ReleaseInventoryScheduler가 정책 주기에 생성)`,
         );
       }
       // 모든 회사 수집 완료 — 더 돌 이유 없음.
