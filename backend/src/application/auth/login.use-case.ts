@@ -29,6 +29,10 @@ export type LoginResult = {
   /** 직책 (ezpass ofcsprtps_nm). */
   jobTitle: string | null;
   email: string | null;
+  /** 소속 회사 id(멀티테넌시). super ADMIN은 null(전 회사). */
+  companyId: string | null;
+  /** 소속 회사 코드("EZPASS"|"EXAM"). super는 null. 프론트 표시/스위처용. */
+  companyCode: string | null;
   /** 이 로그인으로 우리 users 행이 새로 생성됐는지. */
   provisioned: boolean;
   /** 자체 발급 JWT(RBAC) — 프론트가 Authorization: Bearer로 재전송. */
@@ -69,6 +73,14 @@ export class LoginUseCase {
     return isEzpass ? "EZPASS" : "EXAM";
   }
 
+  /** role로 소속 회사 결정. ADMIN(최고)=전 회사(null). 그 외는 ezpass/exam 회사. */
+  private async resolveCompanyId(role: string): Promise<bigint | null> {
+    if (role === "ADMIN") return null;
+    const code = role === "EXAM" || role === "EXAM_ADMIN" ? "EXAM" : "EZPASS";
+    const c = await this.prisma.company.findFirst({ where: { code }, select: { id: true } });
+    return c?.id ?? null;
+  }
+
   async execute(id: string, password: string, cmpnyNo?: string): Promise<LoginResult> {
     // 1. 외부 인증 위임
     let identity;
@@ -86,6 +98,7 @@ export class LoginUseCase {
     const name = identity.name ?? identity.email.split("@")[0];
     // role은 매 로그인 이메일 도메인으로 재계산(ADMIN은 고정). 회사 도메인=EZPASS, 그 외=EXAM.
     const role = this.resolveRole(identity.email, user?.role, identity.isAdmin);
+    const companyId = await this.resolveCompanyId(role);
 
     if (!user) {
       // 3. 없으면 자동 프로비저닝. 신원(이름/부서/직급)은 ezpass가 정본.
@@ -96,14 +109,15 @@ export class LoginUseCase {
           email: identity.email,
           name,
           role,
+          companyId,
         },
       });
       provisioned = true;
-    } else if (user.name !== name || user.role !== role) {
-      // 3-b. 이름(신원)은 ezpass 기준, role은 도메인 기준으로 동기화.
+    } else if (user.name !== name || user.role !== role || user.companyId !== companyId) {
+      // 3-b. 이름(신원)은 ezpass 기준, role·회사는 도메인 기준으로 동기화.
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { name, role },
+        data: { name, role, companyId },
       });
     }
 
@@ -113,6 +127,7 @@ export class LoginUseCase {
       sub: String(user.id),
       role: user.role,
       empId: user.empId,
+      companyId: user.companyId != null ? String(user.companyId) : null,
     });
 
     // 5. 우리 사용자 정보 + 토큰 반환 (직급/직책은 배치 동기화로 채워진 값)
@@ -125,6 +140,9 @@ export class LoginUseCase {
       jobRank: user.jobRank,
       jobTitle: user.jobTitle,
       email: user.email,
+      companyId: user.companyId != null ? String(user.companyId) : null,
+      companyCode:
+        user.role === "ADMIN" ? null : user.role === "EXAM" || user.role === "EXAM_ADMIN" ? "EXAM" : "EZPASS",
       provisioned,
       token,
     };

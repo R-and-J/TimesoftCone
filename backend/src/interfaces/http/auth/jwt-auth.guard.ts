@@ -12,7 +12,7 @@ import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { IS_PUBLIC_KEY, type AuthUser } from "./auth.decorators";
 
-type JwtPayload = { sub: string; role: AuthUser["role"]; empId: string };
+type JwtPayload = { sub: string; role: AuthUser["role"]; empId: string; companyId?: string | null };
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -43,6 +43,7 @@ export class JwtAuthGuard implements CanActivate {
         userId: BigInt(payload.sub),
         role: payload.role,
         empId: payload.empId,
+        companyId: payload.companyId != null ? BigInt(payload.companyId) : null,
       };
       return true;
     } catch {

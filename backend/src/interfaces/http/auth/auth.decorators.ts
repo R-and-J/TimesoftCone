@@ -26,6 +26,8 @@ export type AuthUser = {
   userId: bigint;
   role: Role;
   empId: string;
+  /** 소속 회사 id(멀티테넌시). super ADMIN은 null(전 회사). */
+  companyId: bigint | null;
 };
 
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
