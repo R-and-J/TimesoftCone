@@ -146,7 +146,8 @@ async function fundMembers() {
   let funded = 0;
   for (let i = 0; i < members.length; i++) {
     const m = members[i];
-    const points = BigInt(20000 + (i % 7) * 10000); // 20,000 ~ 80,000 P
+    // 시작가 30,000 P 고정 정책에 맞춰 여러 매물 입찰·낙찰을 견딜 수 있는 잔액으로 펀딩.
+    const points = BigInt(100000 + (i % 7) * 20000); // 100,000 ~ 220,000 P
     const contributedDays = 2 + (i % 13); // 2 ~ 14 일
     const existing = await prisma.wallet.findUnique({
       where: { uq_wallet_user_currency: { userId: m.id, currency: "WELFARE_POINT" } },
@@ -189,12 +190,13 @@ async function seedActivity() {
   };
   const now = Date.now();
 
+  // 모든 매물은 ADR-007에 따라 1일권, 시작가는 30,000 P 고정.
   const awarded: { id: string; days: number; start: number; seq: [number, number][] }[] = [
-    { id: "A-2026-090", days: 1, start: 5000, seq: [[2, 5200], [1, 5500], [2, 5900], [7, 6300]] },
-    { id: "A-2026-091", days: 2, start: 5000, seq: [[1, 5300], [3, 5700], [1, 6200], [3, 6800], [1, 7400]] },
-    { id: "A-2026-092", days: 1, start: 5000, seq: [[4, 5400], [6, 5900]] },
-    { id: "A-2026-093", days: 3, start: 8000, seq: [[9, 8500], [3, 9200], [9, 10100], [5, 11000], [9, 12500]] },
-    { id: "A-2026-094", days: 1, start: 5000, seq: [[2, 5300], [10, 5700], [2, 6100]] },
+    { id: "A-2026-090", days: 1, start: 30000, seq: [[2, 30200], [1, 30500], [2, 30900], [7, 31300]] },
+    { id: "A-2026-091", days: 1, start: 30000, seq: [[1, 30300], [3, 30700], [1, 31200], [3, 31800], [1, 32400]] },
+    { id: "A-2026-092", days: 1, start: 30000, seq: [[4, 30400], [6, 30900]] },
+    { id: "A-2026-093", days: 1, start: 30000, seq: [[9, 30500], [3, 31200], [9, 32100], [5, 33000], [9, 34500]] },
+    { id: "A-2026-094", days: 1, start: 30000, seq: [[2, 30300], [10, 30700], [2, 31100]] },
   ];
   for (let i = 0; i < awarded.length; i++) {
     const a = awarded[i];
@@ -203,15 +205,15 @@ async function seedActivity() {
     await settle(a.id);
   }
 
-  await putAuction("A-2026-105", "OPEN", 2, 5000, new Date(now - 2 * HR), new Date(now + 30 * MIN));
-  for (const [n, amt] of [[1, 5600], [4, 6300], [1, 7000]] as [number, number][]) await bid("A-2026-105", U(n), amt);
-  await putAuction("A-2026-106", "OPEN", 1, 5000, new Date(now - 1 * HR), new Date(now + 2 * HR));
-  for (const [n, amt] of [[5, 5400], [7, 5900], [3, 6500]] as [number, number][]) await bid("A-2026-106", U(n), amt);
+  await putAuction("A-2026-105", "OPEN", 1, 30000, new Date(now - 2 * HR), new Date(now + 30 * MIN));
+  for (const [n, amt] of [[1, 30600], [4, 31300], [1, 32000]] as [number, number][]) await bid("A-2026-105", U(n), amt);
+  await putAuction("A-2026-106", "OPEN", 1, 30000, new Date(now - 1 * HR), new Date(now + 2 * HR));
+  for (const [n, amt] of [[5, 30400], [7, 30900], [3, 31500]] as [number, number][]) await bid("A-2026-106", U(n), amt);
 
-  await putAuction("A-2026-104", "OPEN", 1, 5000, new Date(now - 1 * HR), new Date(now + 2 * MIN));
-  await putAuction("A-2026-107", "OPEN", 1, 5000, new Date(now - 1 * HR), new Date(now + 1 * DAY));
-  await putAuction("A-2026-108", "CREATED", 2, 5000, new Date(now + 30 * MIN), new Date(now + 6 * HR));
-  await putAuction("A-2026-109", "CREATED", 3, 5000, new Date(now + 1 * DAY), new Date(now + 3 * DAY));
+  await putAuction("A-2026-104", "OPEN", 1, 30000, new Date(now - 1 * HR), new Date(now + 2 * MIN));
+  await putAuction("A-2026-107", "OPEN", 1, 30000, new Date(now - 1 * HR), new Date(now + 1 * DAY));
+  await putAuction("A-2026-108", "CREATED", 1, 30000, new Date(now + 30 * MIN), new Date(now + 6 * HR));
+  await putAuction("A-2026-109", "CREATED", 1, 30000, new Date(now + 1 * DAY), new Date(now + 3 * DAY));
 
   const esc = await prisma.ledgerEntry.aggregate({ _sum: { amount: true }, where: { actionType: "BID" } });
   const ref = await prisma.ledgerEntry.aggregate({ _sum: { amount: true }, where: { actionType: { in: ["REFUND", "DIVIDEND"] } } });
@@ -277,7 +279,8 @@ async function setupExamMembers() {
       where: { uq_wallet_user_currency: { userId: user.id, currency: "WELFARE_POINT" } },
     });
     if (!existing) {
-      const points = 30000n;
+      // 시작가 30,000 P 고정 — EXAM도 입찰·낙찰 견디게 100,000 P부터.
+      const points = 100000n;
       await prisma.wallet.create({ data: { userId: user.id, currency: "WELFARE_POINT", balance: points, companyId: 2n } });
       await prisma.ledgerEntry.create({
         data: { userId: user.id, currency: "WELFARE_POINT", actionType: "CREDIT_ADMIN", amount: points, balanceAfter: points, refNote: "Seed: EXAM 초기 복지포인트", companyId: 2n },
@@ -331,18 +334,18 @@ async function setupExamAuctions() {
   const CO = 2n;
 
   // 낙찰 1건(과거) — EXAM escrow에 입찰금이 쌓이고 낙찰자에 AUCTION 연차.
-  await putAuction("A-2026-201", "OPEN", 1, 5000, new Date(now - 3 * DAY), new Date(now - 2 * DAY), CO);
-  await bid("A-2026-201", E("exam001"), 5300, CO);
-  await bid("A-2026-201", E("exam002"), 5800, CO);
+  await putAuction("A-2026-201", "OPEN", 1, 30000, new Date(now - 3 * DAY), new Date(now - 2 * DAY), CO);
+  await bid("A-2026-201", E("exam001"), 30300, CO);
+  await bid("A-2026-201", E("exam002"), 30800, CO);
   await settle("A-2026-201", CO);
 
   // 진행 중 1건 — 라이브 입찰 데모.
-  await putAuction("A-2026-202", "OPEN", 1, 5000, new Date(now - 2 * HR), new Date(now + 1 * DAY), CO);
-  await bid("A-2026-202", E("exam003"), 5400, CO);
-  await bid("A-2026-202", E("exam001"), 6000, CO);
+  await putAuction("A-2026-202", "OPEN", 1, 30000, new Date(now - 2 * HR), new Date(now + 1 * DAY), CO);
+  await bid("A-2026-202", E("exam003"), 30400, CO);
+  await bid("A-2026-202", E("exam001"), 31000, CO);
 
   // 오픈 예정 1건.
-  await putAuction("A-2026-203", "CREATED", 2, 5000, new Date(now + 6 * HR), new Date(now + 2 * DAY), CO);
+  await putAuction("A-2026-203", "CREATED", 1, 30000, new Date(now + 6 * HR), new Date(now + 2 * DAY), CO);
 
   const esc = await prisma.ledgerEntry.aggregate({ _sum: { amount: true }, where: { actionType: "BID", companyId: 2n } });
   const ref = await prisma.ledgerEntry.aggregate({ _sum: { amount: true }, where: { actionType: { in: ["REFUND", "DIVIDEND"] }, companyId: 2n } });

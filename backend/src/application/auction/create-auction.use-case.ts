@@ -1,6 +1,7 @@
 // CreateAuction — 관리자가 1일권 매물 N개를 같은 조건으로 일괄 생성.
 // ADR-007 1일권 고정 정책에 맞춰 leaveDays는 항상 1, "N일권 1개" 대신
 // "1일권 N개"로 표현. ID는 서버가 nextIdForYear로 자동 채번(사용자 수정 불가).
+// 시작가도 30,000 P 고정 정책(2026-06-02) — input.startPrice는 받기만 하고 무시한다.
 
 import { Inject, Injectable } from "@nestjs/common";
 import { AUCTION_REPOSITORY, type AuctionRepository } from "@/ports/auction-repository";
@@ -8,10 +9,14 @@ import { Auction } from "@/domain/auction/auction";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { Point } from "@/domain/shared/value-objects/point";
 
+/** 시작가 30,000 P 고정. 모든 매물(수동 생성·LeavePool 폴백 제외)에 강제. */
+const FIXED_START_PRICE = 30000n;
+
 export type CreateAuctionInput = {
   /** 1일권 발행 수량(기본 1). */
   quantity?: number | string;
-  startPrice: bigint | number | string;
+  /** @deprecated 시작가는 30,000 P 고정 — 호환성을 위해 받지만 무시한다. */
+  startPrice?: bigint | number | string;
   minIncrement?: bigint | number | string;
   /** 보류(DRAFT) 모드 — 오픈 스케줄 미정. true면 startedAt/endsAt 무시. */
   asDraft?: boolean;
@@ -51,7 +56,8 @@ export class CreateAuctionUseCase {
     const prefix = `A-${year}-`;
     const startNum = Number.parseInt(startedId.slice(prefix.length), 10);
 
-    const startPrice = Point.of(input.startPrice);
+    // 시작가는 input과 무관하게 항상 30,000 P(정책 고정).
+    const startPrice = Point.of(FIXED_START_PRICE);
     const minIncrement = Point.of(input.minIncrement ?? 100);
     // super ADMIN이 "전체"로 만들면 회사 미상 → EZPASS(1) 기본.
     const companyId = input.companyId ?? 1n;

@@ -36,7 +36,8 @@ const createSchema = z.object({
     .union([z.string(), z.number()])
     .refine((v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 1000, "quantity must be 1~1000")
     .optional(),
-  startPrice: z.union([z.string(), z.number()]),
+  /** @deprecated 시작가는 30,000 P 고정 — 호환성을 위해 받지만 무시한다. */
+  startPrice: z.union([z.string(), z.number()]).optional(),
   minIncrement: z.union([z.string(), z.number()]).optional(),
   /** true면 DRAFT(보류) 매물로 생성. startedAt/endsAt 불필요. */
   asDraft: z.boolean().optional(),

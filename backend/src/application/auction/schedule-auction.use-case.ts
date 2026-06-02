@@ -1,6 +1,7 @@
-// ScheduleAuction — CREATED 매물의 운영 파라미터(예약 시간/시작금/일수/증분)만 갱신.
+// ScheduleAuction — CREATED 매물의 운영 파라미터(예약 시간/일수/증분)만 갱신.
 // OpenAuctionUseCase와 달리 상태를 바꾸지 않는다(여전히 CREATED).
 // "오픈 예정" 모달에서 "예약 저장" 버튼이 호출 → 시간이 되면 OpenDueAuctionsScheduler가 OPEN.
+// 시작가는 30,000 P 고정 정책(2026-06-02) — input.startPrice는 받기만 하고 무시한다.
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { AUCTION_REPOSITORY, type AuctionRepository } from "@/ports/auction-repository";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
@@ -10,6 +11,7 @@ import { DomainError } from "@/domain/shared/errors";
 export type ScheduleAuctionInput = {
   startedAt?: Date | string;
   endsAt?: Date | string;
+  /** @deprecated 시작가는 30,000 P 고정 — 호환성을 위해 받지만 무시한다. */
   startPrice?: bigint | number | string;
   leaveDays?: number | string;
   minIncrement?: bigint | number | string;
@@ -33,10 +35,10 @@ export class ScheduleAuctionUseCase {
     const auction = await this.auctions.findById(auctionId);
     if (!auction) throw new NotFoundException(`Auction ${idRaw} not found`);
     try {
+      // 시작가는 정책상 고정 — input.startPrice가 와도 전달하지 않는다.
       auction.configureBeforeOpen({
         startedAt: input.startedAt !== undefined ? new Date(input.startedAt) : undefined,
         endsAt: input.endsAt !== undefined ? new Date(input.endsAt) : undefined,
-        startPrice: input.startPrice !== undefined ? Point.of(input.startPrice) : undefined,
         leaveDays: input.leaveDays !== undefined ? Number(input.leaveDays) : undefined,
         minIncrement: input.minIncrement !== undefined ? Point.of(input.minIncrement) : undefined,
       });

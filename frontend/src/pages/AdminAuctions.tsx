@@ -412,12 +412,12 @@ export default function AdminAuctionsPage() {
                   style={inputStyle(p)}
                 />
               </FieldBlock>
-              <FieldBlock p={p} label="시작가 (P)">
+              <FieldBlock p={p} label="시작가 (P · 정책 고정 30,000)">
                 <input
-                  type="number" min={0} step={100}
+                  type="number"
                   value={editForm.startPrice}
-                  onChange={(e) => setEditForm((f) => ({ ...f, startPrice: e.target.value }))}
-                  style={inputStyle(p)}
+                  readOnly
+                  style={{ ...inputStyle(p), background: p.bgDeep, color: p.inkMuted, cursor: "not-allowed" }}
                 />
               </FieldBlock>
             </div>
@@ -558,7 +558,8 @@ function CreateAuctionModal({
   const p = PALETTES.cobalt;
   const [startedAt, setStartedAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 3600_000))));
   const [endsAt, setEndsAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 8 * 3600_000))));
-  const [startPrice, setStartPrice] = useState("5000");
+  // 시작가는 30,000 P 고정 정책(서버에서 강제). 입력은 안내용 readonly.
+  const startPrice = "30000";
   const [quantity, setQuantity] = useState("1");
   const [creating, setCreating] = useState(false);
 
@@ -608,8 +609,13 @@ function CreateAuctionModal({
           <FieldBlock p={p} label="발행 수량 (1일권 × N)">
             <input type="number" min={1} max={1000} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} style={inputStyle(p)} />
           </FieldBlock>
-          <FieldBlock p={p} label="시작가 (P)">
-            <input type="number" min={0} step={100} value={startPrice} onChange={(e) => setStartPrice(e.target.value)} style={inputStyle(p)} />
+          <FieldBlock p={p} label="시작가 (P · 정책 고정 30,000)">
+            <input
+              type="number"
+              value={startPrice}
+              readOnly
+              style={{ ...inputStyle(p), background: p.bgDeep, color: p.inkMuted, cursor: "not-allowed" }}
+            />
           </FieldBlock>
         </div>
 
