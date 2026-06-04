@@ -141,16 +141,12 @@ export default function DashboardPage() {
                 <BrandGlyph color="#fff" size={220} />
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-                  내 복지 콘
-                </div>
                 <div
                   className="mono"
                   style={{
                     fontSize: 56,
                     fontWeight: 800,
                     letterSpacing: "-0.03em",
-                    marginTop: 6,
                     lineHeight: 1,
                   }}
                 >
