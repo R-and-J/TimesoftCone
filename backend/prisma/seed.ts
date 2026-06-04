@@ -374,6 +374,84 @@ async function setupSuperAdmin() {
   console.log(`  최고관리자: ${EMAIL} → ADMIN + 로컬 비번`);
 }
 
+/** EZPASS 작년(2025) 경매 39건 + stake(year=2025). 연말 배당(ADR-008) 시연용.
+ *  매물 모두 AWARDED(과거 settled). stake는 user001 12일(30.8%) + user002~010 각 3일.
+ *  멱등: A-2025-* 매물이 이미 있으면 스킵. EZPASS 회사(1n)로 태깅.
+ *  settle 호출:  POST /api/admin/dividend/settle?year=2025  (또는 dryRun=true 미리보기). */
+async function setupLastYearDividendDemo() {
+  if ((await prisma.auction.count({ where: { id: { startsWith: "A-2025-" } } })) > 0) {
+    console.log("  (A-2025-* 매물 존재 → 작년 배당 데모 시드 건너뜀)");
+    return;
+  }
+  await loadBalances();
+  const members = await prisma.user.findMany({
+    where: { role: { in: ["EZPASS", "EZPASS_ADMIN"] } },
+    select: { id: true, email: true },
+  });
+  const byLocal = new Map(
+    members.filter((m) => m.email).map((m) => [m.email!.split("@")[0], m.id]),
+  );
+  const U = (n: number) => {
+    const id = byLocal.get(`user${String(n).padStart(3, "0")}`);
+    if (!id) throw new Error(`member user${n} missing`);
+    return id;
+  };
+
+  const N = 39;
+  const start0 = Date.now() - 220 * DAY; // 작년 어딘가부터 시작.
+  for (let i = 1; i <= N; i++) {
+    const id = `A-2025-${String(i).padStart(3, "0")}`;
+    const startedAt = new Date(start0 + i * DAY);
+    const endsAt = new Date(startedAt.getTime() + 6 * HR);
+    await putAuction(id, "OPEN", 1, 30000, startedAt, endsAt);
+    // 결정적이고 서로 겹치지 않는 3명 — user001~user010 안에서 회전.
+    const pool = 10;
+    const a = U(((i * 1) % pool) + 1);
+    const b = U(((i * 3) % pool) + 1 === ((i * 1) % pool) + 1 ? ((i * 3 + 1) % pool) + 1 : ((i * 3) % pool) + 1);
+    const c = U(((i * 7) % pool) + 1);
+    const bids: [bigint, number][] = [
+      [a, 30200],
+      [b, 30700],
+      [c, 31500],
+    ];
+    for (const [u, amt] of bids) {
+      if (u === undefined) continue;
+      try {
+        await bid(id, u, amt);
+      } catch {
+        /* 같은 매물에서 같은 사용자가 연속 입찰 또는 잔액 부족 — 패턴상 거의 안 발생 */
+      }
+    }
+    await settle(id);
+  }
+
+  // stake(year=2025) — user001 12일(≈30.8%) + user002~010 각 3일(합 27일) = 총 39일.
+  const dist: [string, number][] = [
+    ["user001", 12],
+    ["user002", 3], ["user003", 3], ["user004", 3],
+    ["user005", 3], ["user006", 3], ["user007", 3],
+    ["user008", 3], ["user009", 3], ["user010", 3],
+  ];
+  let stakeSum = 0;
+  for (const [local, days] of dist) {
+    const id = byLocal.get(local);
+    if (!id) continue;
+    await prisma.stake.upsert({
+      where: { uq_stake_user_year: { userId: id, year: 2025 } },
+      update: { days, companyId: 1n },
+      create: { userId: id, year: 2025, days, companyId: 1n },
+    });
+    stakeSum += days;
+  }
+  const esc = await prisma.ledgerEntry.aggregate({
+    _sum: { amount: true },
+    where: { actionType: "BID", companyId: 1n, auctionId: { startsWith: "A-2025-" } },
+  });
+  console.log(
+    `  2025 매물 ${N}건 AWARDED · stake(2025) 합 ${stakeSum}일(user001 12/${stakeSum}=${((12 / stakeSum) * 100).toFixed(1)}%) · 추가 escrow ≈ ${Number(-(esc._sum.amount ?? 0n))}P`,
+  );
+}
+
 async function main() {
   console.log("== 0) 회사 2곳 (멀티테넌시) ==");
   await setupCompanies();
@@ -391,8 +469,11 @@ async function main() {
   await seedActivity();
   console.log("== 3b) EXAM 회사 독립 데모 활동 ==");
   await setupExamAuctions();
+  console.log("== 3c) EZPASS 작년 배당 데모 (2025 매물 39건 + stake) ==");
+  await setupLastYearDividendDemo();
   console.log("\n✅ Seed complete (ezpass-backed, 멀티테넌시).");
   console.log("   A-2026-104는 ~2분 후 자동 마감(SettleDueAuctionsScheduler)");
+  console.log("   배당 시연: POST /api/admin/dividend/settle?year=2025 (dryRun=true 미리보기)");
 }
 
 main()
