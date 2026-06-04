@@ -146,8 +146,8 @@ async function fundMembers() {
   let funded = 0;
   for (let i = 0; i < members.length; i++) {
     const m = members[i];
-    // 시작가 30,000 P 고정 정책에 맞춰 여러 매물 입찰·낙찰을 견딜 수 있는 잔액으로 펀딩.
-    const points = BigInt(100000 + (i % 7) * 20000); // 100,000 ~ 220,000 P
+    // 시작가 30,000 P 고정 + 매물 풀이 100개 가까이로 늘어나 인당 ~8건 낙찰까지 견디게.
+    const points = BigInt(300000 + (i % 7) * 30000); // 300,000 ~ 480,000 P
     const contributedDays = 2 + (i % 13); // 2 ~ 14 일
     const existing = await prisma.wallet.findUnique({
       where: { uq_wallet_user_currency: { userId: m.id, currency: "WELFARE_POINT" } },
@@ -264,38 +264,54 @@ async function seedRedemptionCatalog() {
  *  자체 로컬 데이터(지갑 + REGULAR 연차)만 가지며 ezpass 동기화를 받지 않는다. */
 async function setupExamMembers() {
   const PW = await bcrypt.hash("1234", 10); // 데모 전용
-  const exam = [
-    { email: "exam001@exam.com", name: "체험 사용자1", team: "체험팀", role: "EXAM" },
-    { email: "exam002@exam.com", name: "체험 사용자2", team: "체험팀", role: "EXAM" },
-    { email: "exam003@exam.com", name: "체험 사용자3", team: "체험팀", role: "EXAM" },
-    { email: "examadmin@exam.com", name: "exam 관리자", team: "운영", role: "EXAM_ADMIN" },
+  // EZPASS 회사와 유사한 규모(38명) — exam 관리자 1 + EXAM 일반 37.
+  // 팀은 3개로 분산해서 회원관리 UI에서 부서별 보기도 자연스럽게.
+  const teams = ["체험팀 A", "체험팀 B", "체험팀 C"];
+  // 직급/직책 — EZPASS 미러와 동일 톤. 인덱스로 단계적 분배.
+  const ranks = ["대표이사", "부장", "차장", "과장", "대리", "주임", "사원"];
+  const titles = ["대표", "본부장", "팀장", "파트장", "—", "—", "—"];
+  const exam: { email: string; name: string; team: string; jobRank: string; jobTitle: string; role: "EXAM" | "EXAM_ADMIN" }[] = [
+    { email: "examadmin@exam.com", name: "exam 관리자", team: "운영", jobRank: "차장", jobTitle: "운영팀장", role: "EXAM_ADMIN" },
   ];
+  // exam001(대표)~exam037 — 인덱스로 직급 단계 결정.
+  for (let i = 1; i <= 37; i++) {
+    const rankIdx = i === 1 ? 0 : i <= 5 ? 1 : i <= 15 ? 3 : i <= 25 ? 4 : 6;
+    exam.push({
+      email: `exam${String(i).padStart(3, "0")}@exam.com`,
+      name: `체험 사용자${i}`,
+      team: teams[(i - 1) % teams.length],
+      jobRank: ranks[rankIdx],
+      jobTitle: titles[rankIdx] === "—" ? "—" : titles[rankIdx],
+      role: "EXAM",
+    });
+  }
   for (let i = 0; i < exam.length; i++) {
     const e = exam[i];
     const user = await prisma.user.upsert({
       where: { email: e.email },
-      update: { name: e.name, team: e.team, role: e.role, passwordHash: PW, active: true, companyId: 2n },
+      update: { name: e.name, team: e.team, jobRank: e.jobRank, jobTitle: e.jobTitle, role: e.role, passwordHash: PW, active: true, companyId: 2n },
       create: {
         empId: `EXAM-${String(i + 1).padStart(3, "0")}`,
         email: e.email,
         name: e.name,
         team: e.team,
+        jobRank: e.jobRank,
+        jobTitle: e.jobTitle,
         role: e.role,
         passwordHash: PW,
         active: true,
         companyId: 2n, // EXAM 회사
       },
     });
-    // 자체 로컬 데이터: 지갑(신규일 때만 CREDIT_ADMIN 원장) + REGULAR 연차(동기화 아님). 모두 EXAM 회사(2).
+    // 지갑(신규일 때만 CREDIT_ADMIN 원장) — EZPASS와 동일 펀딩(300k~480k)으로 시연 견디게.
     const existing = await prisma.wallet.findUnique({
       where: { uq_wallet_user_currency: { userId: user.id, currency: "WELFARE_POINT" } },
     });
     if (!existing) {
-      // 시작가 30,000 P 고정 — EXAM도 입찰·낙찰 견디게 100,000 P부터.
-      const points = 100000n;
+      const points = BigInt(300000 + (i % 7) * 30000);
       await prisma.wallet.create({ data: { userId: user.id, currency: "WELFARE_POINT", balance: points, companyId: 2n } });
       await prisma.ledgerEntry.create({
-        data: { userId: user.id, currency: "WELFARE_POINT", actionType: "CREDIT_ADMIN", amount: points, balanceAfter: points, refNote: "Seed: EXAM 초기 복지포인트", companyId: 2n },
+        data: { userId: user.id, currency: "WELFARE_POINT", actionType: "CREDIT_ADMIN", amount: points, balanceAfter: points, refNote: "Seed: EXAM 초기 복지콘", companyId: 2n },
       });
     }
     await prisma.leaveBalance.upsert({
@@ -365,6 +381,136 @@ async function setupExamAuctions() {
   console.log(`  EXAM 매물 3건(낙찰1·진행1·예정1), EXAM escrow ${Number(escrow)}P`);
 }
 
+/** EXAM 회사 ${YEAR} 배당 시연 데이터 — EZPASS setupDividendDemo와 동일 구조(회사 2 스코프).
+ *  매물 ID는 A-${YEAR}-500~589(AWARDED 90) + 590~593(다음 수 09:00 lookahead 4). */
+async function setupExamDividendDemo() {
+  const firstId = `A-${YEAR}-500`;
+  if ((await prisma.auction.count({ where: { id: firstId } })) > 0) {
+    console.log(`  (${firstId} 존재 → EXAM 배당 데모 시드 건너뜀)`);
+    return;
+  }
+  await loadBalances();
+  const members = await prisma.user.findMany({
+    where: { companyId: 2n, role: { in: ["EXAM", "EXAM_ADMIN"] } },
+    select: { id: true, email: true },
+  });
+  const byLocal = new Map(
+    members.filter((m) => m.email).map((m) => [m.email!.split("@")[0], m.id]),
+  );
+  const CO = 2n;
+
+  const N = 90;
+  const start0 = new Date(YEAR, 0, 1).getTime();
+  const pool = 37; // exam001~exam037 회전
+  for (let i = 1; i <= N; i++) {
+    const id = `A-${YEAR}-${String(499 + i).padStart(3, "0")}`;
+    const startedAt = new Date(start0 + i * 2 * DAY);
+    const endsAt = new Date(startedAt.getTime() + 6 * HR);
+    await putAuction(id, "OPEN", 1, 30000, startedAt, endsAt, CO);
+    const ai = ((i * 1) % pool) + 1;
+    const biIdx0 = ((i * 3) % pool) + 1;
+    const bi = biIdx0 === ai ? ((i * 3 + 1) % pool) + 1 : biIdx0;
+    const ciIdx0 = ((i * 7) % pool) + 1;
+    const ci = ciIdx0 === ai || ciIdx0 === bi ? ((i * 7 + 1) % pool) + 1 : ciIdx0;
+    const a = byLocal.get(`exam${String(ai).padStart(3, "0")}`);
+    const b = byLocal.get(`exam${String(bi).padStart(3, "0")}`);
+    const c = byLocal.get(`exam${String(ci).padStart(3, "0")}`);
+    const bids: [bigint | undefined, number][] = [[a, 30200], [b, 30700], [c, 31500]];
+    for (const [u, amt] of bids) {
+      if (u === undefined) continue;
+      try {
+        await bid(id, u, amt, CO);
+      } catch {
+        /* 잔액 부족·중복 입찰 — 패턴상 거의 안 발생 */
+      }
+    }
+    await settle(id, CO);
+  }
+
+  // stake/supply 분포 — EZPASS와 동일 패턴, exam001 대표 + 부장 + 과장 + 대리 + 신입(0)
+  type SupplyRow = { local: string; contrib: number; remaining: number };
+  const distribution: SupplyRow[] = [];
+  const u = (n: number) => `exam${String(n).padStart(3, "0")}`;
+  distribution.push({ local: u(1), contrib: 25, remaining: 3 });
+  for (let i = 2; i <= 5; i++) distribution.push({ local: u(i), contrib: 8, remaining: 1 });
+  for (let i = 6; i <= 15; i++) distribution.push({ local: u(i), contrib: 4, remaining: 1 });
+  for (let i = 16; i <= 25; i++) distribution.push({ local: u(i), contrib: 1, remaining: 0 });
+  let stakeSum = 0;
+  let remainSum = 0;
+  for (const d of distribution) {
+    const userId = byLocal.get(d.local);
+    if (!userId) continue;
+    await prisma.stake.upsert({
+      where: { uq_stake_user_year: { userId, year: YEAR } },
+      update: { days: d.contrib, companyId: CO },
+      create: { userId, year: YEAR, days: d.contrib, companyId: CO },
+    });
+    await prisma.leavePoolSupply.upsert({
+      where: { uq_supply_company_year_user: { companyId: CO, targetYear: YEAR, userId } },
+      update: { contributedDays: d.contrib, remainingDays: d.remaining },
+      create: { companyId: CO, targetYear: YEAR, userId, contributedDays: d.contrib, remainingDays: d.remaining },
+    });
+    stakeSum += d.contrib;
+    remainSum += d.remaining;
+  }
+  await prisma.leavePoolRun.upsert({
+    where: { uq_pool_company_target: { companyId: CO, targetYear: YEAR } },
+    update: {},
+    create: {
+      sourceYear: YEAR - 1, targetYear: YEAR, companyId: CO,
+      contributorCount: distribution.length, daysCollected: stakeSum,
+      auctionsCreated: N, status: "DONE",
+    },
+  });
+
+  // Lookahead 4건 — 다음 수요일 09:00 CREATED.
+  const LOOKAHEAD = 4;
+  const nextWed = nextWedAt9(new Date());
+  const wkIndex = isoWeek(nextWed);
+  const alloc = distribution.map((d) => ({ ...d, take: 0 }));
+  let needed = LOOKAHEAD;
+  while (needed > 0) {
+    let progressed = false;
+    for (const s of alloc) {
+      if (s.remaining - s.take <= 0) continue;
+      s.take += 1; needed -= 1; progressed = true;
+      if (needed === 0) break;
+    }
+    if (!progressed) break;
+  }
+  const released = LOOKAHEAD - needed;
+  if (released > 0) {
+    for (let i = 0; i < released; i++) {
+      const id = `A-${YEAR}-${String(499 + N + i + 1).padStart(3, "0")}`;
+      await putAuction(id, "CREATED", 1, 30000, nextWed, new Date(nextWed.getTime() + 6 * HR), CO);
+    }
+    for (const s of alloc) {
+      if (s.take === 0) continue;
+      const userId = byLocal.get(s.local);
+      if (!userId) continue;
+      await prisma.leavePoolSupply.update({
+        where: { uq_supply_company_year_user: { companyId: CO, targetYear: YEAR, userId } },
+        data: { remainingDays: { decrement: s.take } },
+      });
+    }
+    await prisma.leavePoolReleaseRun.create({
+      data: { targetYear: YEAR, companyId: CO, periodIndex: wkIndex, cadence: "weekly", releasedQty: released },
+    });
+    await prisma.leavePoolRun.update({
+      where: { uq_pool_company_target: { companyId: CO, targetYear: YEAR } },
+      data: { auctionsCreated: { increment: released } },
+    });
+  }
+
+  const escAgg = await prisma.ledgerEntry.aggregate({
+    _sum: { amount: true },
+    where: { actionType: "BID", companyId: CO, auctionId: { startsWith: `A-${YEAR}-5` } },
+  });
+  console.log(
+    `  EXAM ${YEAR} 데모 매물 ${N}건 AWARDED + lookahead ${released}건 · stake 합 ${stakeSum}일/${distribution.length}명(exam001 25/${stakeSum}=${((25 / stakeSum) * 100).toFixed(1)}%) · supply 잔여 ${remainSum - released}일 · 추가 escrow ≈ ${Number(-(escAgg._sum.amount ?? 0n))}P`,
+  );
+}
+
 /** 최고관리자(ADMIN) — ezpass와 무관한 전용 로컬 계정. admin@timesoftcon은 ezpass
  *  회사 관리자(mngr_author)라 동기화로 EZPASS_ADMIN이 되므로, 최고관리자는 별도 계정으로 둔다. */
 async function setupSuperAdmin() {
@@ -412,20 +558,26 @@ async function setupDividendDemo() {
     return id;
   };
 
-  const N = 39;
-  // YEAR 1/1부터 3일 간격 — 39 매물이 약 117일에 걸쳐 분포(모두 과거여야 settle 가능).
+  const N = 90;
+  // YEAR 1/1부터 ~2.5일 간격 — N 매물이 ~7개월에 걸쳐 분포(모두 과거여야 settle 가능).
   const start0 = new Date(YEAR, 0, 1).getTime();
+  // 입찰자 pool 확장 — user001~user038 회전. 한 매물에서 세 입찰자가 서로 다르도록
+  // ((i*3)%pool)+1 이 a와 같으면 +1 시프트로 회피.
+  const pool = 38;
   for (let i = 1; i <= N; i++) {
     const id = `A-${YEAR}-${String(299 + i).padStart(3, "0")}`;
-    const startedAt = new Date(start0 + i * 3 * DAY);
+    const startedAt = new Date(start0 + i * 2 * DAY);
     const endsAt = new Date(startedAt.getTime() + 6 * HR);
     await putAuction(id, "OPEN", 1, 30000, startedAt, endsAt);
-    // 결정적이고 서로 겹치지 않게 user001~user010 안에서 회전.
-    const pool = 10;
-    const a = U(((i * 1) % pool) + 1);
-    const b = U(((i * 3) % pool) + 1 === ((i * 1) % pool) + 1 ? ((i * 3 + 1) % pool) + 1 : ((i * 3) % pool) + 1);
-    const c = U(((i * 7) % pool) + 1);
-    const bids: [bigint, number][] = [
+    const ai = ((i * 1) % pool) + 1;
+    const biIdx0 = ((i * 3) % pool) + 1;
+    const bi = biIdx0 === ai ? ((i * 3 + 1) % pool) + 1 : biIdx0;
+    const ciIdx0 = ((i * 7) % pool) + 1;
+    const ci = ciIdx0 === ai || ciIdx0 === bi ? ((i * 7 + 1) % pool) + 1 : ciIdx0;
+    const a = byLocal.get(`user${String(ai).padStart(3, "0")}`);
+    const b = byLocal.get(`user${String(bi).padStart(3, "0")}`);
+    const c = byLocal.get(`user${String(ci).padStart(3, "0")}`);
+    const bids: [bigint | undefined, number][] = [
       [a, 30200],
       [b, 30700],
       [c, 31500],
@@ -441,31 +593,175 @@ async function setupDividendDemo() {
     await settle(id);
   }
 
-  // stake(year=YEAR) — user001 12일(≈30.8%) + user002~010 각 3일(합 27일) = 총 39일.
-  const dist: [string, number][] = [
-    ["user001", 12],
-    ["user002", 3], ["user003", 3], ["user004", 3],
-    ["user005", 3], ["user006", 3], ["user007", 3],
-    ["user008", 3], ["user009", 3], ["user010", 3],
-  ];
+  // "(YEAR-1) 12/31에 풀 수집을 했다" 시나리오 재현 — 풀 메타데이터를 정직하게 채운다.
+  //
+  // 분배(총 107일, 25명 기여 · 나머지 13명은 풀 기여 0):
+  //   user001 (대표/vvvip)     contrib 25, remaining 3   → 발행 22 (~23.4%)
+  //   user002~005 (임원/부장)  contrib  8, remaining 1   → 발행  7 (각 7.5%)
+  //   user006~015 (과장/차장)  contrib  4, remaining 1   → 발행  3 (각 3.7%)
+  //   user016~025 (대리/주임)  contrib  1, remaining 0   → 발행  1 (각 0.9%)
+  //   user026~038 (신입/사원)  contrib  0, remaining 0   → 미기여
+  // 의미:
+  //   contrib(=stake.days)  = 풀에 기여한 일수(정산 비율 기준)
+  //   remaining             = supply 잔여(= 아직 매물로 발행되지 않은 일수)
+  //   contrib - remaining   = 이미 발행되어 위 N개 AWARDED 매물로 변환된 일수 → 합 90 (=N)
+  //
+  // ReleasePolicy: weekly 수(3) 17:00 × 4건/회. 잔여 17일이 ~5주에 걸쳐 자동 발행됨.
+  type SupplyRow = { local: string; contrib: number; remaining: number };
+  const distribution: SupplyRow[] = [];
+  const u = (n: number) => `user${String(n).padStart(3, "0")}`;
+  distribution.push({ local: u(1), contrib: 25, remaining: 3 });
+  for (let i = 2; i <= 5; i++) distribution.push({ local: u(i), contrib: 8, remaining: 1 });
+  for (let i = 6; i <= 15; i++) distribution.push({ local: u(i), contrib: 4, remaining: 1 });
+  for (let i = 16; i <= 25; i++) distribution.push({ local: u(i), contrib: 1, remaining: 0 });
   let stakeSum = 0;
-  for (const [local, days] of dist) {
-    const id = byLocal.get(local);
-    if (!id) continue;
+  let remainSum = 0;
+  for (const d of distribution) {
+    const userId = byLocal.get(d.local);
+    if (!userId) continue;
     await prisma.stake.upsert({
-      where: { uq_stake_user_year: { userId: id, year: YEAR } },
-      update: { days, companyId: 1n },
-      create: { userId: id, year: YEAR, days, companyId: 1n },
+      where: { uq_stake_user_year: { userId, year: YEAR } },
+      update: { days: d.contrib, companyId: 1n },
+      create: { userId, year: YEAR, days: d.contrib, companyId: 1n },
     });
-    stakeSum += days;
+    await prisma.leavePoolSupply.upsert({
+      where: { uq_supply_company_year_user: { companyId: 1n, targetYear: YEAR, userId } },
+      update: { contributedDays: d.contrib, remainingDays: d.remaining },
+      create: {
+        companyId: 1n,
+        targetYear: YEAR,
+        userId,
+        contributedDays: d.contrib,
+        remainingDays: d.remaining,
+      },
+    });
+    stakeSum += d.contrib;
+    remainSum += d.remaining;
   }
+
+  // LeavePoolRun 마커 — (companyId, targetYear) UNIQUE. "(YEAR-1)에 수집했다" 흉내.
+  // 누적 발행 수는 N + lookahead 4개 = N+4. 아래서 lookahead 발행 후 increment.
+  await prisma.leavePoolRun.upsert({
+    where: { uq_pool_company_target: { companyId: 1n, targetYear: YEAR } },
+    update: {},
+    create: {
+      sourceYear: YEAR - 1,
+      targetYear: YEAR,
+      companyId: 1n,
+      contributorCount: distribution.length,
+      daysCollected: stakeSum,
+      auctionsCreated: N,
+      status: "DONE",
+    },
+  });
+
+  // ── Lookahead 1회차 — 다음 수요일 17:00 매물 4건 CREATED. ───────────
+  // ReleaseInventoryScheduler가 기본 비활성이라 첫 회차분을 시드에서 직접 매물화한다.
+  // supply에서 라운드 로빈으로 4일 차감 + leave_pool_release_run 마커 적재 + LeavePoolRun.auctionsCreated +4.
+  const LOOKAHEAD_QTY = 4;
+  const nextWed = nextWedAt9(new Date());
+  const wkIndex = isoWeek(nextWed);
+  const supplyAlloc = distribution.map((d) => ({ ...d, take: 0 }));
+  let needed = LOOKAHEAD_QTY;
+  while (needed > 0) {
+    let progressed = false;
+    for (const s of supplyAlloc) {
+      if (s.remaining - s.take <= 0) continue;
+      s.take += 1;
+      needed -= 1;
+      progressed = true;
+      if (needed === 0) break;
+    }
+    if (!progressed) break;
+  }
+  const actuallyReleased = LOOKAHEAD_QTY - needed;
+  if (actuallyReleased > 0) {
+    for (let i = 0; i < actuallyReleased; i++) {
+      const id = `A-${YEAR}-${String(299 + N + i + 1).padStart(3, "0")}`;
+      await putAuction(id, "CREATED", 1, 30000, nextWed, new Date(nextWed.getTime() + 6 * HR));
+    }
+    for (const s of supplyAlloc) {
+      if (s.take === 0) continue;
+      const userId = byLocal.get(s.local);
+      if (!userId) continue;
+      await prisma.leavePoolSupply.update({
+        where: { uq_supply_company_year_user: { companyId: 1n, targetYear: YEAR, userId } },
+        data: { remainingDays: { decrement: s.take } },
+      });
+    }
+    await prisma.leavePoolReleaseRun.create({
+      data: {
+        targetYear: YEAR,
+        companyId: 1n,
+        periodIndex: wkIndex,
+        cadence: "weekly",
+        releasedQty: actuallyReleased,
+      },
+    });
+    await prisma.leavePoolRun.update({
+      where: { uq_pool_company_target: { companyId: 1n, targetYear: YEAR } },
+      data: { auctionsCreated: { increment: actuallyReleased } },
+    });
+  }
+  // ───────────────────────────────────────────────────────────────────
+
+  // ReleasePolicy — 잔여 12일이 매주 4건씩 자동 발행되도록.
+  await prisma.releasePolicy.upsert({
+    where: { id: 1 },
+    update: {
+      cadence: "weekly",
+      dayOfWeek: 3,
+      timeOfDay: "09:00",
+      quantity: 4,
+      dayOfMonth: null,
+      companyId: 1n,
+    },
+    create: {
+      id: 1,
+      cadence: "weekly",
+      dayOfWeek: 3,
+      timeOfDay: "09:00",
+      quantity: 4,
+      companyId: 1n,
+    },
+  });
+
   const esc = await prisma.ledgerEntry.aggregate({
     _sum: { amount: true },
     where: { actionType: "BID", companyId: 1n, auctionId: { startsWith: `A-${YEAR}-3` } },
   });
   console.log(
-    `  ${YEAR} 데모 매물 ${N}건 AWARDED · stake(${YEAR}) 합 ${stakeSum}일(user001 12/${stakeSum}=${((12 / stakeSum) * 100).toFixed(1)}%) · 추가 escrow ≈ ${Number(-(esc._sum.amount ?? 0n))}P`,
+    `  ${YEAR} 데모 매물 ${N}건 AWARDED · stake 합 ${stakeSum}일/${distribution.length}명(user001 25/${stakeSum}=${((25 / stakeSum) * 100).toFixed(1)}%) · supply 잔여 ${remainSum}일 · ReleasePolicy weekly(수 09:00, 4건/회) · 추가 escrow ≈ ${Number(-(esc._sum.amount ?? 0n))}P`,
   );
+}
+
+/** 다음 수요일 09:00 (로컬). 오늘이 수요일 + 9시 이후면 다음 주. */
+function nextWedAt9(now: Date): Date {
+  const d = new Date(now);
+  const day = d.getDay();
+  let add = (3 - day + 7) % 7;
+  if (add === 0) {
+    const today9 = new Date(d);
+    today9.setHours(9, 0, 0, 0);
+    if (d.getTime() >= today9.getTime()) add = 7;
+  }
+  d.setDate(d.getDate() + add);
+  d.setHours(9, 0, 0, 0);
+  return d;
+}
+
+/** ISO 8601 주 — release-window.ts의 isoWeek와 동일 로직(목요일 알고리즘). */
+function isoWeek(d: Date): string {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const weekNo = 1 + Math.round(
+    (t.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000) -
+      ((firstThursday.getUTCDay() + 6) % 7) / 7 +
+      ((t.getUTCDay() + 6) % 7) / 7,
+  );
+  return `${t.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
 async function main() {
@@ -485,8 +781,10 @@ async function main() {
   await seedActivity();
   console.log("== 3b) EXAM 회사 독립 데모 활동 ==");
   await setupExamAuctions();
-  console.log(`== 3c) EZPASS ${YEAR} 배당 시연 데이터 (매물 39건 + stake) ==`);
+  console.log(`== 3c) EZPASS ${YEAR} 배당 시연 데이터 (매물 90건 + stake + lookahead) ==`);
   await setupDividendDemo();
+  console.log(`== 3d) EXAM ${YEAR} 배당 시연 데이터 (매물 90건 + stake + lookahead) ==`);
+  await setupExamDividendDemo();
   console.log("\n✅ Seed complete (ezpass-backed, 멀티테넌시).");
   console.log("   A-2026-104는 ~2분 후 자동 마감(SettleDueAuctionsScheduler)");
   console.log(`   배당 시연: POST /api/admin/dividend/settle (?dryRun=true 미리보기, year 생략=${YEAR})`);
