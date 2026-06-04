@@ -400,13 +400,32 @@ async function setupExamDividendDemo() {
   const CO = 2n;
 
   const N = 90;
+  // EZPASS 와 동일한 status 분포: AWARDED 45 + DRAFT 45.
+  const AWARDED_UNTIL = 45;
   const start0 = new Date(YEAR, 0, 1).getTime();
   const pool = 37; // exam001~exam037 회전
   for (let i = 1; i <= N; i++) {
     const id = `A-${YEAR}-${String(499 + i).padStart(3, "0")}`;
-    const startedAt = new Date(start0 + i * 2 * DAY);
-    const endsAt = new Date(startedAt.getTime() + 6 * HR);
-    await putAuction(id, "OPEN", 1, 30000, startedAt, endsAt, CO);
+    let startedAt: Date;
+    let endsAt: Date;
+    let status: "OPEN" | "CREATED" | "DRAFT";
+    let runBids: boolean;
+    let runSettle: boolean;
+    if (i <= AWARDED_UNTIL) {
+      startedAt = new Date(start0 + i * 2 * DAY);
+      endsAt = new Date(startedAt.getTime() + 6 * HR);
+      status = "OPEN";
+      runBids = true;
+      runSettle = true;
+    } else {
+      startedAt = new Date(0);
+      endsAt = new Date(1);
+      status = "DRAFT";
+      runBids = false;
+      runSettle = false;
+    }
+    await putAuction(id, status, 1, 30000, startedAt, endsAt, CO);
+    if (!runBids) continue;
     const ai = ((i * 1) % pool) + 1;
     const biIdx0 = ((i * 3) % pool) + 1;
     const bi = biIdx0 === ai ? ((i * 3 + 1) % pool) + 1 : biIdx0;
@@ -424,7 +443,7 @@ async function setupExamDividendDemo() {
         /* 잔액 부족·중복 입찰 — 패턴상 거의 안 발생 */
       }
     }
-    await settle(id, CO);
+    if (runSettle) await settle(id, CO);
   }
 
   // stake/supply 분포 — EZPASS와 동일 패턴, exam001 대표 + 부장 + 과장 + 대리 + 신입(0)
@@ -559,16 +578,39 @@ async function setupDividendDemo() {
   };
 
   const N = 90;
-  // YEAR 1/1부터 ~2.5일 간격 — N 매물이 ~7개월에 걸쳐 분포(모두 과거여야 settle 가능).
+  // 매물 status 분포 — 사용자 결정(2026-06-04):
+  //   i ∈ [1..AWARDED_UNTIL] : 과거 settled → AWARDED  (=정산용 종료 데이터)
+  //   i > AWARDED_UNTIL      : 시간 미정 DRAFT  (=시작/예정 영역에 안 보임, 관리자가 필요할 때만 풀이)
+  // 일반 진행 중/예정 매물은 setupActivity 그대로(11건)에서만 보이고, 자동 발행 lookahead 4건은 별도.
+  const AWARDED_UNTIL = 45;
   const start0 = new Date(YEAR, 0, 1).getTime();
   // 입찰자 pool 확장 — user001~user038 회전. 한 매물에서 세 입찰자가 서로 다르도록
   // ((i*3)%pool)+1 이 a와 같으면 +1 시프트로 회피.
   const pool = 38;
   for (let i = 1; i <= N; i++) {
     const id = `A-${YEAR}-${String(299 + i).padStart(3, "0")}`;
-    const startedAt = new Date(start0 + i * 2 * DAY);
-    const endsAt = new Date(startedAt.getTime() + 6 * HR);
-    await putAuction(id, "OPEN", 1, 30000, startedAt, endsAt);
+    let startedAt: Date;
+    let endsAt: Date;
+    let status: "OPEN" | "CREATED" | "DRAFT";
+    let runBids: boolean;
+    let runSettle: boolean;
+    if (i <= AWARDED_UNTIL) {
+      // 과거 — settle 호출로 AWARDED.
+      startedAt = new Date(start0 + i * 2 * DAY);
+      endsAt = new Date(startedAt.getTime() + 6 * HR);
+      status = "OPEN";
+      runBids = true;
+      runSettle = true;
+    } else {
+      // DRAFT — placeholder 시각(epoch). 입찰 X, 어느 UI 목록에도 안 뜸.
+      startedAt = new Date(0);
+      endsAt = new Date(1);
+      status = "DRAFT";
+      runBids = false;
+      runSettle = false;
+    }
+    await putAuction(id, status, 1, 30000, startedAt, endsAt);
+    if (!runBids) continue;
     const ai = ((i * 1) % pool) + 1;
     const biIdx0 = ((i * 3) % pool) + 1;
     const bi = biIdx0 === ai ? ((i * 3 + 1) % pool) + 1 : biIdx0;
@@ -590,7 +632,7 @@ async function setupDividendDemo() {
         /* 같은 사용자 연속 입찰 또는 잔액 부족 — 패턴상 거의 안 발생 */
       }
     }
-    await settle(id);
+    if (runSettle) await settle(id);
   }
 
   // "(YEAR-1) 12/31에 풀 수집을 했다" 시나리오 재현 — 풀 메타데이터를 정직하게 채운다.
