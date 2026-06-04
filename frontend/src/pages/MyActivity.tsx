@@ -173,17 +173,18 @@ export default function MyActivityPage() {
                   align: "right",
                   render: (h) => {
                     const amount = Number(h.amount);
-                    // WIN(낙찰) 행은 ledger amount=0이지만 사용자에겐 낙찰가가 보여야 자연스럽다.
-                    // backend가 winningAmount(=매물 highest)를 부가해 주므로 그것을 표시.
+                    // WIN(낙찰) 행은 ledger amount=0이지만 사용자에겐 "−낙찰가"로 보여야 자연스럽다
+                    // (인식상 낙찰 확정 = 돈 빠진 거). 실제 차감은 입찰 시점이지만 회계 관습상
+                    // 음수 = 빨강으로 통일.
                     if (h.actionType === "WIN" && h.winningAmount != null) {
                       const win = Number(h.winningAmount);
                       return (
                         <span
                           className="mono"
-                          style={{ fontWeight: 800, color: p.ink }}
-                          title="낙찰가(실제 차감은 입찰 시점에 이미 일어났음)"
+                          style={{ fontWeight: 800, color: p.danger }}
+                          title="낙찰가 (실제 차감은 입찰 시점에 이미 발생, 이 시점은 확정)"
                         >
-                          {fmt.point(win)}
+                          −{fmt.point(win)}
                           <span style={{ color: p.inkMuted, marginLeft: 3, fontWeight: 500 }}>콘</span>
                         </span>
                       );
@@ -193,7 +194,7 @@ export default function MyActivityPage() {
                         className="mono"
                         style={{
                           fontWeight: 800,
-                          color: amount > 0 ? p.success : amount < 0 ? p.ink : p.inkMuted,
+                          color: amount > 0 ? p.success : amount < 0 ? p.danger : p.inkMuted,
                         }}
                       >
                         {amount > 0 ? "+" : ""}
@@ -401,14 +402,28 @@ function LeaveCard({
   leave: LeaveResponse | null;
   loading: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   const total = leave ? leave.total : 0;
   const safe = (v: number | undefined) => (loading || v === undefined ? 0 : v);
-  const auctionPct = total > 0 ? (safe(leave?.auction) / total) * 100 : 0;
-  const eventPct = total > 0 ? (safe(leave?.event) / total) * 100 : 0;
-  const regularPct = total > 0 ? (safe(leave?.regular) / total) * 100 : 100;
+  const auction = safe(leave?.auction);
+  const event = safe(leave?.event);
+  const regular = safe(leave?.regular);
+  const auctionPct = total > 0 ? (auction / total) * 100 : 0;
+  const eventPct = total > 0 ? (event / total) * 100 : 0;
+  const regularPct = total > 0 ? (regular / total) * 100 : 100;
+
+  const breakdown = [
+    { label: "경매 연차", code: "AUCTION", value: auction, color: p.accent },
+    { label: "이벤트 연차", code: "EVENT", value: event, color: p.warn },
+    { label: "일반 연차", code: "REGULAR", value: regular, color: p.line },
+  ];
 
   return (
     <Card p={p} padding={20}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
       <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 700, marginBottom: 12 }}>
         내 연차 잔여
       </div>
@@ -425,6 +440,8 @@ function LeaveCard({
         {loading ? "—" : total}
         <span style={{ fontSize: 18, color: p.inkMuted, marginLeft: 4 }}>일</span>
       </div>
+      {/* segment 폭이 라벨보다 작으면(좁으면) 텍스트는 숨기고 hover 툴팁으로 정확한 일수 표시.
+          width 임계값은 라벨이 "31 일반" 정도 들어갈 ~14% 기준. */}
       <div
         style={{
           marginTop: 14,
@@ -437,6 +454,7 @@ function LeaveCard({
       >
         {auctionPct > 0 && (
           <div
+            title={`경매 연차 ${safe(leave?.auction)}일`}
             style={{
               width: `${auctionPct}%`,
               background: p.accent,
@@ -446,13 +464,17 @@ function LeaveCard({
               fontSize: 10,
               fontWeight: 700,
               color: "#fff",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {safe(leave?.auction)} AUC
+            {auctionPct >= 14 ? `${safe(leave?.auction)} 경매` : ""}
           </div>
         )}
         {eventPct > 0 && (
           <div
+            title={`이벤트 연차 ${safe(leave?.event)}일`}
             style={{
               width: `${eventPct}%`,
               background: p.warn,
@@ -462,13 +484,17 @@ function LeaveCard({
               fontSize: 10,
               fontWeight: 700,
               color: "#fff",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {safe(leave?.event)}
+            {eventPct >= 14 ? `${safe(leave?.event)} 이벤트` : ""}
           </div>
         )}
         {regularPct > 0 && (
           <div
+            title={`일반 연차 ${safe(leave?.regular)}일`}
             style={{
               width: `${regularPct}%`,
               display: "flex",
@@ -477,21 +503,58 @@ function LeaveCard({
               fontSize: 10,
               fontWeight: 700,
               color: p.inkSoft,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {safe(leave?.regular)} 일반
+            {regularPct >= 14 ? `${safe(leave?.regular)} 일반` : ""}
           </div>
         )}
       </div>
-      <div
-        style={{
-          fontSize: 10,
-          color: p.inkMuted,
-          marginTop: 6,
-          lineHeight: 1.4,
-        }}
-      >
-        차감 순위: 경매 연차 → 이벤트 연차 → 일반 연차
+      <div style={{ marginTop: 8, minHeight: 56 }}>
+        {hovered && !loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {breakdown.map((b) => (
+              <div
+                key={b.code}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  opacity: b.value === 0 ? 0.45 : 1,
+                }}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    background: b.color,
+                    borderRadius: 2,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ flex: 1, color: p.inkSoft, fontWeight: 600 }}>{b.label}</span>
+                <span
+                  className="mono"
+                  style={{ fontWeight: 800, color: p.ink, fontSize: 12 }}
+                >
+                  {b.value}
+                  <span style={{ color: p.inkMuted, marginLeft: 2, fontWeight: 600 }}>일</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, color: p.inkMuted, lineHeight: 1.4 }}>
+            차감 순위: 경매 연차 → 이벤트 연차 → 일반 연차
+            <div style={{ marginTop: 4, fontSize: 9, color: p.inkMuted, opacity: 0.7 }}>
+              ↑ 카드 위에 마우스 — 종류별 일수 자세히
+            </div>
+          </div>
+        )}
+      </div>
       </div>
     </Card>
   );
