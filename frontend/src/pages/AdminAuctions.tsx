@@ -256,7 +256,7 @@ export default function AdminAuctionsPage() {
             </div>
             <div style={{ flex: 1 }} />
             <div style={{ fontSize: 11, color: p.inkMuted }}>
-              풀 수집 시 새 매물의 시작 시각 분산 방식. 이미 만들어진 매물엔 영향 없음.
+              풀에 수집된 매물을 자동 발행하는 주기·수량. 이미 만들어진 매물엔 영향 없음.
             </div>
           </Card>
 
@@ -559,7 +559,7 @@ function PolicyModal({
       >
         <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>분산 오픈 정책</div>
         <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 18, lineHeight: 1.5 }}>
-          풀 수집 시 새 매물의 시작 시각 분산 방식. <b>배치 미사용</b>이면 수집 즉시 모두 오픈 예정에 들어감.
+          수집된 풀에서 매물을 자동 발행하는 주기·수량. <b>배치 미사용</b>이면 자동 발행 없음 — 관리자가 '+ 수동 추가'로 직접 매물 생성.
         </div>
 
         <FieldBlock p={p} label="주기">
@@ -818,7 +818,7 @@ function UpcomingReleaseBanner({ p, data }: { p: typeof PALETTES.cobalt; data: U
   // 풀이 비어 있고 정책도 발행할 게 없으면 굳이 표시 X.
   if (data.totalRemaining === 0 && !data.hasPending) return null;
   const occ = new Date(data.occurrenceDate);
-  const cadenceLabel = data.cadence === "none" ? "배치 미사용 (즉시 전량)" :
+  const cadenceLabel = data.cadence === "none" ? "배치 미사용 (수동 운영)" :
     data.cadence === "daily" ? "매일" :
     data.cadence === "weekly" ? "매주" :
     "매월";
