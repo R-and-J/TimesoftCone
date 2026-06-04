@@ -50,6 +50,8 @@ export type ActivityResponse = {
     actionType: string;
     auctionId: string | null;
     amount: string;
+    /** WIN 행 전용 — 매물의 최종 낙찰가. 그 외는 null. */
+    winningAmount: string | null;
     balanceAfter: string;
     refNote: string | null;
   }[];

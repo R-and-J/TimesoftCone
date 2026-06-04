@@ -173,6 +173,21 @@ export default function MyActivityPage() {
                   align: "right",
                   render: (h) => {
                     const amount = Number(h.amount);
+                    // WIN(낙찰) 행은 ledger amount=0이지만 사용자에겐 낙찰가가 보여야 자연스럽다.
+                    // backend가 winningAmount(=매물 highest)를 부가해 주므로 그것을 표시.
+                    if (h.actionType === "WIN" && h.winningAmount != null) {
+                      const win = Number(h.winningAmount);
+                      return (
+                        <span
+                          className="mono"
+                          style={{ fontWeight: 800, color: p.ink }}
+                          title="낙찰가(실제 차감은 입찰 시점에 이미 일어났음)"
+                        >
+                          {fmt.point(win)}
+                          <span style={{ color: p.inkMuted, marginLeft: 3, fontWeight: 500 }}>콘</span>
+                        </span>
+                      );
+                    }
                     return (
                       <span
                         className="mono"
