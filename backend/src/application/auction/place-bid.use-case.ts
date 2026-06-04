@@ -11,7 +11,7 @@
 //        - credit their wallet (+amount)
 //        - append a REFUND ledger entry
 //   5. Debit the new bidder:
-//        - debit their wallet (-amount)         ← may throw InsufficientPointError
+//        - debit their wallet (-amount)         ← may throw InsufficientConeError
 //        - append a BID ledger entry
 //   6. Save the updated auction
 //   7. Append a BidEvent (audit log of accepted bids — feeds the detail screen)
@@ -26,7 +26,7 @@ import { UNIT_OF_WORK, type UnitOfWork } from "@/ports/unit-of-work";
 import { AUCTION_EVENTS, BidPlacedEvent } from "@/application/events/auction-events";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { UserId } from "@/domain/shared/value-objects/user-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { Currency } from "@/domain/shared/value-objects/currency";
 import { Wallet } from "@/domain/wallet/wallet";
 import { LedgerEntry } from "@/domain/ledger/ledger-entry";
@@ -78,7 +78,7 @@ export class PlaceBidUseCase {
   async execute(input: PlaceBidInput): Promise<PlaceBidResult> {
     const auctionId = AuctionId.of(input.auctionId);
     const bidder = UserId.of(input.userId);
-    const amount = Point.of(input.amount);
+    const amount = Cone.of(input.amount);
 
     const result = await this.uow.run(async (tx) => {
       await tx.lockAuction(auctionId);
@@ -125,7 +125,7 @@ export class PlaceBidUseCase {
         );
       }
 
-      // 2) Debit the new bidder. Throws InsufficientPointError if balance < amount.
+      // 2) Debit the new bidder. Throws InsufficientConeError if balance < amount.
       const myWallet =
         (await tx.wallets.find(bidder, this.currency)) ??
         Wallet.openEmpty(bidder, this.currency);

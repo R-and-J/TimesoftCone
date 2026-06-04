@@ -11,7 +11,7 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 
 ```
 1. 락 획득 (lockAuction — SQLite write 락)
-2. 포인트 차감 (DB)
+2. 콘 차감 (DB)
 3. 에스크로 적립 (DB)
 4. POST /api/hr/leave  ← ⚠️ HR API 호출
 5. COMMIT
@@ -28,8 +28,8 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 [시점 t+20ms]  COMMIT 실패 → 애플리케이션은 롤백 시도
 [결과]
   ✅ HR 시스템: 직원 연차 +1 (AUCTION)
-  ❌ 본 시스템 DB: 포인트 차감 취소됨, 로그 없음
-  → 직원은 포인트 안 내고 연차 획득
+  ❌ 본 시스템 DB: 콘 차감 취소됨, 로그 없음
+  → 직원은 콘 안 내고 연차 획득
   → 에스크로 정합성 붕괴: Σ(log) ≠ 실제 HR 부여
 ```
 
@@ -41,7 +41,7 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 [시점 t+10ms]  롤백
 [결과]
   ✅ HR 시스템: 직원 연차 +1
-  ❌ 본 시스템: 포인트 차감 롤백
+  ❌ 본 시스템: 콘 차감 롤백
   → 동일 문제
 ```
 
@@ -61,7 +61,7 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 ```
 1. 락 획득 (lockAuction — SQLite write 락)
 2. BEGIN TRANSACTION
-3. 포인트 차감, 에스크로 적립, 로그 INSERT
+3. 콘 차감, 에스크로 적립, 로그 INSERT
 4. outbox 테이블에 HR API 발행 요청 INSERT (같은 트랜잭션!)
 5. COMMIT  ← 여기까지 원자적
 6. (트랜잭션 커밋 시 자동 해제)
@@ -87,13 +87,13 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 **흐름**:
 ```
 1. BEGIN TRANSACTION
-2. 포인트 차감, 에스크로 적립, 로그 INSERT
+2. 콘 차감, 에스크로 적립, 로그 INSERT
 3. COMMIT
 4. HR API POST /api/hr/leave (with idempotency key)
 5a. 성공 → 완료
 5b. 실패 → 보상 트랜잭션:
     - BEGIN TRANSACTION
-    - 포인트 환불 INSERT (REFUND 로그)
+    - 콘 환불 INSERT (REFUND 로그)
     - 에스크로 차감 INSERT
     - COMMIT
     - HR API POST /api/hr/leave/revoke (혹시 모르는 부분 정리)
@@ -104,9 +104,9 @@ UML 순차 다이어그램(UML.md)에 따르면 낙찰 처리 흐름은:
 - 명시적 보상 로직
 
 **단점**:
-- **HR API에 revoke(취소) 엔드포인트 필요** — HR팀과 추가 협의
+- **HR API에 revoke(취소) 엔드콘 필요** — HR팀과 추가 협의
 - 보상 실패 시 더 복잡한 수동 복구 절차 필요
-- 중간 상태 노출: 사용자가 "포인트 차감됨 + 연차 미반영" 순간을 볼 수 있음
+- 중간 상태 노출: 사용자가 "콘 차감됨 + 연차 미반영" 순간을 볼 수 있음
 
 ### 옵션 C — **2-Phase Commit (XA)**
 
@@ -216,6 +216,6 @@ HR 시스템이 XA 트랜잭션을 지원해야 함 → **일반적으로 REST A
 - [UML 순차 다이어그램](../03_design/UML.md#-순차-다이어그램-sequence-diagram)
 - [API 명세서 7.1](../03_design/api-spec.md#71-연차-권한-부여)
 - [[ADR-016]] 자체 휴가 관리 시스템 보유 — 본 ADR의 내부화 결정의 상세
-- [[ADR-011]] wallet 자체 보유 — 동일 패턴 (포인트 버전)
+- [[ADR-011]] wallet 자체 보유 — 동일 패턴 (콘 버전)
 - [[ADR-012]] Hexagonal Architecture — `LeaveGrantPort` 어댑터 교체
 - [[ADR-010]] 통화 추상화 — `PayoutChannel`이 Outbox를 먼저 활용

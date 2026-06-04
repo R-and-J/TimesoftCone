@@ -7,7 +7,7 @@
 // 적립으로 내부화한다(WelfarePointProvider). 실제 외부 연동이 필요해지면 이 포트의
 // 구현체만 교체하면 된다(도메인/use case 무수정).
 
-import type { Point } from "../domain/shared/value-objects/point";
+import type { Cone } from "../domain/shared/value-objects/cone";
 import type { UserId } from "../domain/shared/value-objects/user-id";
 
 export const PAYOUT_CHANNEL = Symbol("PayoutChannel");
@@ -15,7 +15,7 @@ export const PAYOUT_CHANNEL = Symbol("PayoutChannel");
 /** 한 수혜자에게 지급할 배당 한 건. */
 export type DividendPayout = {
   userId: UserId;
-  amount: Point;
+  amount: Cone;
   /** 원장 ref_note (감사용 — 예: "2026년 연말 배당 (지분 8.7%)"). */
   refNote: string;
 };

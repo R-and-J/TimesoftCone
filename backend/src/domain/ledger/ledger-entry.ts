@@ -3,7 +3,7 @@
 // (CLAUDE.md DB-RULE-1, enforced by Postgres trigger).
 
 import { Currency } from "../shared/value-objects/currency";
-import { Point } from "../shared/value-objects/point";
+import { Cone } from "../shared/value-objects/cone";
 import { UserId } from "../shared/value-objects/user-id";
 import type { LedgerActionType } from "./ledger-action-type";
 
@@ -14,7 +14,7 @@ export type LedgerEntryProps = {
   /** Signed amount. Positive = credit, negative = debit. */
   amount: bigint;
   /** Wallet balance after this entry has been applied — snapshotted for audit. */
-  balanceAfter: Point;
+  balanceAfter: Cone;
   auctionId?: string;
   refNote?: string;
 };

@@ -10,7 +10,7 @@ import type {
 } from "@/ports/auction-repository";
 import { Auction } from "@/domain/auction/auction";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import type { AuctionStatus } from "@/domain/auction/auction-status";
 
@@ -20,12 +20,12 @@ function rowToAuction(row: NonNullable<AuctionRow>): Auction {
   return Auction.rehydrate({
     id: AuctionId.of(row.id),
     status: row.status as AuctionStatus,
-    startPrice: Point.of(row.startPrice),
-    highest: Point.of(row.highest),
+    startPrice: Cone.of(row.startPrice),
+    highest: Cone.of(row.highest),
     highestBidder:
       row.highestBidder !== null ? UserId.of(row.highestBidder) : null,
     bidCount: row.bidCount,
-    minIncrement: Point.of(row.minIncrement),
+    minIncrement: Cone.of(row.minIncrement),
     leaveDays: row.leaveDays,
     startedAt: row.startedAt,
     endsAt: row.endsAt,

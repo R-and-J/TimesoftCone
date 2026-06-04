@@ -3,7 +3,7 @@
 //   credit (positive amount): REFUND, WIN-payout, DIVIDEND, CREDIT_ADMIN, REDEEM_REFUND
 //   debit  (negative amount): BID, EXPIRE, REDEEM
 // WIN is special — see ADR-018 for the settlement rules.
-// REDEEM/REDEEM_REFUND — 자립형 배포 포인트 소모(ADR-023).
+// REDEEM/REDEEM_REFUND — 자립형 배포 콘 소모(ADR-023).
 
 export const LEDGER_ACTION_TYPES = [
   "BID",

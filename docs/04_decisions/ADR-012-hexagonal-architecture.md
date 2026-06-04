@@ -152,7 +152,7 @@ domain      → interfaces              ❌ 금지
 - **도메인 단위 테스트 가속** — Mock·DB 없이 도메인 객체만으로 테스트 가능
 - **인프라 교체 비용 0** — Redis → ZooKeeper, REST → gRPC 등 어댑터만 교체
 - **MSA 분리 용이** — 도메인 경계가 명확해서 미래 마이크로서비스 분리 시 자연 매핑
-- **포트폴리오 가치 크기** — 학부 산출물 중 Hexagonal 적용은 흔치 않은 어필 포인트
+- **포트폴리오 가치 크기** — 학부 산출물 중 Hexagonal 적용은 흔치 않은 어필 콘
 - **[[ADR-010]]·[[ADR-013]]과 자연 정합** — Currency Provider·Event Bus가 모두 outbound port
 
 ### ⚠️ 트레이드오프

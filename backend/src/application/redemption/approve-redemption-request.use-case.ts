@@ -1,6 +1,6 @@
 // ApproveRedemptionRequest — 관리자 승인 + 쿠폰 발급 (ADR-023 v2).
 // 단일 트랜잭션: redemption_request → APPROVED + couponCode 박음.
-// (포인트/재고는 신청 시 이미 잠긴 상태라 이 단계에선 추가 변경 없음.)
+// (콘/재고는 신청 시 이미 잠긴 상태라 이 단계에선 추가 변경 없음.)
 // 커밋 후 RedemptionApprovedEvent 발행(요청자에게 "수령 가능" 알림).
 
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";

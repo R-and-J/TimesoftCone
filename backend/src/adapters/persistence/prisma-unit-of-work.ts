@@ -20,7 +20,7 @@ import type { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { Wallet } from "@/domain/wallet/wallet";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import { Currency } from "@/domain/shared/value-objects/currency";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { Auction } from "@/domain/auction/auction";
 import { AuctionId as AuctionIdVO } from "@/domain/shared/value-objects/auction-id";
 import type { LedgerEntry } from "@/domain/ledger/ledger-entry";
@@ -61,7 +61,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
           },
         });
         if (!row) return null;
-        return Wallet.rehydrate(userId, currency, Point.of(row.balance));
+        return Wallet.rehydrate(userId, currency, Cone.of(row.balance));
       },
       async save(wallet: Wallet) {
         await walletRepo.saveWith(tx, wallet);
@@ -93,12 +93,12 @@ export class PrismaUnitOfWork implements UnitOfWork {
           Auction.rehydrate({
             id: AuctionIdVO.of(row.id),
             status: row.status as AuctionStatus,
-            startPrice: Point.of(row.startPrice),
-            highest: Point.of(row.highest),
+            startPrice: Cone.of(row.startPrice),
+            highest: Cone.of(row.highest),
             highestBidder:
               row.highestBidder !== null ? UserId.of(row.highestBidder) : null,
             bidCount: row.bidCount,
-            minIncrement: Point.of(row.minIncrement),
+            minIncrement: Cone.of(row.minIncrement),
             leaveDays: row.leaveDays,
             startedAt: row.startedAt,
             endsAt: row.endsAt,

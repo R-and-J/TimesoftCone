@@ -33,9 +33,9 @@
 | [006](ADR-006-redis-lock.md) | Redis 분산 락 선택 | ⛔ Superseded | CUT-1(SQLite write 락)로 대체 |
 | [007](ADR-007-one-day-unit.md) | 경매 단위 "1일권" 고정 | 🟡 Proposed | 연속 N일권 불가 근거 |
 | [008](ADR-008-year-end-dividend.md) | 연말 일괄 배당 (즉시 분배 불가) | 🟡 Proposed | 001의 자연 귀결 명문화 |
-| [009](ADR-009-point-reuse.md) | 기존 복지 포인트 재활용 | ✅ Accepted (v2) | 정책 결정 (구조는 010, 보완은 011) |
+| [009](ADR-009-point-reuse.md) | 기존 복지 콘 재활용 | ✅ Accepted (v2) | 정책 결정 (구조는 010, 보완은 011) |
 | [010](ADR-010-currency-abstraction.md) | 통화 추상화 (CurrencyProvider) | ✅ Accepted | OCP — 화폐 교체 가능성 흡수 |
-| [011](ADR-011-welfare-point-ownership.md) | 복지 포인트 시스템 자체 보유 | ✅ Accepted | wallet 마스터 본 시스템 보유 |
+| [011](ADR-011-welfare-point-ownership.md) | 복지 콘 시스템 자체 보유 | ✅ Accepted | wallet 마스터 본 시스템 보유 |
 | [012](ADR-012-hexagonal-architecture.md) | Hexagonal Architecture | ✅ Accepted | 도메인 코어 격리 |
 | [013](ADR-013-domain-event.md) | Domain Event 기반 처리 | ✅ Accepted | 횡단 관심사 분리 |
 | [014](ADR-014-auction-state-pattern.md) | Auction State 패턴 | ✅ Accepted | 상태 전이 코드화 |
@@ -47,7 +47,7 @@
 | [020](ADR-020-member-identity-ezpass-leave-internal.md) | 신원=ezpass / 연차·경매금=우리 DB | ✅ Accepted | 회원 신원·조직·role은 ezpass, 연차·지갑은 우리 마스터 |
 | [021](ADR-021-portable-handoff-export.md) | 이식형 핸드오프 export | ✅ Accepted | 정산 데이터를 CSV/MD/JSON/xlsx로 내보내 각 사 HR가 반영 |
 | [022](ADR-022-identity-adapter-deployment-modes.md) | 신원 어댑터화 & 배포 모드 (위임형/자립형) | ✅ Accepted | AUTH_MODE로 ezpass 위임↔LocalAuthProvider 자립 전환, 회원관리 탭 모드별 |
-| [023](ADR-023-internal-redemption-channels.md) | 자립형 배포 — 내부 포인트 소모처(스토어) | ✅ Accepted | UI는 "스토어"로 표기. 카탈로그·교환(REDEEM)·`RedemptionChannel` 포트 MVP 구현. 회사 복지몰 없는 환경용 |
+| [023](ADR-023-internal-redemption-channels.md) | 자립형 배포 — 내부 콘 소모처(스토어) | ✅ Accepted | UI는 "스토어"로 표기. 카탈로그·교환(REDEEM)·`RedemptionChannel` 포트 MVP 구현. 회사 복지몰 없는 환경용 |
 | [024](ADR-024-user-initiated-charge-request.md) | 사용자 주도 충전 요청 — 관리자 매개 | ✅ Accepted | "후불 느낌"을 관리자 매개로 — P2P 회피 + 인바리언트 0 깨짐. EventBus가 첫 다회 구독자 |
 | [025](ADR-025-ezpass-leave-write-relaxation.md) | ezpass 연차 테이블 쓰기 — 정책 완화 | ✅ Accepted (개정) | ADR-020 §4 완화: 낙찰 시 mdat_yryc_day_qty +N (Outbox 경유). 정식 REST API(`AdmDlz0070M/streYryc` + `CmnDlz0020P/selectUserYrycInfo`)로 호출. cmpny 가드는 시스템 토큰 자동 |
 
@@ -57,7 +57,7 @@
 [정책 결정]
 ADR-001 (Escrow 모델)
   ├─ ADR-008 (연말 일괄 배당)           ← 001의 필연적 결과
-  └─ ADR-009 (포인트 재활용)            ← 001의 재화 선택
+  └─ ADR-009 (콘 재활용)            ← 001의 재화 선택
        └─ ADR-011 (wallet 자체 보유)    ← 009의 전제 충족 불가 시 보완
 
 ADR-002 (3-flag 분리)

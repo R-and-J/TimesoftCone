@@ -169,13 +169,13 @@
 [스케줄러: 12/31 23:59]
   ├─ 1단계: REGULAR 미사용 연차 → 내년 경매 매물 생성 (FR-1.1)
   ├─ 2단계: 기여자 지분(Stake) 계산 및 저장
-  ├─ 3단계: 에스크로 총액 = Σ(낙찰 포인트) 검증 (currency별 — DB-RULE-4)
+  ├─ 3단계: 에스크로 총액 = Σ(낙찰 콘) 검증 (currency별 — DB-RULE-4)
   ├─ 4단계: Stake 비율에 따라 배당금 산정
   ├─ 5단계: PayoutChannel.payout(...) → Outbox → HR /welfare
   └─ 6단계: AUCTION/EVENT 이전 연도 Soft Delete
 ```
 
-### 5.3 관리자 포인트 적립 (FR-5.1 — 신규)
+### 5.3 관리자 콘 적립 (FR-5.1 — 신규)
 
 ```
   CreditWalletUseCase  (RBAC: ADMIN만)
@@ -238,7 +238,7 @@
 | Context | 책임 | 마스터 데이터 | 다른 컨텍스트와의 관계 |
 |---|---|---|---|
 | **Auction** | 입찰·낙찰·정산·실시간 알림 | `auctions` | LeavePool로부터 매물 수신, `AuctionWonEvent` 발행 |
-| **Wallet** | 포인트 잔액 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md)) | `wallet`, `ledger_entry` | `BiddingCurrency`·`PayoutChannel` 포트 노출 |
+| **Wallet** | 콘 잔액 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md)) | `wallet`, `ledger_entry` | `BiddingCurrency`·`PayoutChannel` 포트 노출 |
 | **Leave** | 휴가 잔액·부여·차감 우선순위 ([ADR-016](../04_decisions/ADR-016-internal-leave-system.md)) | `leave_balance` | `LeaveGrantPort` 포트 노출 |
 | **LeavePool** | 연말 풀 수집·경매 인벤토리 생성·Stake 기록 ([ADR-017](../04_decisions/ADR-017-leave-pool-context.md)) | `stake` | Leave 조회 → Auction 매물 생성 (다리 역할) |
 | **Dividend** | 지분 기반 연말 배당 | — (Stake·Escrow 조회) | LeavePool의 Stake, Wallet의 Escrow 소비 |

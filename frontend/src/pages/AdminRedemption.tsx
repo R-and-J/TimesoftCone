@@ -73,7 +73,7 @@ export default function AdminRedemptionPage() {
           return;
         }
         const r = await rejectRedemptionRequest(modal.id, note.trim());
-        toast.push("success", `반려 — ${fmt.point(Number(r.refundedP))}P 환불됨`);
+        toast.push("success", `반려 — ${fmt.point(Number(r.refundedP))}콘 환불됨`);
       }
       setModal(null);
       setCoupon("");
@@ -204,7 +204,7 @@ export default function AdminRedemptionPage() {
                 align: "right",
                 render: (r) => (
                   <span className="mono" style={{ color: p.ink, fontWeight: 700 }}>
-                    {fmt.point(Number(r.pricePAtRequest))}P
+                    {fmt.point(Number(r.pricePAtRequest))}콘
                   </span>
                 ),
               },
@@ -277,7 +277,7 @@ export default function AdminRedemptionPage() {
               {modal.mode === "approve" ? "교환 승인 + 쿠폰 발급" : "교환 반려 + 환불"}
             </div>
             <div style={{ fontSize: 13, color: p.inkSoft, marginBottom: 14 }}>
-              신청 #{modal.id} — {modal.mode === "approve" ? "쿠폰 텍스트가 사용자에게 그대로 전달됩니다." : "포인트 환불 + 사유 전달."}
+              신청 #{modal.id} — {modal.mode === "approve" ? "쿠폰 텍스트가 사용자에게 그대로 전달됩니다." : "콘 환불 + 사유 전달."}
             </div>
 
             {modal.mode === "approve" && (

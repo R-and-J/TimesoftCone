@@ -15,7 +15,7 @@
 |---|---|---|---|
 | OP-1 | 개별 경매 기간 | **3일** | 매물 1건이 OPEN → CLOSED까지. 마감 직전 트래픽 집중 → SQLite write 락(lockAuction)으로 직렬화 (CUT-1) |
 | OP-2 | 매물 풀 크기 | **수집 전량 1:1** | 연말 수집된 `REGULAR` 미사용 연차 N일 = 1일권 N개 |
-| OP-3 | 최소 입찰 증분 | **고정 금액** ⚙️ | 현재가 + 고정 포인트. 구체 금액은 운영자 설정 (초기 권장: 100 P) |
+| OP-3 | 최소 입찰 증분 | **고정 금액** ⚙️ | 현재가 + 고정 콘. 구체 금액은 운영자 설정 (초기 권장: 100 P) |
 | OP-4 | 경매 오픈 방식 | **분산 오픈** | 1/1 전량 동시 아님. 매주 고정 개수씩 소진 시까지 |
 | OP-5 | 분산 오픈 단위 | **매주 고정 개수** ⚙️ | 운영자가 주당 N개 지정, 풀 소진 시 종료. 주당 개수는 운영자 설정 |
 | OP-6 | 경매 시작가 | **관리자 설정 (3모드)** ⚙️ | 모드 선택: ① 자유 입력 ② 고정 최소가 ③ 작년 평균 낙찰가 기반. 첫 해는 ①·② 중 선택 (작년 데이터 없음) |
@@ -43,14 +43,14 @@ stake_ratio(user, year) = contributed_days(user, year) / Σ contributed_days(*, 
 
 ```
 1. raw_dividend(user)  = escrow_balance(year) × stake_ratio(user, year)
-2. floor_dividend(user) = floor(raw_dividend(user))         # 정수 포인트로 내림
+2. floor_dividend(user) = floor(raw_dividend(user))         # 정수 콘으로 내림
 3. remainder = escrow_balance(year) − Σ floor_dividend(*)   # 나누어떨어지지 않는 잔여
 4. 최종 배당: floor_dividend(user)
               + (user가 stake_ratio 1위면 remainder, 아니면 0)
 ```
 
 - **불변식 보장**: `Σ 최종배당 = escrow_balance(year)` — [NFR-2](SRS.md#nfr-2-재무-정합성-및-감사-추적성-auditability) "총 배당 = 에스크로 총액" 등식이 정확히 성립
-- 에스크로 잔액을 **1포인트도 초과하지 않음** — floor + 잔여 분배 구조상 초과 불가능
+- 에스크로 잔액을 **1콘도 초과하지 않음** — floor + 잔여 분배 구조상 초과 불가능
 - Stake 1위 동률 시: `user_id` 오름차순 등 결정적 타이브레이크 1명 ([edge-cases.md](edge-cases.md) EC-7)
 - 통화별로 분리 계산 ([db-schema.sql](../06_tech/db-schema.sql) DB-RULE-4)
 

@@ -13,6 +13,7 @@ import {
 import { z } from "zod";
 import { CreateAuctionUseCase } from "@/application/auction/create-auction.use-case";
 import { OpenAuctionUseCase } from "@/application/auction/open-auction.use-case";
+import { ReopenUnsoldAuctionUseCase } from "@/application/auction/reopen-unsold-auction.use-case";
 import { ScheduleAuctionUseCase } from "@/application/auction/schedule-auction.use-case";
 import { SettleAuctionUseCase } from "@/application/auction/settle-auction.use-case";
 import { SettleDueAuctionsUseCase } from "@/application/auction/settle-due-auctions.use-case";
@@ -51,6 +52,11 @@ const cancelSchema = z.object({
 
 const extendSchema = z.object({ endsAt: isoDate });
 
+const reopenUnsoldSchema = z.object({
+  startedAt: isoDate,
+  endsAt: isoDate,
+});
+
 const openSchema = z.object({
   startedAt: isoDate.optional(),
   endsAt: isoDate.optional(),
@@ -78,6 +84,7 @@ export class AdminAuctionsController {
     private readonly nextIdUC: GetNextAuctionIdUseCase,
     private readonly extendUC: ExtendAuctionDeadlineUseCase,
     private readonly closeNowUC: CloseAuctionImmediatelyUseCase,
+    private readonly reopenUnsoldUC: ReopenUnsoldAuctionUseCase,
   ) {}
 
   @Post()
@@ -181,6 +188,20 @@ export class AdminAuctionsController {
   async closeNow(@Param("id") id: string) {
     try {
       return await this.closeNowUC.execute(id);
+    } catch (e) {
+      if (e instanceof DomainError) throw new BadRequestException(e.message);
+      throw e;
+    }
+  }
+
+  /** UNSOLD 매물을 새 1일권 경매로 재오픈(FR-4.2 확장). 원본은 소진, 새 매물 1개 생성. */
+  @Post(":id/reopen-unsold")
+  async reopenUnsold(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(reopenUnsoldSchema)) body: z.infer<typeof reopenUnsoldSchema>,
+  ) {
+    try {
+      return await this.reopenUnsoldUC.execute({ auctionId: id, ...body });
     } catch (e) {
       if (e instanceof DomainError) throw new BadRequestException(e.message);
       throw e;

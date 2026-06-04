@@ -11,7 +11,7 @@
 //   transaction without re-reading the aggregate.
 
 import { AuctionId } from "../shared/value-objects/auction-id";
-import { Point } from "../shared/value-objects/point";
+import { Cone } from "../shared/value-objects/cone";
 import { UserId } from "../shared/value-objects/user-id";
 import type { AuctionStatus } from "./auction-status";
 import {
@@ -25,11 +25,11 @@ import {
 export type AuctionSnapshot = {
   id: AuctionId;
   status: AuctionStatus;
-  startPrice: Point;
-  highest: Point;
+  startPrice: Cone;
+  highest: Cone;
   highestBidder: UserId | null;
   bidCount: number;
-  minIncrement: Point;
+  minIncrement: Cone;
   /** 이 경매가 낙찰자에게 부여하는 AUCTION 연차 일수 (ADR-002/CUT-9). */
   leaveDays: number;
   startedAt: Date;
@@ -39,22 +39,22 @@ export type AuctionSnapshot = {
 
 export type PreviousLeader = {
   bidder: UserId;
-  amount: Point;
+  amount: Cone;
 } | null;
 
 export type SettleOutcome =
-  | { kind: "AWARDED"; winner: UserId; amount: Point }
+  | { kind: "AWARDED"; winner: UserId; amount: Cone }
   | { kind: "UNSOLD" };
 
 export class Auction {
   private constructor(
     readonly id: AuctionId,
     private _status: AuctionStatus,
-    private _startPrice: Point,
-    private _highest: Point,
+    private _startPrice: Cone,
+    private _highest: Cone,
     private _highestBidder: UserId | null,
     private _bidCount: number,
-    private _minIncrement: Point,
+    private _minIncrement: Cone,
     private _startedAt: Date,
     private _endsAt: Date,
     private _settledAt: Date | null,
@@ -64,8 +64,8 @@ export class Auction {
 
   static create(props: {
     id: AuctionId;
-    startPrice: Point;
-    minIncrement: Point;
+    startPrice: Cone;
+    minIncrement: Cone;
     startedAt: Date;
     endsAt: Date;
     leaveDays: number;
@@ -98,8 +98,8 @@ export class Auction {
    *  schedule()로 시간 정하거나 open(force=true)로 즉시 오픈할 때 갱신된다. */
   static createDraft(props: {
     id: AuctionId;
-    startPrice: Point;
-    minIncrement: Point;
+    startPrice: Cone;
+    minIncrement: Cone;
     leaveDays: number;
   }): Auction {
     if (props.minIncrement.isZero()) {
@@ -144,12 +144,12 @@ export class Auction {
 
   // ── getters ───────────────────────────────────────────────────────
   get status(): AuctionStatus { return this._status; }
-  get highest(): Point { return this._highest; }
+  get highest(): Cone { return this._highest; }
   get highestBidder(): UserId | null { return this._highestBidder; }
   get bidCount(): number { return this._bidCount; }
   get startedAt(): Date { return this._startedAt; }
-  get startPrice(): Point { return this._startPrice; }
-  get minIncrement(): Point { return this._minIncrement; }
+  get startPrice(): Cone { return this._startPrice; }
+  get minIncrement(): Cone { return this._minIncrement; }
   get leaveDays(): number { return this._leaveDays; }
   get endsAt(): Date { return this._endsAt; }
   get settledAt(): Date | null { return this._settledAt; }
@@ -177,9 +177,9 @@ export class Auction {
   configureBeforeOpen(opts: {
     startedAt?: Date;
     endsAt?: Date;
-    startPrice?: Point;
+    startPrice?: Cone;
     leaveDays?: number;
-    minIncrement?: Point;
+    minIncrement?: Cone;
   }): void {
     if (this._status !== "CREATED" && this._status !== "DRAFT") {
       throw new AuctionNotOpenError(`Cannot configure auction in status ${this._status}`);
@@ -246,7 +246,7 @@ export class Auction {
    * Throws if the auction is not OPEN, time has expired, the bid is too low,
    * or the same user is already the current leader.
    */
-  placeBid(bidder: UserId, amount: Point, now: Date): PreviousLeader {
+  placeBid(bidder: UserId, amount: Cone, now: Date): PreviousLeader {
     if (this._status !== "OPEN") {
       throw new AuctionNotOpenError(
         `Auction status is ${this._status}, not OPEN`,

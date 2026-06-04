@@ -84,4 +84,17 @@
   button {
     font-family: inherit;
   }
+  /* DataGrid 헤더 — 본문(overflow:auto)에 scrollbar-gutter:stable이 적용되어
+     본문이 항상 스크롤바 폭만큼 빠진 가용 폭에 컬럼을 분배한다. 헤더도 같은
+     가용 폭이 되도록 invisible scrollbar 공간을 강제로 차지하게 만든다. */
+  .dg-header {
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .dg-header::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 }

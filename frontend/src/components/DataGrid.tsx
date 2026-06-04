@@ -85,8 +85,10 @@ export function DataGrid<T>({
         ...style,
       }}
     >
-      {/* 헤더 밴드 */}
+      {/* 헤더 밴드 — globals.css의 .dg-header 가 invisible scrollbar 공간을 차지해
+          본문 grid와 가용 폭을 일치시킴(컬럼 어긋남 방지). */}
       <div
+        className="dg-header"
         style={{
           display: "grid",
           gridTemplateColumns: template,
@@ -106,8 +108,11 @@ export function DataGrid<T>({
         ))}
       </div>
 
-      {/* 본문 */}
-      <div style={maxHeight != null ? { overflow: "auto", maxHeight } : { overflow: "auto", flex: 1 }}>
+      {/* 본문 — scrollbar-gutter: stable 로 세로 스크롤 유무와 무관하게
+          가용 폭을 고정 → 헤더 grid와 본문 grid의 컬럼 트랙이 항상 일치. */}
+      <div style={maxHeight != null
+        ? { overflow: "auto", maxHeight, scrollbarGutter: "stable" }
+        : { overflow: "auto", flex: 1, scrollbarGutter: "stable" }}>
         {error && (
           <div style={{ padding: 24, color: p.danger, fontSize: 13, fontWeight: 700 }}>
             {error.message}

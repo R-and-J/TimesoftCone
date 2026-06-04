@@ -133,7 +133,7 @@ export default function AuctionListGridPage() {
                   <span className="mono" style={{ fontSize: 20, color: p.accent, fontWeight: 800, letterSpacing: "-0.02em" }}>
                     {fmt.point(awardedEscrow)}
                   </span>
-                  <span style={{ fontSize: 12, color: p.inkMuted, fontWeight: 600 }}>P</span>
+                  <span style={{ fontSize: 12, color: p.inkMuted, fontWeight: 600 }}>콘</span>
                 </div>
                 <div style={{ fontSize: 12, color: p.inkSoft }}>
                   낙찰 <b style={{ color: p.ink }}>{awarded.length}</b>건 · 유찰 <b style={{ color: p.ink }}>{unsoldCount}</b>건
@@ -274,7 +274,7 @@ function AuctionCard({
               }}
             >
               {fmt.point(highest)}
-              <span style={{ fontSize: 14, color: p.inkMuted, fontWeight: 600, marginLeft: 4 }}>P</span>
+              <span style={{ fontSize: 14, color: p.inkMuted, fontWeight: 600, marginLeft: 4 }}>콘</span>
             </div>
           </div>
           <div
@@ -327,7 +327,7 @@ function AuctionCard({
               }}
             >
               {fmt.point(startPrice)}
-              <span style={{ fontSize: 13, marginLeft: 4 }}>P</span>
+              <span style={{ fontSize: 13, marginLeft: 4 }}>콘</span>
             </div>
           </div>
           <div style={{ marginTop: 24, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>
@@ -352,7 +352,7 @@ function AuctionCard({
               }}
             >
               {fmt.point(isAwarded ? highest : startPrice)}
-              <span style={{ fontSize: 13, marginLeft: 4 }}>P</span>
+              <span style={{ fontSize: 13, marginLeft: 4 }}>콘</span>
             </div>
           </div>
           <div

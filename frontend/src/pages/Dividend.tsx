@@ -130,11 +130,11 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
                 >
                   {fmt.point(myDividend)}
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>P</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>콘</div>
               </div>
               <div style={{ marginTop: 10, fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
                 현재 에스크로 잔액{" "}
-                <span style={{ color: "#fff", fontWeight: 700 }}>{fmt.point(escrow)} P</span> × 지분{" "}
+                <span style={{ color: "#fff", fontWeight: 700 }}>{fmt.point(escrow)} 콘</span> × 지분{" "}
                 <span style={{ color: "#fff", fontWeight: 700 }}>{ratioPct}%</span>
               </div>
             </div>
@@ -306,7 +306,7 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
                 style={{ fontSize: 32, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em" }}
               >
                 {fmt.point(escrow)}
-                <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted }}>현재 잔액 (실시간)</div>
             </div>
@@ -328,11 +328,11 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
             내 배당 계산식
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <FormulaRow p={p} k="에스크로 잔액" v={`${fmt.point(escrow)} P`} />
+            <FormulaRow p={p} k="에스크로 잔액" v={`${fmt.point(escrow)} 콘`} />
             <FormulaRow p={p} k="× 내 지분율" v={`× ${data.stakeRatio.toFixed(4)}`} />
             <div style={{ height: 1, background: p.line, margin: "4px 0" }} />
-            <FormulaRow p={p} k="raw" v={`${(escrow * data.stakeRatio).toFixed(1)} P`} muted />
-            <FormulaRow p={p} k="floor()" v={`${fmt.point(myDividend)} P`} muted />
+            <FormulaRow p={p} k="raw" v={`${(escrow * data.stakeRatio).toFixed(1)} 콘`} muted />
+            <FormulaRow p={p} k="floor()" v={`${fmt.point(myDividend)} 콘`} muted />
             <div style={{ padding: 12, background: p.accentSoft, borderRadius: 10, marginTop: 4 }}>
               <div style={{ fontSize: 11, color: p.accent, fontWeight: 700, marginBottom: 4 }}>
                 최종 배당금
@@ -341,7 +341,7 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
                 className="mono"
                 style={{ fontSize: 22, fontWeight: 800, color: p.accent, letterSpacing: "-0.02em" }}
               >
-                {fmt.point(myDividend)} P
+                {fmt.point(myDividend)} 콘
               </div>
             </div>
           </div>
@@ -357,7 +357,7 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
               who: `판매자 (${data.name})`,
               color: p.accent,
               bg: p.accentSoft,
-              value: `+${fmt.point(myDividend)}P`,
+              value: `+${fmt.point(myDividend)}콘`,
               desc: "소멸 예정이던 연차 → 배당",
             },
             {

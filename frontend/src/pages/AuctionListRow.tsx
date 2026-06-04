@@ -214,7 +214,7 @@ function Row({
         }}
       >
         {fmt.point(highest)}
-        <span style={{ fontSize: 12, color: p.inkMuted, marginLeft: 3, fontWeight: 600 }}>P</span>
+        <span style={{ fontSize: 12, color: p.inkMuted, marginLeft: 3, fontWeight: 600 }}>콘</span>
       </div>
       <div>
         {a.status === "OPEN" && a.highestBidder ? (

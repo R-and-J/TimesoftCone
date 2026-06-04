@@ -1,7 +1,7 @@
 // SubmitRedemptionRequest — 사용자 주도 교환 신청 (ADR-023 v2).
 // 단일 트랜잭션:
 //   item.stock -1 (재고 잠금) + wallet 차감 + REDEEM ledger(음수) + request INSERT(PENDING).
-// 신청 시점에 포인트를 잠그는 것이 ADR-001 escrow 모델과 정합 — 반려 시 환불.
+// 신청 시점에 콘을 잠그는 것이 ADR-001 escrow 모델과 정합 — 반려 시 환불.
 // 커밋 후 RedemptionRequestSubmittedEvent 발행(NotificationObserver가 관리자들에게 알림).
 
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
@@ -50,7 +50,7 @@ export class SubmitRedemptionRequestUseCase {
         where: { uq_wallet_user_currency: { userId: user.id, currency: "WELFARE_POINT" } },
       });
       if (!wallet || wallet.balance < item.priceP) {
-        throw new BadRequestException("포인트가 부족합니다.");
+        throw new BadRequestException("콘이 부족합니다.");
       }
       const newBalance = wallet.balance - item.priceP;
       await tx.wallet.update({

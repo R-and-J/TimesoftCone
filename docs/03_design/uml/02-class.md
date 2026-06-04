@@ -36,7 +36,7 @@
 | `AuctionLeave` | 경매 연차 | class |
 | `EventLeave` | 이벤트 연차 | class |
 | `Auction` | 경매 | class |
-| `LedgerEntry` | 포인트 거래 대장 | class (Insert-Only) |
+| `LedgerEntry` | 콘 거래 대장 | class (Insert-Only) |
 | `Stake` | 지분 | class |
 | `Escrow` | 에스크로 (중앙 수익금 대장) | service |
 | `HRApiClient` | HR 연동 인터페이스 | interface |
@@ -72,16 +72,16 @@ classDiagram
 
     class Employee["Employee · 직원"] {
         +getWallet(currency: Currency) Wallet
-        +getBidableBalance(currency: Currency) Point
+        +getBidableBalance(currency: Currency) Cone
     }
 
     class Wallet["Wallet · 지갑(잔액 마스터)"] {
         -user_id: bigint
         -currency: Currency
         -balance: bigint
-        +debit(amt: Point) void
-        +credit(amt: Point) void
-        +getBalance() Point
+        +debit(amt: Cone) void
+        +credit(amt: Cone) void
+        +getBalance() Cone
     }
 
     class Admin["Admin · 관리자"] {
@@ -173,9 +173,9 @@ classDiagram
         -year: int
         -currency: Currency
         -balance: bigint
-        +accumulate(amt: Point) void
+        +accumulate(amt: Cone) void
         +distribute(stakes: List~Stake~) Map
-        +getBalance() Point
+        +getBalance() Cone
         +verifyIntegrity() bool
     }
 

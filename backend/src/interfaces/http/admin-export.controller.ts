@@ -106,7 +106,7 @@ export class AdminExportController {
           leaveType: "휴가유형",
           days: "부여일수",
           auctionId: "경매번호",
-          amountPoint: "낙찰포인트",
+          amountPoint: "낙찰콘",
           grantedAt: "부여일시",
         } as Labels,
         fetch: () => this.exporter.leaveGrants() as Promise<Row[]>,
@@ -121,7 +121,7 @@ export class AdminExportController {
           name: "이름",
           contributedDays: "기여일수",
           stakePct: "지분율(%)",
-          dividendPoint: "배당포인트",
+          dividendPoint: "배당콘",
         } as Labels,
         fetch: () => this.exporter.dividends() as Promise<Row[]>,
       },
@@ -133,7 +133,7 @@ export class AdminExportController {
         labels: {
           empId: "사번",
           name: "이름",
-          spentPoint: "지출포인트",
+          spentPoint: "지출콘",
           wins: "낙찰건수",
         } as Labels,
         fetch: () => this.exporter.spending() as Promise<Row[]>,
@@ -197,7 +197,7 @@ export class AdminExportController {
       return;
     }
 
-    // xlsx (멀티시트): 항목당 시트 1개, 한글 헤더 + 포인트열 천단위 서식
+    // xlsx (멀티시트): 항목당 시트 1개, 한글 헤더 + 콘열 천단위 서식
     const wb = new Workbook();
     for (const d of data) {
       const ws = wb.addWorksheet(d.sheet.slice(0, 31)); // 엑셀 시트명 31자 제한
@@ -211,7 +211,7 @@ export class AdminExportController {
       cols.forEach((c, i) => {
         const col = ws.getColumn(i + 1);
         col.width = 20;
-        if (c.endsWith("Point")) col.numFmt = "#,##0"; // 포인트열은 천단위 콤마
+        if (c.endsWith("Cone")) col.numFmt = "#,##0"; // 콘열은 천단위 콤마
       });
     }
     const buf = await wb.xlsx.writeBuffer();

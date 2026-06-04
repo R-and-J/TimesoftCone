@@ -38,6 +38,7 @@ import { OutboxRelayScheduler } from "./adapters/scheduling/outbox-relay.schedul
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
 import { CreditWalletAdminUseCase } from "./application/wallet/credit-wallet-admin.use-case";
 import { CreateAuctionUseCase } from "./application/auction/create-auction.use-case";
+import { ReopenUnsoldAuctionUseCase } from "./application/auction/reopen-unsold-auction.use-case";
 import { OpenAuctionUseCase } from "./application/auction/open-auction.use-case";
 import { ScheduleAuctionUseCase } from "./application/auction/schedule-auction.use-case";
 import { OpenDueAuctionsUseCase } from "./application/auction/open-due-auctions.use-case";
@@ -63,6 +64,13 @@ import { ManageMembersUseCase } from "./application/admin/manage-members.use-cas
 import { ListNotificationsUseCase } from "./application/notification/list-notifications.use-case";
 import { MarkNotificationsReadUseCase } from "./application/notification/mark-notifications-read.use-case";
 import { ListRedemptionItemsUseCase } from "./application/redemption/list-redemption-items.use-case";
+import {
+  AdminListRedemptionItemsUseCase,
+  CreateRedemptionItemUseCase,
+  ListRedemptionItemAuditsUseCase,
+  SetRedemptionItemActiveUseCase,
+  UpdateRedemptionItemUseCase,
+} from "./application/redemption/admin-redemption-items.use-case";
 import { RedeemItemUseCase } from "./application/redemption/redeem-item.use-case";
 import { ListMyRedemptionOrdersUseCase } from "./application/redemption/list-my-redemption-orders.use-case";
 import { SubmitRedemptionRequestUseCase } from "./application/redemption/submit-redemption-request.use-case";
@@ -99,6 +107,7 @@ import { AdminExportController } from "./interfaces/http/admin-export.controller
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { RedemptionController, UserRedemptionOrdersController } from "./interfaces/http/redemption.controller";
+import { AdminRedemptionItemsController } from "./interfaces/http/admin-redemption-items.controller";
 import { RedemptionRequestsController } from "./interfaces/http/redemption-requests.controller";
 import { AdminRedemptionRequestsController } from "./interfaces/http/admin-redemption-requests.controller";
 import { AdminLeaveSyncController } from "./interfaces/http/admin-leave-sync.controller";
@@ -155,6 +164,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     AdminMembersController,
     NotificationsController,
     RedemptionController,
+    AdminRedemptionItemsController,
     UserRedemptionOrdersController,
     RedemptionRequestsController,
     AdminRedemptionRequestsController,
@@ -232,6 +242,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
     CreateAuctionUseCase,
+    ReopenUnsoldAuctionUseCase,
     OpenAuctionUseCase,
     ScheduleAuctionUseCase,
     OpenDueAuctionsUseCase,
@@ -257,6 +268,11 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     ListNotificationsUseCase,
     MarkNotificationsReadUseCase,
     ListRedemptionItemsUseCase,
+    AdminListRedemptionItemsUseCase,
+    CreateRedemptionItemUseCase,
+    UpdateRedemptionItemUseCase,
+    SetRedemptionItemActiveUseCase,
+    ListRedemptionItemAuditsUseCase,
     RedeemItemUseCase,
     ListMyRedemptionOrdersUseCase,
     SubmitRedemptionRequestUseCase,

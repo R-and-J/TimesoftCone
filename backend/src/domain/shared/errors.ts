@@ -8,8 +8,8 @@ export class DomainError extends Error {
   }
 }
 
-export class InvalidPointError extends DomainError {}
-export class InsufficientPointError extends DomainError {
+export class InvalidConeError extends DomainError {}
+export class InsufficientConeError extends DomainError {
   constructor(balance: bigint, requested: bigint) {
     super(
       `Insufficient balance: have ${balance}, requested ${requested}`,

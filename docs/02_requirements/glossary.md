@@ -12,20 +12,20 @@
 | **근로기준법 제60조** | 연차 유급휴가 조항. 본 시스템이 준수해야 하는 핵심 근거 법령. |
 | **근로기준법 제61조** | 연차 유급휴가의 사용 촉진 조항. |
 | **연차 촉진제도** | 사용자가 직원에게 연차 사용을 독려하는 제도. 미사용 시 소멸될 수 있어 본 시스템의 매물 원천이 됨. |
-| **휴식권 매매 금지** | 근로기준법상 연차를 현금이나 유가물로 직접 거래할 수 없다는 원칙. 본 시스템은 "복지 포인트 ↔ 연차 개수"로 우회. |
+| **휴식권 매매 금지** | 근로기준법상 연차를 현금이나 유가물로 직접 거래할 수 없다는 원칙. 본 시스템은 "복지 콘 ↔ 연차 개수"로 우회. |
 
 ## B. 시스템 도메인 개념
 
 | 용어 | 정의 |
 |---|---|
 | **연차 1일권** | 본 시스템의 단일 경매 매물 단위. 특정 날짜에 종속되지 않고 사내 그룹웨어에서 자유롭게 기안할 수 있는 **"연차 잔여 개수 1개"**를 의미. |
-| **에스크로 (Escrow)** | 낙찰자들의 포인트를 임시 보관하는 중앙 수익금 대장. 연말 배당의 재원. `ESCROW` 테이블은 `(year, currency)`별 집계. |
+| **에스크로 (Escrow)** | 낙찰자들의 콘을 임시 보관하는 중앙 수익금 대장. 연말 배당의 재원. `ESCROW` 테이블은 `(year, currency)`별 집계. |
 | **지분 (Stake)** | **판매자**가 공용 풀에 기여한 연차 일수의 비율. 연말 배당금 정산의 기준. |
 | **공용 풀** | 직원들이 반납한 미사용 연차를 취합하여 생성되는 경매 매물 전체. |
-| **복지 포인트** | 본 시스템의 거래 재화. 사내 복지 시스템의 기존 포인트를 재활용 ([ADR-009](../04_decisions/ADR-009-point-reuse.md)). 현재 [ADR-010](../04_decisions/ADR-010-currency-abstraction.md)의 `CurrencyProvider` 추상화 뒤의 *유일 구현체*. |
+| **복지 콘** | 본 시스템의 거래 재화. 사내 복지 시스템의 기존 콘을 재활용 ([ADR-009](../04_decisions/ADR-009-point-reuse.md)). 현재 [ADR-010](../04_decisions/ADR-010-currency-abstraction.md)의 `CurrencyProvider` 추상화 뒤의 *유일 구현체*. |
 | **Wallet (지갑)** | 직원의 화폐별 잔액 마스터. 본 시스템이 단일 진실 공급원으로 보유 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md)). `wallet(user_id, currency, balance)`. |
 | **복지카드 한도** | 연말 배당금이 지급되는 최종 형태. 직원 개인 복지카드의 사용 가능 한도에 (+) 증액됨. 입찰 결제와 무관한 *출금* 채널. |
-| **관리자 적립 (CREDIT_ADMIN)** | 관리자가 직원 wallet에 분기·이벤트 포인트를 적립하는 행위. `reason` 필수. 에스크로 등식과 분리 집계 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md), FR-5.1). |
+| **관리자 적립 (CREDIT_ADMIN)** | 관리자가 직원 wallet에 분기·이벤트 콘을 적립하는 행위. `reason` 필수. 에스크로 등식과 분리 집계 ([ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md), FR-5.1). |
 | **3-Way Win Model** | 회사, 판매자(고연차), 구매자(저연차) 모두에게 이득인 구조. SRS 2.2 참조. |
 
 ## C. 휴가 속성 플래그 (Leave Type)
@@ -55,7 +55,7 @@
 | **CurrencyProvider** | 화폐를 추상화한 outbound port. `BiddingCurrency`(입찰 차감)와 `PayoutChannel`(배당 출금)로 ISP 분리 ([ADR-010](../04_decisions/ADR-010-currency-abstraction.md)). |
 | **Domain Event** | 도메인에서 발생한 사실(`BidPlacedEvent` 등). EventBus로 fan-out하여 횡단 관심사를 분리 ([ADR-013](../04_decisions/ADR-013-domain-event.md)). |
 | **State 패턴** | 객체의 상태별 행위를 상태 객체로 분리하는 GoF 패턴. Auction의 6개 상태에 적용 ([ADR-014](../04_decisions/ADR-014-auction-state-pattern.md)). |
-| **Value Object (VO)** | 식별자가 아닌 *값*으로 동등성을 판단하는 불변 객체. `UserId`/`Point`/`LeaveDays` 등 ([ADR-015](../04_decisions/ADR-015-value-object.md)). |
+| **Value Object (VO)** | 식별자가 아닌 *값*으로 동등성을 판단하는 불변 객체. `UserId`/`Cone`/`LeaveDays` 등 ([ADR-015](../04_decisions/ADR-015-value-object.md)). |
 | **WebSocket** | 실시간 양방향 통신 프로토콜. 경매 타이머·최고가 갱신 알림에 사용. |
 | **Message Queue** (MQ) | 비동기 메시지 전달 미들웨어. "지금 당장 처리 못 하는 작업을 줄 세워두고 나중에 순서대로 처리"하는 대기열. 실물 예: RabbitMQ, Kafka, AWS SQS, Redis Streams. 본 시스템은 HR API 장애 시 재시도 처리에 활용. |
 | **MQ재시도** | 외부 API 호출 실패 시 해당 요청을 MQ에 다시 넣어 일정 시간 후 재처리하는 상태. 지수 백오프와 함께 사용. 상태 다이어그램 `AWARDED` 내부 참조. |
@@ -82,9 +82,9 @@
 
 | 액터 | 유형 | 설명 |
 |---|---|---|
-| **직원 (Employee)** | Primary (base) | 모든 사용자의 기본 역할. SSO 로그인, 포인트/연차 조회, 연차 사용 |
+| **직원 (Employee)** | Primary (base) | 모든 사용자의 기본 역할. SSO 로그인, 콘/연차 조회, 연차 사용 |
 | **판매자 (Seller)** ▷ is-a 직원 | Primary | 공용 풀에 `REGULAR` 연차를 기여한 직원. Stake 보유 → 연말 배당금 수령 자격 |
-| **구매자 (Buyer)** ▷ is-a 직원 | Primary | 경매에 입찰하는 역할. 포인트 소비 + 낙찰 시 `AUCTION` 속성 연차 획득 |
+| **구매자 (Buyer)** ▷ is-a 직원 | Primary | 경매에 입찰하는 역할. 콘 소비 + 낙찰 시 `AUCTION` 속성 연차 획득 |
 | **관리자 (Admin)** ▷ is-a 직원 | Primary | 유찰 재고 `EVENT` 수동 지급, 연말 배치 트리거, 감사 로그 열람 |
 | **스케줄러 (Batch)** | System | 12/31 자동 정산·배당 배치 실행 |
 | **HR 시스템** | **Secondary** | 외부 액터. 본 시스템이 호출하는 API 제공자 (연차 부여, 복지 한도 증액) |

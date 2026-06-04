@@ -73,7 +73,7 @@ export class NotificationObserver {
           userId: e.previousHighBidderId,
           type: "OUTBID",
           title: "입찰이 밀렸어요",
-          message: `경매 ${e.auctionId}에서 더 높은 입찰이 나왔습니다. 현재가 ${won(e.amount)}P — 다시 입찰하시겠어요?`,
+          message: `경매 ${e.auctionId}에서 더 높은 입찰이 나왔습니다. 현재가 ${won(e.amount)}콘 — 다시 입찰하시겠어요?`,
           auctionId: e.auctionId,
           linkPath: `/auction/detail/${e.auctionId}`,
           companyId: (await this.companyOf(e.previousHighBidderId)) ?? 1n,
@@ -117,7 +117,7 @@ export class NotificationObserver {
       const source = (await this.companyOf(e.requesterId)) ?? 1n;
       const admins = await this.adminRecipients(source);
       if (admins.length === 0) return;
-      const msg = `${e.requesterName} — ${won(e.amount)}P 충전 요청` + (e.note ? ` (사유: ${e.note})` : "");
+      const msg = `${e.requesterName} — ${won(e.amount)}콘 충전 요청` + (e.note ? ` (사유: ${e.note})` : "");
       await this.prisma.notification.createMany({
         data: admins.map((u) => ({
           userId: u.id,
@@ -143,7 +143,7 @@ export class NotificationObserver {
           userId: e.requesterId,
           type: "CHARGE_APPROVED",
           title: "충전 승인됨 ✅",
-          message: `+${won(e.amount)}P 가 지갑에 적립되었습니다.`,
+          message: `+${won(e.amount)}콘 가 지갑에 적립되었습니다.`,
           linkPath: "/activity",
           companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },
@@ -163,7 +163,7 @@ export class NotificationObserver {
           userId: e.requesterId,
           type: "CHARGE_REJECTED",
           title: "충전 요청 반려",
-          message: `${won(e.amount)}P 충전 요청이 반려되었습니다.${tail}`,
+          message: `${won(e.amount)}콘 충전 요청이 반려되었습니다.${tail}`,
           linkPath: "/activity",
           companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },
@@ -185,7 +185,7 @@ export class NotificationObserver {
           userId: u.id,
           type: "REDEMPTION_REQUEST_SUBMITTED",
           title: "새 교환 신청",
-          message: `${e.requesterName} — ${e.itemName} (${won(e.priceP)}P) 신청`,
+          message: `${e.requesterName} — ${e.itemName} (${won(e.priceP)}콘) 신청`,
           linkPath: "/admin/redemption",
           companyId: source,
         })),
@@ -224,7 +224,7 @@ export class NotificationObserver {
           userId: e.requesterId,
           type: "REDEMPTION_REJECTED",
           title: "교환 신청 반려",
-          message: `${e.itemName} 신청이 반려됐어요. ${won(e.refundP)}P 환불 완료.${tail}`,
+          message: `${e.itemName} 신청이 반려됐어요. ${won(e.refundP)}콘 환불 완료.${tail}`,
           linkPath: "/redemption",
           companyId: (await this.companyOf(e.requesterId)) ?? 1n,
         },

@@ -14,6 +14,35 @@ export type ReleaseWindow = {
   occurrenceDate: Date;
 };
 
+/** after 시각 이후 가장 가까운 다음 회차. cadence="none"은 다음 회차 없음(현재와 동일 반환). */
+export function nextReleaseWindow(policy: ReleasePolicy, after: Date): ReleaseWindow {
+  if (policy.cadence === "none") {
+    return { periodIndex: "ONCE", occurrenceDate: new Date(after.getTime()) };
+  }
+  const [hh, mm] = parseTimeOfDay(policy.timeOfDay);
+  if (policy.cadence === "daily") {
+    const d = new Date(after);
+    d.setDate(d.getDate() + 1);
+    d.setHours(hh, mm, 0, 0);
+    return { periodIndex: ymd(d), occurrenceDate: d };
+  }
+  if (policy.cadence === "weekly") {
+    const d = new Date(after);
+    d.setDate(d.getDate() + 7);
+    d.setHours(hh, mm, 0, 0);
+    return { periodIndex: isoWeek(d), occurrenceDate: d };
+  }
+  // monthly — 다음 달 dayOfMonth(없으면 마지막 날).
+  const y = after.getFullYear();
+  const m = after.getMonth();
+  const nextY = m === 11 ? y + 1 : y;
+  const nextM = m === 11 ? 0 : m + 1;
+  const lastDay = new Date(nextY, nextM + 1, 0).getDate();
+  const day = Math.min(policy.dayOfMonth, lastDay);
+  const d = new Date(nextY, nextM, day, hh, mm, 0, 0);
+  return { periodIndex: `${nextY}-${pad2(nextM + 1)}`, occurrenceDate: d };
+}
+
 export function currentReleaseWindow(policy: ReleasePolicy, now: Date): ReleaseWindow {
   if (policy.cadence === "none") {
     return { periodIndex: "ONCE", occurrenceDate: new Date(now.getTime()) };

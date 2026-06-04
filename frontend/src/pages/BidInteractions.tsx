@@ -164,7 +164,7 @@ function BidVarA({ p }: { p: Palette }) {
             lineHeight: 1,
           }}
         >
-          9,100<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+          9,100<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
         </div>
         <Btn
           p={p}
@@ -174,7 +174,7 @@ function BidVarA({ p }: { p: Palette }) {
           style={{ marginTop: 18, height: 72, fontSize: 20 }}
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-            <Icon.bolt size={20} /> 9,200P 즉시 입찰
+            <Icon.bolt size={20} /> 9,200콘 즉시 입찰
           </span>
         </Btn>
         <div
@@ -186,7 +186,7 @@ function BidVarA({ p }: { p: Palette }) {
             color: p.inkMuted,
           }}
         >
-          <span>+100P 증분</span>
+          <span>+100콘 증분</span>
           <span>확인 없이 바로 차감됩니다</span>
         </div>
       </div>
@@ -220,7 +220,7 @@ function BidVarB({ p }: { p: Palette }) {
       <div style={{ marginTop: 24, position: "relative" }}>
         <div style={{ padding: 16, background: p.bg, borderRadius: 12, opacity: 0.4 }}>
           <div className="mono" style={{ fontSize: 22, fontWeight: 700, color: p.inkMuted }}>
-            9,100 P
+            9,100 콘
           </div>
         </div>
         <div
@@ -244,7 +244,7 @@ function BidVarB({ p }: { p: Palette }) {
               lineHeight: 1,
             }}
           >
-            9,200 <span style={{ fontSize: 16, color: p.inkMuted }}>P</span>
+            9,200 <span style={{ fontSize: 16, color: p.inkMuted }}>콘</span>
           </div>
           <div
             style={{
@@ -257,8 +257,8 @@ function BidVarB({ p }: { p: Palette }) {
               gap: 8,
             }}
           >
-            <Row p={p} k="잔액에서 차감" v="-9,200 P" />
-            <Row p={p} k="입찰 후 잔액" v="3,250 P" />
+            <Row p={p} k="잔액에서 차감" v="-9,200 콘" />
+            <Row p={p} k="입찰 후 잔액" v="3,250 콘" />
           </div>
           <div
             style={{
@@ -325,11 +325,11 @@ function BidVarC({ p }: { p: Palette }) {
                 lineHeight: 1,
               }}
             >
-              10,200<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+              10,200<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
             </div>
           </div>
           <Pill p={p} tone="success" size="sm">
-            +1,100P
+            +1,100콘
           </Pill>
         </div>
 
@@ -444,7 +444,7 @@ function BidVarC({ p }: { p: Palette }) {
           </Btn>
           <Btn p={p} variant="primary" size="md" full>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Icon.hammer size={14} /> 10,200P 입찰
+              <Icon.hammer size={14} /> 10,200콘 입찰
             </span>
           </Btn>
         </div>

@@ -1,4 +1,4 @@
-// RejectRedemptionRequest — 관리자 반려 + 포인트 환불 (ADR-023 v2).
+// RejectRedemptionRequest — 관리자 반려 + 콘 환불 (ADR-023 v2).
 // 단일 트랜잭션:
 //   redemption_request → REJECTED + decisionNote
 //   wallet 환불(+priceP) + REDEEM_REFUND ledger(보상 INSERT, DB-RULE-1)
@@ -52,7 +52,7 @@ export class RejectRedemptionRequestUseCase {
         },
       });
 
-      // 포인트 환불 + REDEEM_REFUND ledger.
+      // 콘 환불 + REDEEM_REFUND ledger.
       const wallet = await tx.wallet.findUnique({
         where: { uq_wallet_user_currency: { userId: req.userId, currency: "WELFARE_POINT" } },
       });

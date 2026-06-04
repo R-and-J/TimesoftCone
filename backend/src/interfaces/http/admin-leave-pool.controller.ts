@@ -5,7 +5,7 @@
 //   POST /api/admin/leave-pool/release               → 회차 도래 시에만 발행(자동 배치와 동일).
 //   ?sourceYear= 로 수집/발행 대상 연도 지정(기본 올해).
 
-import { Controller, Post, Query } from "@nestjs/common";
+import { Controller, Get, Post, Query } from "@nestjs/common";
 import { CollectLeavePoolUseCase } from "@/application/leave-pool/collect-leave-pool.use-case";
 import { ReleaseInventoryUseCase } from "@/application/leave-pool/release-inventory.use-case";
 import { Roles, ADMIN_ROLES, CompanyScope } from "./auth/auth.decorators";
@@ -44,5 +44,12 @@ export class AdminLeavePoolController {
     };
     if (companyId == null) return this.release.executeAll(opts);
     return this.release.execute({ ...opts, companyId });
+  }
+
+  /** 다음 자동 발행 회차 미리보기 — AdminAuctions "오픈 예정" 위 안내용. */
+  @Get("upcoming")
+  async upcomingRelease(@CompanyScope() companyId: bigint | null) {
+    // super "전체"(null)면 EZPASS(1) 기준 — 회사 스위처가 잡혀 있으면 그 회사.
+    return this.release.previewNext({ companyId });
   }
 }

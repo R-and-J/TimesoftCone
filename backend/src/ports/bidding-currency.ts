@@ -5,7 +5,7 @@
 // Note: this interface does not include payout() — that lives on a separate
 // PayoutChannel port (year-end dividend, future PR).
 
-import type { Point } from "../domain/shared/value-objects/point";
+import type { Cone } from "../domain/shared/value-objects/cone";
 import type { UserId } from "../domain/shared/value-objects/user-id";
 import type { TransactionRef } from "../domain/ledger/transaction-ref";
 
@@ -14,11 +14,11 @@ export const BIDDING_CURRENCY = Symbol("BiddingCurrency");
 export interface BiddingCurrency {
   readonly currencyCode: string;
 
-  getBalance(userId: UserId): Promise<Point>;
+  getBalance(userId: UserId): Promise<Cone>;
 
   /** Atomic: wallet debit + ledger INSERT. Throws if balance < amount. */
-  debit(userId: UserId, amount: Point, ref: TransactionRef): Promise<void>;
+  debit(userId: UserId, amount: Cone, ref: TransactionRef): Promise<void>;
 
   /** Atomic: wallet credit + ledger INSERT. Used for REFUND and CREDIT_ADMIN. */
-  credit(userId: UserId, amount: Point, ref: TransactionRef): Promise<void>;
+  credit(userId: UserId, amount: Cone, ref: TransactionRef): Promise<void>;
 }

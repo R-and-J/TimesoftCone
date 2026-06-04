@@ -18,7 +18,7 @@ metadata:
 - 진짜 HR 연차 테이블에 경매분을 써넣으면 *이중보상* 위험 — 회사가 연차수당까지 부담할 가능성.
 - 안전한 분리: 우리 `leave_balance(AUCTION)`에만 적립, 진짜 HR 연차는 안 건드림 ([[ADR-002]] 3-flag).
 
-[[ADR-005]] Outbox + `HrLeaveClient` 인프라는 이미 구축됨([[ADR-013]] EventBus와 역할 분리). 단 `HrLeaveClientAdapter`의 기본 모드는 Mock(외부 호출 0), 실 HR 엔드포인트엔 연결되지 않음 — 발표/데모상 "외부 연동까지 한다"를 *시연*할 도착지가 없었음.
+[[ADR-005]] Outbox + `HrLeaveClient` 인프라는 이미 구축됨([[ADR-013]] EventBus와 역할 분리). 단 `HrLeaveClientAdapter`의 기본 모드는 Mock(외부 호출 0), 실 HR 엔드콘엔 연결되지 않음 — 발표/데모상 "외부 연동까지 한다"를 *시연*할 도착지가 없었음.
 
 여섯 줄기 외부연동 점검에서 ③(HR 연차 통지)이 mock으로만 멈춰 있어, **실제 ezpass에 쓰는 어댑터를 추가**해 그 한 칸을 닫기로 결정.
 
@@ -32,7 +32,7 @@ metadata:
 
 ### 개정 (2026-06-01 오후) — ezpass 정식 REST API
 
-ezpass 코드 분석으로 **정식 엔드포인트 발견**:
+ezpass 코드 분석으로 **정식 엔드콘 발견**:
 - `POST {bsns}/v1/cmn/dlz/CmnDlz0020P/selectUserYrycInfo` — 단일 사용자의 현재 mdat 절대값 조회.
 - `PUT  {bsns}/v1/adm/dlz/AdmDlz0070M/streYryc` — `[AdmDlz0070MUpdtYrycVo]` 리스트로 mdat 절대값 덮어쓰기. 관리자 메뉴 "근태 관리 > 개인별 휴가 관리"가 사용하는 그 API.
 
@@ -111,6 +111,6 @@ ezpass가 `mdat_yryc_day_qty`를 연차수당 계산에 포함하느냐는 ezpas
   - `backend/src/adapters/hr/ezpass-hr-leave.client.ts` — REST 어댑터
   - `backend/src/adapters/auth/ezpass-admin-token.service.ts` — 시스템 토큰 캐시
   - `backend/src/ports/hr-leave-client.port.ts` — 포트(변경 없음)
-- ezpass 측 엔드포인트 (참고):
+- ezpass 측 엔드콘 (참고):
   - `POST /v1/cmn/dlz/CmnDlz0020P/selectUserYrycInfo` — `{ submitUserNo, startDe }` → `{ mdatYryc, ... }`
   - `PUT  /v1/adm/dlz/AdmDlz0070M/streYryc` — `[{ userNo, mdatYrycDayQty, mdatYrycDayQtyMinute, yrycYear, content }]`

@@ -229,23 +229,35 @@ async function seedActivity() {
 /** 스토어 카탈로그(ADR-023) — 자립형 배포 데모용 상품 시드. sku로 멱등 upsert. */
 async function seedRedemptionCatalog() {
   const items = [
-    { sku: "AI-SUB-1M", name: "AI 구독권 (1개월)", description: "ChatGPT/Claude Pro 등 1개월 구독", priceP: 30000n, stock: null, category: "디지털 구독" },
-    { sku: "AI-SUB-1Y", name: "AI 구독권 (1년)", description: "ChatGPT/Claude Pro 등 1년 구독", priceP: 300000n, stock: 10, category: "디지털 구독" },
-    { sku: "MEAL-1", name: "사내 식권 1매", description: "구내식당/제휴 식당", priceP: 5000n, stock: null, category: "식권" },
-    { sku: "MEAL-10", name: "사내 식권 10매 묶음", description: "10매 묶음 할인가", priceP: 45000n, stock: 50, category: "식권" },
-    { sku: "STARBUCKS-ICED-AME", name: "스타벅스 아이스 아메리카노 Tall", description: "스타벅스 기프티콘", priceP: 5000n, stock: null, category: "카페 상품권" },
-    { sku: "TWOSOME-CAKE-SET", name: "투썸 아메리카노 + 조각케익 세트", description: "투썸 기프티콘", priceP: 12000n, stock: 30, category: "카페 상품권" },
-    { sku: "KAKAO-GIFT-10K", name: "카카오톡 선물하기 10,000원권", description: "원하는 상품 자유 선택", priceP: 10000n, stock: null, category: "기프티콘" },
-    { sku: "KAKAO-GIFT-30K", name: "카카오톡 선물하기 30,000원권", description: "원하는 상품 자유 선택", priceP: 30000n, stock: null, category: "기프티콘" },
+    { sku: "AI-SUB-1M", name: "AI 구독권 (1개월)", brand: "OpenAI · Anthropic", description: "ChatGPT/Claude Pro 등 1개월 구독", priceP: 30000n, stock: null, category: "디지털 구독", displayOrder: 10 },
+    { sku: "AI-SUB-1Y", name: "AI 구독권 (1년)", brand: "OpenAI · Anthropic", description: "ChatGPT/Claude Pro 등 1년 구독", priceP: 300000n, stock: 10, category: "디지털 구독", displayOrder: 11 },
+    { sku: "MEAL-1", name: "사내 식권 1매", brand: "타임소프트콘 구내식당", description: "구내식당/제휴 식당", priceP: 5000n, stock: null, category: "식권", displayOrder: 20 },
+    { sku: "MEAL-10", name: "사내 식권 10매 묶음", brand: "타임소프트콘 구내식당", description: "10매 묶음 할인가", priceP: 45000n, stock: 50, category: "식권", displayOrder: 21 },
+    { sku: "STARBUCKS-ICED-AME", name: "아이스 아메리카노 Tall", brand: "스타벅스", description: "스타벅스 기프티콘", priceP: 5000n, stock: null, category: "카페 상품권", displayOrder: 30 },
+    { sku: "TWOSOME-CAKE-SET", name: "아메리카노 + 조각케익 세트", brand: "투썸플레이스", description: "투썸 기프티콘", priceP: 12000n, stock: 30, category: "카페 상품권", displayOrder: 31 },
+    { sku: "KAKAO-GIFT-10K", name: "카카오톡 선물하기 10,000원권", brand: "카카오", description: "원하는 상품 자유 선택", priceP: 10000n, stock: null, category: "기프티콘", displayOrder: 40 },
+    { sku: "KAKAO-GIFT-30K", name: "카카오톡 선물하기 30,000원권", brand: "카카오", description: "원하는 상품 자유 선택", priceP: 30000n, stock: null, category: "기프티콘", displayOrder: 41 },
   ];
   for (const it of items) {
     await prisma.redemptionItem.upsert({
       where: { sku: it.sku },
-      update: { name: it.name, description: it.description, priceP: it.priceP, stock: it.stock, category: it.category, active: true },
+      update: { name: it.name, brand: it.brand, description: it.description, priceP: it.priceP, stock: it.stock, category: it.category, displayOrder: it.displayOrder, active: true },
       create: it,
     });
   }
-  console.log(`  카탈로그 ${items.length}종 (AI 구독권/식권/카페/기프티콘)`);
+  // EXAM 회사용 최소 시드 — 사용자가 EXAM 관리자로 들어가도 빈 카탈로그가 아니게.
+  const examItems = [
+    { sku: "EXAM-COFFEE", name: "체험용 커피 쿠폰", brand: "체험 카페", description: "EXAM 회사 데모 상품", priceP: 3000n, stock: null, category: "카페 상품권", displayOrder: 10, companyId: 2n },
+    { sku: "EXAM-MEAL", name: "체험용 식사 쿠폰", brand: "체험 식당", description: "EXAM 회사 데모 상품", priceP: 8000n, stock: 20, category: "식권", displayOrder: 20, companyId: 2n },
+  ];
+  for (const it of examItems) {
+    await prisma.redemptionItem.upsert({
+      where: { sku: it.sku },
+      update: { name: it.name, brand: it.brand, description: it.description, priceP: it.priceP, stock: it.stock, category: it.category, displayOrder: it.displayOrder, companyId: it.companyId, active: true },
+      create: it,
+    });
+  }
+  console.log(`  카탈로그 EZPASS ${items.length}종 + EXAM ${examItems.length}종 (brand·displayOrder 포함)`);
 }
 
 /** EXAM(비연동 독립) 데모 계정 — ezpass에 없고 우리 DB가 정본. 로컬 비번으로 로그인.
@@ -374,13 +386,16 @@ async function setupSuperAdmin() {
   console.log(`  최고관리자: ${EMAIL} → ADMIN + 로컬 비번`);
 }
 
-/** EZPASS 작년(2025) 경매 39건 + stake(year=2025). 연말 배당(ADR-008) 시연용.
+/** EZPASS 올해(YEAR) 경매 39건 + stake(year=YEAR). 연말 배당(ADR-008) 시연용.
+ *  AdminOps "배당 정산" 버튼이 기본으로 올해를 정산하므로 시드도 같은 연도에 맞춘다.
  *  매물 모두 AWARDED(과거 settled). stake는 user001 12일(30.8%) + user002~010 각 3일.
- *  멱등: A-2025-* 매물이 이미 있으면 스킵. EZPASS 회사(1n)로 태깅.
- *  settle 호출:  POST /api/admin/dividend/settle?year=2025  (또는 dryRun=true 미리보기). */
-async function setupLastYearDividendDemo() {
-  if ((await prisma.auction.count({ where: { id: { startsWith: "A-2025-" } } })) > 0) {
-    console.log("  (A-2025-* 매물 존재 → 작년 배당 데모 시드 건너뜀)");
+ *  ID는 A-{YEAR}-300 ~ 338(기존 A-{YEAR}-090~109/201~203과 충돌 없게).
+ *  멱등: A-{YEAR}-300 매물이 있으면 스킵. EZPASS 회사(1n)로 태깅.
+ *  settle 호출:  POST /api/admin/dividend/settle  (year 생략=올해, 또는 ?dryRun=true). */
+async function setupDividendDemo() {
+  const firstId = `A-${YEAR}-300`;
+  if ((await prisma.auction.count({ where: { id: firstId } })) > 0) {
+    console.log(`  (${firstId} 존재 → 배당 데모 시드 건너뜀)`);
     return;
   }
   await loadBalances();
@@ -398,13 +413,14 @@ async function setupLastYearDividendDemo() {
   };
 
   const N = 39;
-  const start0 = Date.now() - 220 * DAY; // 작년 어딘가부터 시작.
+  // YEAR 1/1부터 3일 간격 — 39 매물이 약 117일에 걸쳐 분포(모두 과거여야 settle 가능).
+  const start0 = new Date(YEAR, 0, 1).getTime();
   for (let i = 1; i <= N; i++) {
-    const id = `A-2025-${String(i).padStart(3, "0")}`;
-    const startedAt = new Date(start0 + i * DAY);
+    const id = `A-${YEAR}-${String(299 + i).padStart(3, "0")}`;
+    const startedAt = new Date(start0 + i * 3 * DAY);
     const endsAt = new Date(startedAt.getTime() + 6 * HR);
     await putAuction(id, "OPEN", 1, 30000, startedAt, endsAt);
-    // 결정적이고 서로 겹치지 않는 3명 — user001~user010 안에서 회전.
+    // 결정적이고 서로 겹치지 않게 user001~user010 안에서 회전.
     const pool = 10;
     const a = U(((i * 1) % pool) + 1);
     const b = U(((i * 3) % pool) + 1 === ((i * 1) % pool) + 1 ? ((i * 3 + 1) % pool) + 1 : ((i * 3) % pool) + 1);
@@ -419,13 +435,13 @@ async function setupLastYearDividendDemo() {
       try {
         await bid(id, u, amt);
       } catch {
-        /* 같은 매물에서 같은 사용자가 연속 입찰 또는 잔액 부족 — 패턴상 거의 안 발생 */
+        /* 같은 사용자 연속 입찰 또는 잔액 부족 — 패턴상 거의 안 발생 */
       }
     }
     await settle(id);
   }
 
-  // stake(year=2025) — user001 12일(≈30.8%) + user002~010 각 3일(합 27일) = 총 39일.
+  // stake(year=YEAR) — user001 12일(≈30.8%) + user002~010 각 3일(합 27일) = 총 39일.
   const dist: [string, number][] = [
     ["user001", 12],
     ["user002", 3], ["user003", 3], ["user004", 3],
@@ -437,18 +453,18 @@ async function setupLastYearDividendDemo() {
     const id = byLocal.get(local);
     if (!id) continue;
     await prisma.stake.upsert({
-      where: { uq_stake_user_year: { userId: id, year: 2025 } },
+      where: { uq_stake_user_year: { userId: id, year: YEAR } },
       update: { days, companyId: 1n },
-      create: { userId: id, year: 2025, days, companyId: 1n },
+      create: { userId: id, year: YEAR, days, companyId: 1n },
     });
     stakeSum += days;
   }
   const esc = await prisma.ledgerEntry.aggregate({
     _sum: { amount: true },
-    where: { actionType: "BID", companyId: 1n, auctionId: { startsWith: "A-2025-" } },
+    where: { actionType: "BID", companyId: 1n, auctionId: { startsWith: `A-${YEAR}-3` } },
   });
   console.log(
-    `  2025 매물 ${N}건 AWARDED · stake(2025) 합 ${stakeSum}일(user001 12/${stakeSum}=${((12 / stakeSum) * 100).toFixed(1)}%) · 추가 escrow ≈ ${Number(-(esc._sum.amount ?? 0n))}P`,
+    `  ${YEAR} 데모 매물 ${N}건 AWARDED · stake(${YEAR}) 합 ${stakeSum}일(user001 12/${stakeSum}=${((12 / stakeSum) * 100).toFixed(1)}%) · 추가 escrow ≈ ${Number(-(esc._sum.amount ?? 0n))}P`,
   );
 }
 
@@ -469,11 +485,11 @@ async function main() {
   await seedActivity();
   console.log("== 3b) EXAM 회사 독립 데모 활동 ==");
   await setupExamAuctions();
-  console.log("== 3c) EZPASS 작년 배당 데모 (2025 매물 39건 + stake) ==");
-  await setupLastYearDividendDemo();
+  console.log(`== 3c) EZPASS ${YEAR} 배당 시연 데이터 (매물 39건 + stake) ==`);
+  await setupDividendDemo();
   console.log("\n✅ Seed complete (ezpass-backed, 멀티테넌시).");
   console.log("   A-2026-104는 ~2분 후 자동 마감(SettleDueAuctionsScheduler)");
-  console.log("   배당 시연: POST /api/admin/dividend/settle?year=2025 (dryRun=true 미리보기)");
+  console.log(`   배당 시연: POST /api/admin/dividend/settle (?dryRun=true 미리보기, year 생략=${YEAR})`);
 }
 
 main()

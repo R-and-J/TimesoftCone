@@ -13,7 +13,7 @@ import { PrismaLedgerRepository } from "../persistence/prisma-ledger.repository"
 import type { BiddingCurrency } from "@/ports/bidding-currency";
 import type { PayoutChannel, DividendPayout } from "@/ports/payout-channel";
 import { UserId } from "@/domain/shared/value-objects/user-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { Currency } from "@/domain/shared/value-objects/currency";
 import { Wallet } from "@/domain/wallet/wallet";
 import { LedgerEntry } from "@/domain/ledger/ledger-entry";
@@ -39,14 +39,14 @@ export class WelfarePointProvider implements BiddingCurrency, PayoutChannel {
     private readonly ledger: PrismaLedgerRepository,
   ) {}
 
-  async getBalance(userId: UserId): Promise<Point> {
+  async getBalance(userId: UserId): Promise<Cone> {
     const wallet = await this.wallets.find(userId, this.currency);
-    return wallet?.balance ?? Point.ZERO;
+    return wallet?.balance ?? Cone.ZERO;
   }
 
   async debit(
     userId: UserId,
-    amount: Point,
+    amount: Cone,
     ref: TransactionRef,
   ): Promise<void> {
     if (!isDebitAction(ref.actionType)) {
@@ -79,7 +79,7 @@ export class WelfarePointProvider implements BiddingCurrency, PayoutChannel {
 
   async credit(
     userId: UserId,
-    amount: Point,
+    amount: Cone,
     ref: TransactionRef,
   ): Promise<void> {
     if (!isCreditAction(ref.actionType)) {

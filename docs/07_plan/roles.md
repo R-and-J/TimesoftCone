@@ -60,7 +60,7 @@
 
 **기술 주담당**:
 - [ ] 인증 (SSO + JWT)
-- [ ] User / Point 도메인
+- [ ] User / Cone 도메인
 - [ ] LeaveBalance 도메인 (FR-3.1 차감 로직)
 - [ ] 배당 계산 로직 (Stake ratio)
 - [ ] 관리자 API (FR-4.2)

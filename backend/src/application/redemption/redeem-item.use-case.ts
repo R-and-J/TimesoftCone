@@ -1,4 +1,4 @@
-// RedeemItem — 포인트 교환(ADR-023). 단일 트랜잭션:
+// RedeemItem — 콘 교환(ADR-023). 단일 트랜잭션:
 //   1) 재고 원자적 감소(SQLite write 락 + 조건부 UPDATE, 오버셀 방지).
 //   2) 지갑 잔액 확인 + 차감.
 //   3) ledger REDEEM INSERT(음수 amount).
@@ -68,7 +68,7 @@ export class RedeemItemUseCase {
       const newBalance = wallet.balance - item.priceP;
       if (newBalance < 0n) {
         throw new ConflictException(
-          `잔액 부족 (현재 ${wallet.balance}P, 필요 ${item.priceP}P)`,
+          `잔액 부족 (현재 ${wallet.balance}콘, 필요 ${item.priceP}콘)`,
         );
       }
 

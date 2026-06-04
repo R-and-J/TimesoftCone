@@ -65,10 +65,10 @@ sequenceDiagram
     Note right of AS: self-message<br/>비즈니스 룰 검증
 
     %% --------- 4. 검증 분기 ---------
-    alt 포인트 부족 [잔액이 입찰가 미만]
+    alt 콘 부족 [잔액이 입찰가 미만]
         Note right of AS: 트랜잭션 롤백 시 write 락 자동 해제
         AS -->> FE: 400 POINT_INSUFFICIENT
-        FE -->> 구매자: "포인트 부족" 알림
+        FE -->> 구매자: "콘 부족" 알림
     else 정상 입찰
         %% --------- 5. DB 단일 트랜잭션 ---------
         AS ->> DB: BEGIN TRANSACTION
@@ -145,7 +145,7 @@ sequenceDiagram
 
 | 프레임 | 용도 |
 |---|---|
-| `alt / else` | 포인트 부족 분기, HR API 성공/실패 |
+| `alt / else` | 콘 부족 분기, HR API 성공/실패 |
 | `par / and` | Outbox Worker + WebSocket 브로드캐스트 병렬 |
 | `opt` | 조건부 WebSocket 알림 (기존 입찰자만) |
 | `box` | 참여자 그룹핑 (Infrastructure, External) |

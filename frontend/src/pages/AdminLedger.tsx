@@ -152,7 +152,7 @@ export default function AdminLedgerPage() {
                 거래 원장
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                모든 포인트 입·출금 내역을 기록하며 수정·삭제할 수 없습니다
+                모든 콘 입·출금 내역을 기록하며 수정·삭제할 수 없습니다
               </div>
             </div>
           </div>

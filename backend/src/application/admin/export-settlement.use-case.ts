@@ -97,7 +97,7 @@ export class ExportSettlementUseCase {
     });
   }
 
-  /** 누가 얼마나 썼나 — 낙찰자가 escrow에 넣은 포인트(=실제 지출)를 사람별로 합산. */
+  /** 누가 얼마나 썼나 — 낙찰자가 escrow에 넣은 콘(=실제 지출)를 사람별로 합산. */
   async spending(): Promise<SpendRow[]> {
     const auctions = await this.prisma.auction.findMany({
       where: { status: "AWARDED", highestBidder: { not: null } },

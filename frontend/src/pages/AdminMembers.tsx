@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
 import { Btn, Pill, TopNav } from "@/components/atoms";
@@ -78,8 +79,8 @@ export default function AdminMembersPage() {
       : m.role === "EXAM" || m.role === "EXAM_ADMIN" || m.role === "ADMIN",
   );
 
-  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트(+관리)/휴가/작업).
-  // 포인트 컬럼이 "잔액 + 관리 버튼"을 같이 담아 넓어졌고, 작업은 수정/비활성만 남아 좁아졌다.
+  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/콘(+관리)/휴가/작업).
+  // 콘 컬럼이 "잔액 + 관리 버튼"을 같이 담아 넓어졌고, 작업은 수정/비활성만 남아 좁아졌다.
   // EZPASS 탭에선 작업 컬럼 자체를 제외하므로 w[8]은 EXAM 탭에서만 의미가 있다.
   const w = isLocal
     ? ["110px", "1fr", "200px", "1fr", "150px", "130px", "180px", "120px", "150px"]
@@ -123,7 +124,7 @@ export default function AdminMembersPage() {
       const sign = n > 0 ? "+" : "−";
       toast.push(
         "success",
-        `${creditFor.name} ${verb} — ${sign}${fmt.point(Math.abs(n))} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+        `${creditFor.name} ${verb} — ${sign}${fmt.point(Math.abs(n))} 콘 (잔액 ${fmt.point(Number(r.newBalance))} 콘)`,
       );
       setCreditFor(null);
       await membersQ.refetch();
@@ -140,7 +141,7 @@ export default function AdminMembersPage() {
       const r = await approveChargeRequest(chargeReq.id);
       toast.push(
         "success",
-        `${creditFor.name} 승인 — +${fmt.point(Number(r.amount))} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+        `${creditFor.name} 승인 — +${fmt.point(Number(r.amount))} 콘 (잔액 ${fmt.point(Number(r.newBalance))} 콘)`,
       );
       setCreditFor(null);
       setChargeReq(null);
@@ -456,7 +457,7 @@ export default function AdminMembersPage() {
             style={{ width: 440, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
           >
             <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
-              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "포인트 관리"}
+              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "콘 관리"}
             </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>
               <b>{creditFor.name}</b> · 사번 {creditFor.empId}
@@ -467,10 +468,10 @@ export default function AdminMembersPage() {
               )}
             </div>
             <div className="mono" style={{ fontSize: 12, color: p.inkSoft, marginBottom: 16 }}>
-              현재 잔액 {fmt.point(Number(creditFor.balance))} P
+              현재 잔액 {fmt.point(Number(creditFor.balance))} 콘
             </div>
 
-            <Field label={chargeReq ? "요청 금액 (P)" : "금액 (P · 음수=차감)"}>
+            <Field label={chargeReq ? "요청 금액 (P)" : "금액 (콘 · 음수=차감)"}>
               <input
                 style={{ ...inp(p), background: chargeReq ? p.bgDeep : p.bg }}
                 type="number" step={100}
@@ -639,32 +640,126 @@ function inp(p: Palette): CSSProperties {
   };
 }
 
-// 연차 시각화 — 파(REGULAR) + 노(AUCTION+EVENT) + 회(used). title에 상세.
+// 연차 시각화 — 파(REGULAR) + 주황(AUCTION) + 노랑(EVENT) + 회(used).
+// hover 시 종류별 일수 popover. 표 본문이 overflow:auto라 잘리지 않게 Portal+fixed.
 function LeaveBar({ lv, p }: { lv: MemberRow["leave"]; p: Palette }) {
   const grand = lv.regular + lv.auction + lv.event + lv.used;
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; placement: "below" | "above" } | null>(null);
+
   if (grand === 0) return <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>;
   const pct = (n: number) => (n / grand) * 100;
-  const noAucEvt = lv.auction + lv.event;
+
+  const POPOVER_HEIGHT = 160; // 대략 — 위/아래 결정용
+  const POPOVER_WIDTH = 240;  // 대략 — 좌/우 클램프용
+  const MARGIN = 12;
+  const onEnter = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    // 위/아래 — 아래 공간 부족하면 위로.
+    const spaceBelow = window.innerHeight - r.bottom;
+    const placement: "above" | "below" = spaceBelow < POPOVER_HEIGHT + 16 ? "above" : "below";
+    // 좌/우 — viewport 우측을 넘어가지 않게 클램프.
+    const maxLeft = window.innerWidth - POPOVER_WIDTH - MARGIN;
+    const left = Math.max(MARGIN, Math.min(r.left, maxLeft));
+    setPos({
+      top: placement === "below" ? r.bottom + 6 : r.top - 6,
+      left,
+      placement,
+    });
+  };
+  const onLeave = () => setPos(null);
+
   return (
-    <div title={`일반 ${lv.regular}일 · 경매/이벤트 ${noAucEvt}일 · 사용 ${lv.used}일 · 잔여 ${lv.total}일`}>
+    <>
       <div
-        style={{
-          display: "flex",
-          width: "100%",
-          maxWidth: 100,
-          height: 7,
-          borderRadius: 4,
-          overflow: "hidden",
-          background: p.bg,
-        }}
+        ref={ref}
+        style={{ display: "inline-block" }}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
       >
-        {lv.regular > 0 && <div style={{ width: `${pct(lv.regular)}%`, background: "#3b82f6" }} />}
-        {noAucEvt > 0 && <div style={{ width: `${pct(noAucEvt)}%`, background: "#f59e0b" }} />}
-        {lv.used > 0 && <div style={{ width: `${pct(lv.used)}%`, background: p.inkMuted }} />}
+        <div
+          style={{
+            display: "flex",
+            width: 100,
+            height: 7,
+            borderRadius: 4,
+            overflow: "hidden",
+            background: p.bg,
+          }}
+        >
+          {lv.regular > 0 && <div style={{ width: `${pct(lv.regular)}%`, background: "#3b82f6" }} />}
+          {lv.auction > 0 && <div style={{ width: `${pct(lv.auction)}%`, background: "#f59e0b" }} />}
+          {lv.event > 0 && <div style={{ width: `${pct(lv.event)}%`, background: "#eab308" }} />}
+          {lv.used > 0 && <div style={{ width: `${pct(lv.used)}%`, background: p.inkMuted }} />}
+        </div>
+        <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2, fontWeight: 600 }}>
+          잔여 <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}</span>일
+        </div>
       </div>
-      <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2, fontWeight: 600 }}>
-        잔여 <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}</span>일
-      </div>
+
+      {pos && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: pos.placement === "below" ? pos.top : undefined,
+            bottom: pos.placement === "above" ? window.innerHeight - pos.top : undefined,
+            left: pos.left,
+            background: p.surface,
+            border: `1px solid ${p.line}`,
+            borderRadius: 10,
+            padding: "10px 12px",
+            boxShadow: "0 8px 24px rgba(11,25,41,0.22)",
+            fontSize: 11,
+            color: p.ink,
+            zIndex: 9999,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            minWidth: 220,
+          }}
+        >
+          <LeaveLegend color="#3b82f6" label="일반(REGULAR)" days={lv.regular} p={p} />
+          <LeaveLegend color="#f59e0b" label="경매 낙찰(AUCTION)" days={lv.auction} p={p} />
+          <LeaveLegend color="#eab308" label="이벤트(EVENT)" days={lv.event} p={p} />
+          <LeaveLegend color={p.inkMuted} label="사용함" days={lv.used} p={p} muted />
+          <div
+            style={{
+              marginTop: 6,
+              paddingTop: 6,
+              borderTop: `1px solid ${p.line}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ color: p.inkMuted, fontWeight: 700 }}>잔여 합계</span>
+            <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}일</span>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+function LeaveLegend({
+  color,
+  label,
+  days,
+  p,
+  muted,
+}: {
+  color: string;
+  label: string;
+  days: number;
+  p: Palette;
+  muted?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+      <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+      <span style={{ flex: 1, color: muted ? p.inkMuted : p.inkSoft }}>{label}</span>
+      <span style={{ color: muted ? p.inkSoft : p.ink, fontWeight: 700, marginLeft: 14 }}>{days}일</span>
     </div>
   );
 }
@@ -766,13 +861,13 @@ function memberColumns({
     },
     {
       key: "balance",
-      header: "포인트",
+      header: "콘",
       width: w[6],
-      align: "left",
+      align: "center",
       render: (m) => (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <span className="mono" style={{ color: p.ink, fontWeight: 700, fontSize: 12 }}>
-            {fmt.point(Number(m.balance))} P
+            {fmt.point(Number(m.balance))} 콘
           </span>
           <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
             관리
@@ -784,7 +879,7 @@ function memberColumns({
       key: "leave",
       header: "휴가",
       width: w[7],
-      align: "left",
+      align: "center",
       render: (m) => <LeaveBar lv={m.leave} p={p} />,
     },
   ];

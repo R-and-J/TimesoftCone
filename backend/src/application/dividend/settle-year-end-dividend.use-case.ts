@@ -20,7 +20,7 @@ import { PrismaService } from "@/adapters/persistence/prisma.service";
 import { GetAdminStatsUseCase } from "@/application/admin/get-admin-stats.use-case";
 import { PAYOUT_CHANNEL, type PayoutChannel } from "@/ports/payout-channel";
 import { UserId } from "@/domain/shared/value-objects/user-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 
 export type DividendLine = {
   userId: bigint;
@@ -141,7 +141,7 @@ export class SettleYearEndDividendUseCase {
       await this.payoutChannel.payout(
         payable.map((l) => ({
           userId: UserId.of(l.userId),
-          amount: Point.of(l.amount),
+          amount: Cone.of(l.amount),
           refNote: `${year}년 연말 배당 (지분 ${(l.stakeRatio * 100).toFixed(1)}%)`,
         })),
       );

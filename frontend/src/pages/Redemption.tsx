@@ -1,4 +1,4 @@
-// 스토어 — 자립형 배포 포인트 소모처(ADR-023 v2). UI 표시명은 "스토어".
+// 스토어 — 자립형 배포 콘 소모처(ADR-023 v2). UI 표시명은 "스토어".
 // 흐름: PENDING(차감/잠금) → APPROVED(쿠폰 발급) → RECEIVED(사용자 수령 컨펌)
 //                       ↘ REJECTED(환불)
 
@@ -54,7 +54,7 @@ export default function RedemptionPage() {
   const doSubmit = async () => {
     if (!confirming) return;
     if (balance < Number(confirming.priceP)) {
-      toast.push("error", `잔액 부족 (현재 ${fmt.point(balance)}P)`);
+      toast.push("error", `잔액 부족 (현재 ${fmt.point(balance)}콘)`);
       return;
     }
     setSubmitting(true);
@@ -114,10 +114,10 @@ export default function RedemptionPage() {
                     <Icon.bolt size={14} /> 스토어 · 교환 신청
                   </div>
                   <div style={{ fontSize: 28, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em", marginTop: 4 }}>
-                    내 포인트로 교환
+                    내 콘으로 교환
                   </div>
                   <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                    신청 시 포인트가 잠기고, 관리자가 승인하면 쿠폰을 발급합니다. 반려 시 자동 환불.
+                    신청 시 콘이 잠기고, 관리자가 승인하면 쿠폰을 발급합니다. 반려 시 자동 환불.
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 320, flexShrink: 0 }}>
@@ -126,7 +126,7 @@ export default function RedemptionPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>현재 잔액</div>
                         <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: p.ink, marginTop: 2, letterSpacing: "-0.02em" }}>
-                          {fmt.point(balance)}<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                          {fmt.point(balance)}<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
                         </div>
                       </div>
                       <Btn p={p} variant="ghost" size="sm" onClick={() => setHistoryOpen(true)}>
@@ -194,7 +194,7 @@ export default function RedemptionPage() {
                         <div style={{ fontSize: 11, color: p.inkMuted, lineHeight: 1.5 }}>{it.description}</div>
                       )}
                       <div className="mono" style={{ fontSize: 18, fontWeight: 800, color: p.ink, letterSpacing: "-0.01em", marginTop: 4 }}>
-                        {fmt.point(price)}<span style={{ fontSize: 11, color: p.inkMuted, marginLeft: 3 }}>P</span>
+                        {fmt.point(price)}<span style={{ fontSize: 11, color: p.inkMuted, marginLeft: 3 }}>콘</span>
                       </div>
                       <Btn
                         p={p}
@@ -267,7 +267,7 @@ export default function RedemptionPage() {
                           <div style={{ color: p.inkMuted, fontSize: 11, marginTop: 2 }}>메모: {r.note}</div>
                         )}
                       </div>
-                      <div className="mono" style={{ color: p.inkSoft }}>{fmt.point(Number(r.pricePAtRequest))}P</div>
+                      <div className="mono" style={{ color: p.inkSoft }}>{fmt.point(Number(r.pricePAtRequest))}콘</div>
                       <div style={{ color: p.inkMuted, fontSize: 11 }}>
                         {new Date(r.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </div>
@@ -306,7 +306,7 @@ export default function RedemptionPage() {
                       <div style={{ marginTop: 8, padding: 10, background: p.bg, borderRadius: 8, fontSize: 11, color: p.inkSoft }}>
                         <span style={{ color: p.danger, fontWeight: 700 }}>반려</span>
                         {r.decisionNote && <> — {r.decisionNote}</>}
-                        <span style={{ color: p.inkMuted }}> · {fmt.point(Number(r.pricePAtRequest))}P 환불됨</span>
+                        <span style={{ color: p.inkMuted }}> · {fmt.point(Number(r.pricePAtRequest))}콘 환불됨</span>
                       </div>
                     )}
                   </div>
@@ -335,7 +335,7 @@ export default function RedemptionPage() {
           >
             <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 6 }}>교환 신청</div>
             <div style={{ fontSize: 13, color: p.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-              <strong>{confirming.name}</strong>을(를) <span className="mono">{fmt.point(Number(confirming.priceP))}P</span>로 신청합니다.
+              <strong>{confirming.name}</strong>을(를) <span className="mono">{fmt.point(Number(confirming.priceP))}콘</span>로 신청합니다.
               {confirming.description && (<><br /><span style={{ fontSize: 12, color: p.inkMuted }}>{confirming.description}</span></>)}
             </div>
 
@@ -356,13 +356,13 @@ export default function RedemptionPage() {
 
             <div style={{ padding: 12, background: p.bg, borderRadius: 10, marginBottom: 16, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", color: p.inkSoft, marginBottom: 6 }}>
-                <span>신청 전 잔액</span><span className="mono">{fmt.point(balance)}P</span>
+                <span>신청 전 잔액</span><span className="mono">{fmt.point(balance)}콘</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", color: p.danger, marginBottom: 6 }}>
-                <span>잠금</span><span className="mono">−{fmt.point(Number(confirming.priceP))}P</span>
+                <span>잠금</span><span className="mono">−{fmt.point(Number(confirming.priceP))}콘</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", color: p.ink, fontWeight: 700, borderTop: `1px solid ${p.line}`, paddingTop: 6 }}>
-                <span>잠금 후 잔액</span><span className="mono">{fmt.point(balance - Number(confirming.priceP))}P</span>
+                <span>잠금 후 잔액</span><span className="mono">{fmt.point(balance - Number(confirming.priceP))}콘</span>
               </div>
               <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
                 반려되면 자동 환불됩니다. 승인되면 쿠폰이 이 화면에 표시되고 [수령 완료] 버튼을 눌러 마무리하세요.

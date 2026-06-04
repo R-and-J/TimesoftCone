@@ -374,15 +374,17 @@ export function adminCreditWallet(userId: string, amount: number, reason: string
   }>("/admin/wallet/credit", { userId, amount, reason });
 }
 
-// ── Redemption (스토어 — ADR-023 자립형 포인트 소모처) ──────────────
+// ── Redemption (스토어 — ADR-023 자립형 콘 소모처) ──────────────
 export type RedemptionItem = {
   id: number;
   sku: string;
   name: string;
+  brand: string | null;
   description: string | null;
   priceP: string;
   stock: number | null; // null = 무제한
   category: string | null;
+  displayOrder: number;
 };
 
 export type RedemptionOrder = {
@@ -691,10 +693,90 @@ export function grantEventFromUnsold(auctionId: string, userId: string) {
   );
 }
 
+// 대안 단건: UNSOLD를 같은 회사의 새 1일권 경매(CREATED)로 재오픈. 원본은 소진.
+export function reopenUnsoldAuction(auctionId: string, startedAt: string, endsAt: string) {
+  return apiPost<{ sourceId: string; newId: string; startedAt: string; endsAt: string }>(
+    `/admin/auctions/${auctionId}/reopen-unsold`,
+    { startedAt, endsAt },
+  );
+}
+
+export type UpcomingReleaseResponse = {
+  targetYear: number;
+  companyId: string;
+  cadence: "none" | "daily" | "weekly" | "monthly";
+  periodIndex: string;
+  occurrenceDate: string;
+  quantity: number;
+  totalRemaining: number;
+  hasPending: boolean;
+};
+/** 다음 자동 발행 회차 미리보기 — 정책/풀 잔여 기반. */
+export function getUpcomingRelease() {
+  return apiGet<UpcomingReleaseResponse>("/admin/leave-pool/upcoming");
+}
+
 // 일괄: 지정 연도 이전(포함) UNSOLD 매물 영구 삭제.
 export function purgeUnsold(upToYear?: number) {
   const qs = upToYear !== undefined ? `?upToYear=${upToYear}` : "";
   return apiPost<{ upToYear: number; deleted: number }>(`/admin/auctions/purge-unsold${qs}`, {});
+}
+
+// ── 스토어 관리 (Admin, 회사 스코프) ──────────────────────────────────
+export type AdminStoreItem = {
+  id: number;
+  sku: string;
+  name: string;
+  brand: string | null;
+  description: string | null;
+  priceP: string;
+  stock: number | null;
+  category: string | null;
+  displayOrder: number;
+  active: boolean;
+  companyId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StoreItemAudit = {
+  id: number;
+  itemId: number;
+  actorUserId: string | null;
+  action: "CREATE" | "UPDATE" | "ACTIVATE" | "DEACTIVATE" | "DELETE";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type StoreItemInput = {
+  sku: string;
+  name: string;
+  brand?: string | null;
+  description?: string | null;
+  priceP: string | number;
+  stock?: number | null;
+  category?: string | null;
+  displayOrder?: number;
+  active?: boolean;
+};
+
+export type StoreItemUpdate = Partial<Omit<StoreItemInput, "sku" | "active">>;
+
+export function listAdminStoreItems() {
+  return apiGet<AdminStoreItem[]>("/admin/redemption/items");
+}
+export function createAdminStoreItem(input: StoreItemInput) {
+  return apiPost<AdminStoreItem>("/admin/redemption/items", input);
+}
+export function updateAdminStoreItem(id: number, input: StoreItemUpdate) {
+  return apiPatch<AdminStoreItem>(`/admin/redemption/items/${id}`, input);
+}
+export function setAdminStoreItemActive(id: number, active: boolean) {
+  return apiPost<AdminStoreItem>(`/admin/redemption/items/${id}/active`, { active });
+}
+export function listAdminStoreItemAudits(id: number, limit = 30) {
+  return apiGet<StoreItemAudit[]>(`/admin/redemption/items/${id}/audits?limit=${limit}`);
 }
 
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────

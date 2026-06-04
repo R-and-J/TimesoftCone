@@ -27,7 +27,7 @@
 ```typescript
 class Auction {
   status: AuctionStatus;
-  placeBid(amount: Point) {
+  placeBid(amount: Cone) {
     if (this.status !== 'OPEN') throw new Error('not open');
     // ...
   }
@@ -65,7 +65,7 @@ export class Auction {
   private state: AuctionState;
   // ...
 
-  placeBid(bidderId: UserId, amount: Point): BidPlacedEvent {
+  placeBid(bidderId: UserId, amount: Cone): BidPlacedEvent {
     return this.state.placeBid(this, bidderId, amount);
   }
   settle(): AuctionSettledEvent {
@@ -79,7 +79,7 @@ export class Auction {
 
 // domain/auction/auction-state.ts
 export abstract class AuctionState {
-  abstract placeBid(a: Auction, bidderId: UserId, amount: Point): BidPlacedEvent;
+  abstract placeBid(a: Auction, bidderId: UserId, amount: Cone): BidPlacedEvent;
   abstract settle(a: Auction): AuctionSettledEvent;
   abstract distributeAsEvent(a: Auction, adminId: UserId, recipientId: UserId): EventLeaveGrantedEvent;
 
@@ -91,7 +91,7 @@ export abstract class AuctionState {
 
 // domain/auction/states/open-state.ts
 export class OpenState extends AuctionState {
-  placeBid(a: Auction, bidderId: UserId, amount: Point) {
+  placeBid(a: Auction, bidderId: UserId, amount: Cone) {
     if (amount.lessThanOrEqual(a.highestBid)) throw new BidTooLowError();
     a.updateHighestBid(bidderId, amount);
     return new BidPlacedEvent(/* ... */);
@@ -177,4 +177,4 @@ const STATE_MAP: Record<AuctionStatus, () => AuctionState> = {
 - [[uml/04-state.md]] — 6개 상태와 전이 규칙의 *모델*
 - [[ADR-012]] Hexagonal Architecture — 상태 객체는 도메인 코어 안에 위치
 - [[ADR-013]] Domain Event — 상태 메서드가 이벤트를 반환
-- [[ADR-015]] Value Object — UserId·Point 등 상태 메서드 파라미터 타입
+- [[ADR-015]] Value Object — UserId·Cone 등 상태 메서드 파라미터 타입

@@ -13,7 +13,7 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { LEAVE_POOL, type LeavePoolPort } from "@/ports/leave-pool.port";
 import { RELEASE_POLICY, type ReleasePolicyRepository } from "@/ports/release-policy.port";
 import { allocateRelease } from "@/domain/leave-pool/release-allocator";
-import { currentReleaseWindow } from "@/domain/leave-pool/release-window";
+import { currentReleaseWindow, nextReleaseWindow } from "@/domain/leave-pool/release-window";
 import type { ReleasePolicy } from "@/domain/leave-pool/release-plan";
 import {
   AUCTION_EVENTS,
@@ -170,6 +170,45 @@ export class ReleaseInventoryUseCase {
       released: alloc.released,
       totalRemainingBefore,
       totalRemainingAfter: totalRemainingBefore - alloc.released,
+    };
+  }
+
+  /** 다음 자동 발행 회차 미리보기 — AdminAuctions "오픈 예정" 위에 안내용. */
+  async previewNext(input?: { sourceYear?: number; companyId?: bigint | null }) {
+    const sourceYear = input?.sourceYear ?? new Date().getFullYear();
+    const targetYear = sourceYear + 1;
+    const companyId = input?.companyId ?? 1n;
+
+    const policy: ReleasePolicy = (await this.policyRepo.get()) ?? { cadence: "none" as const };
+    const now = new Date();
+    const win = currentReleaseWindow(policy, now);
+    const supplies = await this.pool.findSupplies(targetYear, companyId);
+    const totalRemaining = supplies.reduce((s, r) => s + r.remainingDays, 0);
+
+    let occurrenceDate = win.occurrenceDate;
+    let periodIndex = win.periodIndex;
+    // 이미 발행된 회차거나 도래 시각이 지났으면 다음 회차로.
+    const released = await this.pool.isReleased(targetYear, companyId, periodIndex);
+    if (released && policy.cadence !== "none") {
+      const next = nextReleaseWindow(policy, occurrenceDate);
+      occurrenceDate = next.occurrenceDate;
+      periodIndex = next.periodIndex;
+    }
+
+    const quantity =
+      policy.cadence === "none"
+        ? totalRemaining
+        : Math.min(policy.quantity, totalRemaining);
+
+    return {
+      targetYear,
+      companyId: companyId.toString(),
+      cadence: policy.cadence,
+      periodIndex,
+      occurrenceDate: occurrenceDate.toISOString(),
+      quantity,
+      totalRemaining,
+      hasPending: totalRemaining > 0 && quantity > 0,
     };
   }
 

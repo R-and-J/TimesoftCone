@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Path }
 if (-not $here) { $here = (Get-Location).Path }
-$slides = Join-Path $here 'slides.md'
+$slides = Join-Path $here 'slides-final.md'
 $pkg    = '@marp-team/marp-cli@latest'
 $olds   = Join-Path $here 'olds'
 
@@ -45,10 +45,20 @@ npx --yes $pkg $slides --pdf --allow-local-files --no-stdin --html -o $outPdf
 if ($LASTEXITCODE -ne 0) { Write-Error 'PDF 실패'; exit 1 }
 
 # --- olds\ 준비 + 이 버전의 소스 md 스냅샷 (slides_vN.md / script_vN.md) ---
+# slides-final.md(데모용) 빌드는 demo-scenario.md를 짝으로, slides.md(설계용)는 script.md를 짝으로.
 New-Item -ItemType Directory -Force -Path $olds | Out-Null
 Copy-Item -LiteralPath $slides -Destination (Join-Path $olds "slides_v$next.md") -Force
-$scriptMd = Join-Path $here 'script.md'
-if (Test-Path $scriptMd) { Copy-Item -LiteralPath $scriptMd -Destination (Join-Path $olds "script_v$next.md") -Force }
+$pairCandidates = @()
+if ([System.IO.Path]::GetFileName($slides) -eq 'slides-final.md') {
+  $pairCandidates += (Join-Path $here 'demo-scenario.md')
+}
+$pairCandidates += (Join-Path $here 'script.md')
+foreach ($scriptMd in $pairCandidates) {
+  if (Test-Path $scriptMd) {
+    Copy-Item -LiteralPath $scriptMd -Destination (Join-Path $olds "script_v$next.md") -Force
+    break
+  }
+}
 
 # --- 이전 버전 출력물(+레거시 slides.*)을 olds\ 로 이동 (방금 만든 vN은 유지) ---
 $moved = 0

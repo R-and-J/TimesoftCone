@@ -8,7 +8,7 @@ import type { WalletRepository } from "@/ports/wallet-repository";
 import { Wallet } from "@/domain/wallet/wallet";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import { Currency } from "@/domain/shared/value-objects/currency";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 
 @Injectable()
 export class PrismaWalletRepository implements WalletRepository {
@@ -24,7 +24,7 @@ export class PrismaWalletRepository implements WalletRepository {
       },
     });
     if (!row) return null;
-    return Wallet.rehydrate(userId, currency, Point.of(row.balance));
+    return Wallet.rehydrate(userId, currency, Cone.of(row.balance));
   }
 
   async save(wallet: Wallet): Promise<void> {

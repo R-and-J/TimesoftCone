@@ -17,9 +17,9 @@
 
 1. **코어는 자기완결**(A안): 경매·escrow·배당·**AUCTION 연차**는 전부 우리 DB가 마스터. 특정 HR에 직접 쓰지 않는다.
 2. **연동 경계 = 데이터 핸드오프**: 정산 결과를 **CSV·JSON으로 export**하고, 각 도입사가 자사 HR/급여에 반영한다. 더블딥 제외 등 *노무 정합성은 도입사 HR의 책임* — 우리는 `leave_type=AUCTION`(비법정) **태그가 붙은 자료**를 제공해 판단 근거만 준다.
-   - **낙찰 연차부여 내역**: `empId, 이름, email, 연도, leave_type(AUCTION), days, 출처 경매id, 지불포인트, 부여일시`
+   - **낙찰 연차부여 내역**: `empId, 이름, email, 연도, leave_type(AUCTION), days, 출처 경매id, 지불콘, 부여일시`
    - **연말 배당 내역**: `empId, 이름, 기여일수, 지분율, 배당금액`
-   - 엔드포인트: `GET /api/admin/export/leave-grants`, `GET /api/admin/export/dividends` (`?format=csv|json`)
+   - 엔드콘: `GET /api/admin/export/leave-grants`, `GET /api/admin/export/dividends` (`?format=csv|json`)
 3. **ezpass 연동은 보너스 데모(PoC)**: 사내 ezpass에 읽기/쓰기로 연동 가능함을 스크립트로 시연(회원/조직/연차 시드). 코어 의존이 아니라 "연동도 된다"는 부가가치.
 
 ## 결과 및 트레이드오프

@@ -119,7 +119,7 @@ type User = {
   emp: string;        // "TS-2024-018"
   role: 'EMPLOYEE' | 'ADMIN';
   team: string;
-  wallet: number;     // 잔여 포인트
+  wallet: number;     // 잔여 콘
   stake_ratio: number;
   contributed_days: number;
 };

@@ -5,7 +5,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { BIDDING_CURRENCY, type BiddingCurrency } from "@/ports/bidding-currency";
 import { UserId } from "@/domain/shared/value-objects/user-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 
 export type GetWalletBalanceResult = {
   userId: bigint;
@@ -22,7 +22,7 @@ export class GetWalletBalanceUseCase {
 
   async execute(userIdRaw: bigint | number | string): Promise<GetWalletBalanceResult> {
     const userId = UserId.of(userIdRaw);
-    const balance: Point = await this.bidding.getBalance(userId);
+    const balance: Cone = await this.bidding.getBalance(userId);
     return {
       userId: userId.toBigInt(),
       currency: this.bidding.currencyCode,

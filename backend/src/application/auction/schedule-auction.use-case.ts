@@ -5,7 +5,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { AUCTION_REPOSITORY, type AuctionRepository } from "@/ports/auction-repository";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { DomainError } from "@/domain/shared/errors";
 
 export type ScheduleAuctionInput = {
@@ -40,7 +40,7 @@ export class ScheduleAuctionUseCase {
         startedAt: input.startedAt !== undefined ? new Date(input.startedAt) : undefined,
         endsAt: input.endsAt !== undefined ? new Date(input.endsAt) : undefined,
         leaveDays: input.leaveDays !== undefined ? Number(input.leaveDays) : undefined,
-        minIncrement: input.minIncrement !== undefined ? Point.of(input.minIncrement) : undefined,
+        minIncrement: input.minIncrement !== undefined ? Cone.of(input.minIncrement) : undefined,
       });
       // DRAFT(보류) 매물에 시간 정해줬으면 CREATED로 승급(자동 OPEN 대상에 올림).
       auction.markScheduled();

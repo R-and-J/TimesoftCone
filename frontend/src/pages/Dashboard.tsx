@@ -33,13 +33,13 @@ export default function DashboardPage() {
   const submitCharge = async () => {
     const amount = Number(chargeAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.push("error", "금액은 1P 이상의 숫자여야 합니다");
+      toast.push("error", "금액은 1콘 이상의 숫자여야 합니다");
       return;
     }
     setCharging(true);
     try {
       await submitChargeRequest(amount, chargeNote.trim() || undefined);
-      toast.push("success", `${fmt.point(amount)}P 충전 요청 등록 — 관리자 승인 대기`);
+      toast.push("success", `${fmt.point(amount)}콘 충전 요청 등록 — 관리자 승인 대기`);
       setChargeOpen(false);
       setChargeAmount("");
       setChargeNote("");
@@ -142,7 +142,7 @@ export default function DashboardPage() {
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
                 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-                  내 복지 포인트
+                  내 복지 콘
                 </div>
                 <div
                   className="mono"
@@ -166,9 +166,7 @@ export default function DashboardPage() {
                       marginLeft: 6,
                       color: "rgba(255,255,255,0.7)",
                     }}
-                  >
-                    P
-                  </span>
+                  >콘</span>
                 </div>
                 {balanceQ.error && (
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
@@ -236,7 +234,7 @@ export default function DashboardPage() {
                   : dividendQ.error
                     ? "오류"
                     : fmt.point(dividendNum ?? 0)}{" "}
-                <span style={{ fontSize: 16, color: p.inkMuted }}>P</span>
+                <span style={{ fontSize: 16, color: p.inkMuted }}>콘</span>
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 4 }}>
                 지분율 {(stakeRatio * 100).toFixed(1)}% · 기여 {contributedDays}일
@@ -268,7 +266,7 @@ export default function DashboardPage() {
                   color: p.inkMuted,
                 }}
               >
-                <span>현재 에스크로 {escrowNum !== null ? fmt.point(escrowNum) : "—"} P</span>
+                <span>현재 에스크로 {escrowNum !== null ? fmt.point(escrowNum) : "—"} 콘</span>
                 <span className="mono" style={{ fontWeight: 600 }}>
                   {(stakeRatio * 100).toFixed(1)}%
                 </span>
@@ -452,7 +450,7 @@ export default function DashboardPage() {
                       }}
                     >
                       {fmt.point(highest)}
-                      <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                      <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
                     </div>
                     <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 2 }}>
                       입찰 {a.bidCount}회

@@ -7,7 +7,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { AUCTION_REPOSITORY, type AuctionRepository } from "@/ports/auction-repository";
 import { Auction } from "@/domain/auction/auction";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 
 /** 시작가 30,000 P 고정. 모든 매물(수동 생성·LeavePool 폴백 제외)에 강제. */
 const FIXED_START_PRICE = 30000n;
@@ -57,8 +57,8 @@ export class CreateAuctionUseCase {
     const startNum = Number.parseInt(startedId.slice(prefix.length), 10);
 
     // 시작가는 input과 무관하게 항상 30,000 P(정책 고정).
-    const startPrice = Point.of(FIXED_START_PRICE);
-    const minIncrement = Point.of(input.minIncrement ?? 100);
+    const startPrice = Cone.of(FIXED_START_PRICE);
+    const minIncrement = Cone.of(input.minIncrement ?? 100);
     // super ADMIN이 "전체"로 만들면 회사 미상 → EZPASS(1) 기본.
     const companyId = input.companyId ?? 1n;
 

@@ -17,12 +17,14 @@ import {
   extendAuctionDeadline,
   getAuctionsSummary,
   getReleasePolicy,
+  getUpcomingRelease,
   listAuctions,
   openAuction,
   scheduleAuction,
   updateReleasePolicy,
   type AuctionListItem,
   type ReleasePolicy,
+  type UpcomingReleaseResponse,
 } from "@/lib/queries";
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -34,6 +36,7 @@ export default function AdminAuctionsPage() {
   const summaryQ = useQuery(() => getAuctionsSummary(), []);
   const upcomingQ = useQuery(() => listAuctions(["CREATED"]), []);
   const openQ = useQuery(() => listAuctions(["OPEN"]), []);
+  const upcomingReleaseQ = useQuery(() => getUpcomingRelease(), []);
 
   // 행 선택 — id Set.
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -300,6 +303,7 @@ export default function AdminAuctionsPage() {
               <div style={{ flex: 1 }} />
               <div style={{ fontSize: 11, color: p.inkMuted }}>시간이 되면 자동 시작</div>
             </div>
+            <UpcomingReleaseBanner p={p} data={upcomingReleaseQ.data ?? null} />
             <div style={{ padding: 12, maxHeight: 480, overflow: "auto" }}>
               {upcomingQ.data?.length === 0 && (
                 <div style={{ padding: 18, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
@@ -360,7 +364,7 @@ export default function AdminAuctionsPage() {
             <div className="mono" style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>{openModalFor.id}</div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
               현재 마감 <b>{new Date(openModalFor.endsAt).toLocaleString("ko-KR")}</b>
-              {" · "}최고가 <b>{Number(openModalFor.highest).toLocaleString("ko-KR")} P</b>
+              {" · "}최고가 <b>{Number(openModalFor.highest).toLocaleString("ko-KR")} 콘</b>
               {" · "}입찰 {openModalFor.bidCount}회
             </div>
 
@@ -412,7 +416,7 @@ export default function AdminAuctionsPage() {
                   style={inputStyle(p)}
                 />
               </FieldBlock>
-              <FieldBlock p={p} label="시작가 (P · 정책 고정 30,000)">
+              <FieldBlock p={p} label="시작가 (콘 · 정책 고정 30,000)">
                 <input
                   type="number"
                   value={editForm.startPrice}
@@ -558,7 +562,7 @@ function CreateAuctionModal({
   const p = PALETTES.cobalt;
   const [startedAt, setStartedAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 3600_000))));
   const [endsAt, setEndsAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 8 * 3600_000))));
-  // 시작가는 30,000 P 고정 정책(서버에서 강제). 입력은 안내용 readonly.
+  // 시작가는 30,000 콘 고정 정책(서버에서 강제). 입력은 안내용 readonly.
   const startPrice = "30000";
   const [quantity, setQuantity] = useState("1");
   const [creating, setCreating] = useState(false);
@@ -609,7 +613,7 @@ function CreateAuctionModal({
           <FieldBlock p={p} label="발행 수량 (1일권 × N)">
             <input type="number" min={1} max={1000} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} style={inputStyle(p)} />
           </FieldBlock>
-          <FieldBlock p={p} label="시작가 (P · 정책 고정 30,000)">
+          <FieldBlock p={p} label="시작가 (콘 · 정책 고정 30,000)">
             <input
               type="number"
               value={startPrice}
@@ -668,7 +672,7 @@ function ManageableRow({
         <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>{a.id}</div>
         <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
         <div className="mono" style={{ fontSize: 12, color: p.inkSoft, width: 110, textAlign: "right" }}>
-          시작가 {fmt.point(Number(a.startPrice))} P
+          시작가 {fmt.point(Number(a.startPrice))} 콘
         </div>
         <div style={{ fontSize: 12, color: isDraft ? p.inkMuted : p.inkSoft, width: 130 }}>
           {isDraft ? "오픈 시각 미정" : `오픈 ${formatTime(new Date(a.startedAt))}`}
@@ -699,7 +703,7 @@ function OpenRow({ p, a, onClick }: { p: typeof PALETTES.cobalt; a: AuctionListI
       <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>{a.id}</div>
       <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
       <div className="mono" style={{ fontSize: 12, color: p.ink, width: 110, textAlign: "right", fontWeight: 700 }}>
-        최고가 {fmt.point(Number(a.highest))} P
+        최고가 {fmt.point(Number(a.highest))} 콘
       </div>
       <div style={{ fontSize: 12, color: p.inkMuted, width: 80, textAlign: "right" }}>
         입찰 {a.bidCount}회

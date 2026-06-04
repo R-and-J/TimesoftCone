@@ -80,7 +80,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     LP["LeavePool<br/>연말 풀 수집·Stake"] -->|매물 공급| AU["Auction<br/>입찰·낙찰·정산"]
-    AU -->|AuctionWonEvent| WA["Wallet<br/>포인트·거래 기록"]
+    AU -->|AuctionWonEvent| WA["Wallet<br/>콘·거래 기록"]
     AU -->|연차 부여| LV["Leave<br/>잔액·차감 우선순위"]
     DV["Dividend<br/>연말 배당"] -->|Stake 조회| LP
     DV -->|수익적립금 소비| WA
