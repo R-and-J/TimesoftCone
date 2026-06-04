@@ -5,7 +5,7 @@ import { Brand } from "./Brand";
 import { Avatar } from "./Avatar";
 import { Icon } from "../icons";
 import { useCurrentUser } from "@/lib/current-user";
-import { getCompanyScope, setCompanyScope } from "@/lib/api";
+import { getAuthToken, getCompanyScope, setCompanyScope } from "@/lib/api";
 import { roleLabel, isAdmin } from "@/lib/roles";
 import {
   listNotifications,
@@ -51,11 +51,45 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
         /* 알림 실패는 무시 — 핵심 흐름 아님 */
       }
     };
+    // 1) 첫 로드 + 탭 복귀 시 정본 조회.
     void load();
-    const t = setInterval(load, 20000); // 20초 폴링 (WebSocket은 CUT-6)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    // 2) SSE 스트림 — 새 알림 적재 즉시 push 수신, 그때마다 정본 다시 조회.
+    //    EventSource는 헤더 못 보내므로 JWT를 ?token= 쿼리로 전달(JwtAuthGuard에서 지원).
+    //    연결 끊기면 브라우저가 자동 재연결. 백업으로 60초 폴링도 같이.
+    const token = getAuthToken();
+    let es: EventSource | null = null;
+    if (token) {
+      try {
+        es = new EventSource(
+          `/api/users/${current.id}/notifications/stream?token=${encodeURIComponent(token)}`,
+        );
+        es.onmessage = () => {
+          // 신호 받으면 정본 GET(unread 카운트 + 최신 N개).
+          void load();
+        };
+        es.onerror = () => {
+          /* 자동 재연결에 맡김 — 에러 로그 X */
+        };
+      } catch {
+        /* EventSource 미지원/실패 → 폴링만으로 fallback */
+      }
+    }
+    const backupPoll = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 60000);
+
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(backupPoll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      if (es) es.close();
     };
   }, [current.id]);
 

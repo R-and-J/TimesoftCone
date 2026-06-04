@@ -20,7 +20,7 @@ export function setAuthToken(token: string): void {
 export function clearAuthToken(): void {
   try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
 }
-function getAuthToken(): string | null {
+export function getAuthToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 

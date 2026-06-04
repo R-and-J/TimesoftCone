@@ -26,6 +26,7 @@ import { EzpassHrLeaveClient } from "./adapters/hr/ezpass-hr-leave.client";
 import { EzpassAdminTokenService } from "./adapters/auth/ezpass-admin-token.service";
 import { InternalCatalogRedemption } from "./adapters/redemption/internal-catalog-redemption.adapter";
 import { AuctionStream } from "./adapters/realtime/auction-stream";
+import { NotificationStream } from "./adapters/realtime/notification-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { OpenDueAuctionsScheduler } from "./adapters/scheduling/open-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
@@ -205,6 +206,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     InternalCatalogRedemption,
     AuctionStream,
     { provide: AUCTION_STREAM, useExisting: AuctionStream },
+    NotificationStream,
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
     { provide: LEDGER_REPOSITORY, useExisting: PrismaLedgerRepository },
