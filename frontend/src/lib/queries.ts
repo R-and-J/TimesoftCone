@@ -682,6 +682,21 @@ export function createAuction(body: CreateAuctionInput) {
   return apiPost<{ ids: string[]; created: number }>("/admin/auctions", body);
 }
 
+// ── UNSOLD 재고 수동 처리 (FR-4.2) ──────────────────────────────────
+// 단건: 특정 직원에게 EVENT 휴가로 변환 지급. 변환 후 경매 행은 삭제(소진).
+export function grantEventFromUnsold(auctionId: string, userId: string) {
+  return apiPost<{ auctionId: string; userId: string; year: number; days: number }>(
+    `/admin/auctions/${auctionId}/grant-event`,
+    { userId },
+  );
+}
+
+// 일괄: 지정 연도 이전(포함) UNSOLD 매물 영구 삭제.
+export function purgeUnsold(upToYear?: number) {
+  const qs = upToYear !== undefined ? `?upToYear=${upToYear}` : "";
+  return apiPost<{ upToYear: number; deleted: number }>(`/admin/auctions/purge-unsold${qs}`, {});
+}
+
 // ── Notifications (종 아이콘 피드 — ADR-013 Observer 구독 결과) ──────
 export type NotificationItem = {
   id: string;

@@ -10,9 +10,13 @@ import { apiPost } from "@/lib/api";
 import {
   collectLeavePool,
   getAdminStats,
+  grantEventFromUnsold,
   listAuctions,
+  listMembers,
   settleDividend,
+  type AuctionListItem,
   type CollectLeavePoolResponse,
+  type MemberRow,
   type SettleDividendResponse,
 } from "@/lib/queries";
 import { useToast } from "@/lib/toast";
@@ -54,6 +58,43 @@ export default function AdminOpsPage() {
   // 유찰 재고는 운영자가 보는 본 연도가 기본. (오픈 예정 목록은 "경매관리" 탭으로 분리.)
   const [year, setYear] = useState<number | undefined>(new Date().getFullYear());
   const unsoldQ = useQuery(() => listAuctions(["UNSOLD"], year), [year]);
+  // 유찰 매물 수동 처리(FR-4.2): 카드 클릭 → 모달 → 직원 선택 → EVENT 휴가 지급.
+  const [unsoldPick, setUnsoldPick] = useState<AuctionListItem | null>(null);
+  const [unsoldMemberQuery, setUnsoldMemberQuery] = useState("");
+  const [unsoldChosen, setUnsoldChosen] = useState<MemberRow | null>(null);
+  const [unsoldGranting, setUnsoldGranting] = useState(false);
+  const unsoldMembersQ = useQuery(() => listMembers(), []);
+  const openUnsold = (a: AuctionListItem) => {
+    setUnsoldPick(a);
+    setUnsoldMemberQuery("");
+    setUnsoldChosen(null);
+  };
+  const closeUnsold = () => {
+    if (unsoldGranting) return;
+    setUnsoldPick(null);
+    setUnsoldChosen(null);
+    setUnsoldMemberQuery("");
+  };
+  const doGrantUnsold = async () => {
+    if (!unsoldPick || !unsoldChosen) return;
+    setUnsoldGranting(true);
+    try {
+      const r = await grantEventFromUnsold(unsoldPick.id, unsoldChosen.userId);
+      toast.push(
+        "success",
+        `${unsoldChosen.name}에게 EVENT 휴가 ${r.days}일 지급 — 매물 ${unsoldPick.id} 소진`,
+      );
+      setUnsoldPick(null);
+      setUnsoldChosen(null);
+      setUnsoldMemberQuery("");
+      await Promise.all([statsQ.refetch(), unsoldQ.refetch()]);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setUnsoldGranting(false);
+    }
+  };
+
   const [running, setRunning] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportSets, setExportSets] = useState<Record<string, boolean>>({
@@ -349,6 +390,8 @@ export default function AdminOpsPage() {
                   {unsoldQ.data?.slice(0, 6).map((a) => (
                     <div
                       key={a.id}
+                      onClick={() => openUnsold(a)}
+                      title="클릭해 수동 처리"
                       style={{
                         padding: 12,
                         background: p.bg,
@@ -356,7 +399,12 @@ export default function AdminOpsPage() {
                         display: "flex",
                         flexDirection: "column",
                         gap: 6,
+                        cursor: "pointer",
+                        border: `1px solid ${p.line}`,
+                        transition: "border-color 0.15s, transform 0.05s",
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = p.ink)}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = p.line)}
                     >
                       <div className="mono" style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>
                         {a.id}
@@ -372,71 +420,6 @@ export default function AdminOpsPage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Card p={p} padding={20}>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: p.ink,
-                    letterSpacing: "-0.01em",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>시스템 상태</span>
-                  <Pill p={p} tone="neutral" size="sm">probe 미구현</Pill>
-                </div>
-                <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 4, marginBottom: 14 }}>
-                  API/DB는 실시간 호출로 판단 · 나머지는 정적
-                </div>
-                {[
-                  { k: "API 서버", v: statsQ.error ? "오류" : "정상", ok: !statsQ.error },
-                  { k: "PostgreSQL", v: statsQ.error ? "확인 필요" : "정상", ok: !statsQ.error },
-                  { k: "Advisory Lock", v: "활성", ok: true },
-                  { k: "에스크로 정합성", v: "✓", ok: true },
-                  {
-                    k: "DLQ (Outbox)",
-                    v: statsQ.data ? String(statsQ.data.dlqDepth) : "—",
-                    ok: (statsQ.data?.dlqDepth ?? 0) === 0,
-                  },
-                ].map((h, i, arr) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 0",
-                      borderBottom: i === arr.length - 1 ? "none" : `1px solid ${p.line}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: h.ok ? p.success : p.danger,
-                        boxShadow: `0 0 0 3px ${h.ok ? p.success : p.danger}33`,
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>{h.k}</div>
-                    </div>
-                    <div
-                      className="mono"
-                      style={{
-                        fontSize: 13,
-                        color: h.ok ? p.success : p.danger,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {h.v}
-                    </div>
-                  </div>
-                ))}
-              </Card>
-
               <Card p={p} padding={20}>
                 <div
                   style={{
@@ -825,6 +808,140 @@ export default function AdminOpsPage() {
               >
                 {poolLoading ? "처리 중…" : "수집 실행"}
               </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 유찰 매물 수동 처리 모달 — 직원 선택 → EVENT 휴가로 변환 지급(소진) */}
+      {unsoldPick && (
+        <div
+          onClick={closeUnsold}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 520, maxWidth: "92vw", maxHeight: "86vh",
+              background: p.surface, borderRadius: 16,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            <div style={{ padding: "20px 22px 14px", borderBottom: `1px solid ${p.line}` }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: p.ink }}>유찰 매물 수동 처리</div>
+              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 4 }}>
+                선택한 직원에게 EVENT 휴가로 변환 지급합니다. 변환 후 매물은 소진(삭제)됩니다.
+              </div>
+              <div
+                style={{
+                  marginTop: 12, padding: 12, background: p.bg, borderRadius: 10,
+                  display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 14, rowGap: 4,
+                  fontSize: 12,
+                }}
+              >
+                <span style={{ color: p.inkMuted }}>매물 ID</span>
+                <span className="mono" style={{ color: p.ink, fontWeight: 700 }}>{unsoldPick.id}</span>
+                <span style={{ color: p.inkMuted }}>연차</span>
+                <span style={{ color: p.ink, fontWeight: 700 }}>{unsoldPick.leaveDays}일권</span>
+                <span style={{ color: p.inkMuted }}>마감</span>
+                <span style={{ color: p.inkSoft }}>{new Date(unsoldPick.endsAt).toLocaleString("ko-KR")}</span>
+              </div>
+            </div>
+
+            <div style={{ padding: "14px 22px", display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft }}>지급받을 직원</div>
+              <input
+                value={unsoldMemberQuery}
+                onChange={(e) => setUnsoldMemberQuery(e.target.value)}
+                placeholder="이름·사번·이메일·부서로 검색"
+                style={{
+                  width: "100%", padding: "9px 12px", borderRadius: 9,
+                  border: `1px solid ${p.line}`, fontSize: 13, color: p.ink, background: p.bg,
+                  boxSizing: "border-box",
+                }}
+              />
+              <div
+                style={{
+                  border: `1px solid ${p.line}`, borderRadius: 10, overflow: "auto",
+                  flex: 1, minHeight: 200, maxHeight: 280, background: p.bg,
+                }}
+              >
+                {(() => {
+                  const q = unsoldMemberQuery.trim().toLowerCase();
+                  const all = (unsoldMembersQ.data?.members ?? []).filter((m) => m.active);
+                  const filtered = q
+                    ? all.filter((m) =>
+                        m.name.toLowerCase().includes(q) ||
+                        m.empId.toLowerCase().includes(q) ||
+                        (m.email ?? "").toLowerCase().includes(q) ||
+                        (m.team ?? "").toLowerCase().includes(q),
+                      )
+                    : all;
+                  if (unsoldMembersQ.loading) {
+                    return <div style={{ padding: 16, fontSize: 12, color: p.inkMuted }}>회원 목록 불러오는 중…</div>;
+                  }
+                  if (filtered.length === 0) {
+                    return <div style={{ padding: 16, fontSize: 12, color: p.inkMuted }}>일치하는 직원이 없습니다.</div>;
+                  }
+                  return filtered.slice(0, 80).map((m, i, arr) => {
+                    const on = unsoldChosen?.userId === m.userId;
+                    return (
+                      <div
+                        key={m.userId}
+                        onClick={() => setUnsoldChosen(m)}
+                        style={{
+                          padding: "10px 14px",
+                          background: on ? p.accentSoft : "transparent",
+                          borderBottom: i === arr.length - 1 ? "none" : `1px solid ${p.line}`,
+                          cursor: "pointer",
+                          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 13, color: p.ink, fontWeight: 700 }}>
+                            {m.name}
+                            <span className="mono" style={{ fontSize: 11, color: p.inkMuted, marginLeft: 8, fontWeight: 500 }}>
+                              {m.empId}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 2 }}>
+                            {[m.team, m.jobRank, m.jobTitle].filter(Boolean).join(" · ") || "—"}
+                          </div>
+                        </div>
+                        {on && (
+                          <Pill p={p} tone="accent" size="sm" style={{ fontSize: 10 }}>선택</Pill>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            <div style={{ padding: "14px 22px 20px", borderTop: `1px solid ${p.line}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div style={{ fontSize: 11, color: p.inkMuted }}>
+                {unsoldChosen ? (
+                  <>지급 대상: <b style={{ color: p.ink }}>{unsoldChosen.name}</b> · EVENT {unsoldPick.leaveDays}일</>
+                ) : (
+                  "직원을 선택하세요"
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn p={p} variant="ghost" size="md" disabled={unsoldGranting} onClick={closeUnsold}>취소</Btn>
+                <Btn
+                  p={p}
+                  variant="primary"
+                  size="md"
+                  disabled={!unsoldChosen || unsoldGranting}
+                  onClick={doGrantUnsold}
+                >
+                  {unsoldGranting ? "지급 중…" : "EVENT 휴가 지급"}
+                </Btn>
+              </div>
             </div>
           </div>
         </div>
