@@ -106,7 +106,7 @@ export default function AdminRedemptionPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              {(["PENDING", "APPROVED", "RECEIVED", "REJECTED", "ALL"] as FilterStatus[]).map((s) => {
+              {(["ALL", "PENDING", "APPROVED", "RECEIVED", "REJECTED"] as FilterStatus[]).map((s) => {
                 const on = s === filter;
                 return (
                   <div
@@ -125,7 +125,7 @@ export default function AdminRedemptionPage() {
             </div>
           </div>
 
-          {/* KPI 4칸 — 카드 클릭 시 해당 상태로 필터 */}
+          {/* KPI 4칸 — 카드 클릭 시 해당 상태로 필터, 같은 카드 재클릭 시 전체로 해제 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
             <SummaryCard
               p={p}
@@ -133,7 +133,7 @@ export default function AdminRedemptionPage() {
               value={summaryQ.data?.pending ?? "—"}
               tone={(summaryQ.data?.pending ?? 0) > 0 ? "alert" : "neutral"}
               active={filter === "PENDING"}
-              onClick={() => setFilter("PENDING")}
+              onClick={() => setFilter((f) => (f === "PENDING" ? "ALL" : "PENDING"))}
             />
             <SummaryCard
               p={p}
@@ -141,7 +141,7 @@ export default function AdminRedemptionPage() {
               value={summaryQ.data?.approved ?? "—"}
               tone="accent"
               active={filter === "APPROVED"}
-              onClick={() => setFilter("APPROVED")}
+              onClick={() => setFilter((f) => (f === "APPROVED" ? "ALL" : "APPROVED"))}
             />
             <SummaryCard
               p={p}
@@ -149,7 +149,7 @@ export default function AdminRedemptionPage() {
               value={summaryQ.data?.received ?? "—"}
               tone="success"
               active={filter === "RECEIVED"}
-              onClick={() => setFilter("RECEIVED")}
+              onClick={() => setFilter((f) => (f === "RECEIVED" ? "ALL" : "RECEIVED"))}
             />
             <SummaryCard
               p={p}
@@ -157,7 +157,7 @@ export default function AdminRedemptionPage() {
               value={summaryQ.data?.rejected ?? "—"}
               tone="warn"
               active={filter === "REJECTED"}
-              onClick={() => setFilter("REJECTED")}
+              onClick={() => setFilter((f) => (f === "REJECTED" ? "ALL" : "REJECTED"))}
             />
           </div>
 
@@ -381,9 +381,6 @@ function SummaryCard({
         style={{ fontSize: 26, fontWeight: 800, color: valueColor, marginTop: 4, letterSpacing: "-0.02em" }}
       >
         {value}
-      </div>
-      <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2 }}>
-        {active ? "선택됨 · 클릭으로 필터 유지" : "클릭하면 이 상태만 보기"}
       </div>
     </Card>
   );
