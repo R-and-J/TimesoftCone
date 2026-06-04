@@ -169,7 +169,7 @@ export default function DashboardPage() {
                     백엔드 연결 실패: {balanceQ.error.message}
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 24, alignItems: "center" }}>
                   <Pill
                     p={p}
                     tone="dark"
@@ -177,6 +177,49 @@ export default function DashboardPage() {
                   >
                     실시간 잔액
                   </Pill>
+                  <button
+                    onClick={() => {
+                      void balanceQ.refetch();
+                      void leaveQ.refetch();
+                      void dividendQ.refetch();
+                    }}
+                    disabled={balanceQ.loading}
+                    title="잔액·연차·배당 새로고침"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.14)",
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: balanceQ.loading ? "wait" : "pointer",
+                      opacity: balanceQ.loading ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transformOrigin: "center",
+                        animation: balanceQ.loading ? "dg-spin 1s linear infinite" : "none",
+                      }}
+                    >
+                      <path d="M21 12a9 9 0 1 1-3-6.7" />
+                      <polyline points="21 4 21 11 14 11" />
+                    </svg>
+                    {balanceQ.loading ? "갱신 중" : "새로고침"}
+                  </button>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
                   <Btn p={p} variant="primary" size="sm" onClick={() => navigate("/activity")}>
