@@ -264,7 +264,7 @@ export default function RedemptionPage() {
                       <div>
                         <div style={{ color: p.ink, fontWeight: 700 }}>{r.itemName}</div>
                         {r.note && (
-                          <div style={{ color: p.inkMuted, fontSize: 11, marginTop: 2 }}>메모: {r.note}</div>
+                          <div style={{ color: p.inkMuted, fontSize: 11, marginTop: 2 }}>요청: {r.note}</div>
                         )}
                       </div>
                       <div className="mono" style={{ color: p.inkSoft }}>{fmt.point(Number(r.pricePAtRequest))}콘</div>
@@ -340,7 +340,7 @@ export default function RedemptionPage() {
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600, marginBottom: 6 }}>메모(선택)</div>
+              <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600, marginBottom: 6 }}>요청 사항 (선택)</div>
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}

@@ -60,7 +60,7 @@ export default function AdminRedemptionPage() {
     try {
       if (modal.mode === "approve") {
         if (!coupon.trim()) {
-          toast.push("error", "쿠폰/안내문을 입력해주세요");
+          toast.push("error", "안내문을 입력해주세요");
           setActing(null);
           return;
         }
@@ -102,7 +102,7 @@ export default function AdminRedemptionPage() {
                 교환 신청 처리
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                승인 시 쿠폰/안내문을 박아 발급 → 요청자가 [수령 완료]를 누르면 종결. 반려 시 자동 환불.
+                승인 시 안내문 발급 → 요청자가 [수령 완료]를 누르면 종결. 반려 시 자동 환불.
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -213,7 +213,7 @@ export default function AdminRedemptionPage() {
               },
               {
                 key: "note",
-                header: "메모",
+                header: "사용자 요청",
                 width: "1fr",
                 render: (r) => (
                   <div style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.5, wordBreak: "keep-all", overflowWrap: "break-word" }}>
@@ -223,47 +223,39 @@ export default function AdminRedemptionPage() {
               },
               {
                 key: "coupon",
-                // 안내문(한글)/쿠폰코드(영문) 모두 들어옴 — keep-all + overflow-wrap 으로
-                // 한글은 어절 단위로 자연스럽게 줄바꿈, 긴 영문 코드는 어쩔 수 없이 끊어 줄바꿈.
-                header: "쿠폰 / 안내문",
-                width: "1.3fr",
-                render: (r) => (
-                  <div style={{ color: p.ink, fontSize: 11, lineHeight: 1.5, wordBreak: "keep-all", overflowWrap: "anywhere" }}>
-                    {r.couponCode || <span style={{ color: p.inkMuted }}>—</span>}
-                  </div>
-                ),
-              },
-              {
-                key: "decision",
-                header: "결정 / 처리",
-                width: "1.2fr",
-                render: (r) => (
-                  <div style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.5, wordBreak: "keep-all", overflowWrap: "break-word" }}>
-                    {!r.decisionNote && !r.decidedByName && !r.receivedAt && (
-                      <span style={{ color: p.inkMuted }}>—</span>
-                    )}
-                    {r.decisionNote && <div>{r.decisionNote}</div>}
-                    {r.decidedByName && (
-                      <div style={{ color: p.inkMuted, fontSize: 10, marginTop: 4 }}>
-                        by {r.decidedByName} · {r.decidedAt ? new Date(r.decidedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
-                      </div>
-                    )}
-                    {r.receivedAt && (
-                      <div style={{ color: p.success, fontSize: 10, marginTop: 4, fontWeight: 700 }}>
-                        수령 {new Date(r.receivedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </div>
-                    )}
-                  </div>
-                ),
+                // 승인 행: 안내문/쿠폰코드(r.couponCode). 반려 행: 반려 사유(r.decisionNote).
+                // keep-all + overflow-wrap 으로 한글은 어절 단위로 자연스럽게 줄바꿈.
+                header: "안내문",
+                width: "1.6fr",
+                render: (r) => {
+                  const text = r.status === "REJECTED" ? r.decisionNote : r.couponCode;
+                  return (
+                    <div style={{ color: p.ink, fontSize: 11, lineHeight: 1.5, wordBreak: "keep-all", overflowWrap: "anywhere" }}>
+                      {text || <span style={{ color: p.inkMuted }}>—</span>}
+                    </div>
+                  );
+                },
               },
               {
                 key: "status",
                 header: "상태",
-                width: "120px",
+                width: "180px",
                 render: (r) => (
-                  <Pill p={p} tone={statusTone(r.status)} size="sm" style={{ fontSize: 10, fontWeight: 700 }}>
-                    {STATUS_LABEL[r.status]}
-                  </Pill>
+                  <div style={{ display: "inline-flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                    <Pill p={p} tone={statusTone(r.status)} size="sm" style={{ fontSize: 10, fontWeight: 700 }}>
+                      {STATUS_LABEL[r.status]}
+                    </Pill>
+                    {r.receivedAt ? (
+                      <span style={{ color: p.success, fontSize: 10, fontWeight: 700 }}>
+                        수령 {new Date(r.receivedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    ) : r.decidedByName ? (
+                      <span style={{ color: p.inkMuted, fontSize: 10 }}>
+                        by {r.decidedByName}
+                        {r.decidedAt && ` · ${new Date(r.decidedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+                      </span>
+                    ) : null}
+                  </div>
                 ),
               },
               {
@@ -304,7 +296,7 @@ export default function AdminRedemptionPage() {
 
             <div style={{ fontSize: 12, fontWeight: 700, color: p.inkSoft, marginBottom: 6 }}>
               {modal.mode === "approve" ? (
-                <>쿠폰 / 안내문 <span style={{ color: p.danger }}>*</span></>
+                <>안내문 <span style={{ color: p.danger }}>*</span></>
               ) : (
                 <>반려 사유 <span style={{ color: p.danger }}>*</span></>
               )}
