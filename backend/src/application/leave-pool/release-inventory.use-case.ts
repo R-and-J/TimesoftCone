@@ -136,6 +136,8 @@ export class ReleaseInventoryUseCase {
     }
 
     const opts = this.options();
+    // 정책에 startPrice 가 명시되어 있으면 그 값을 우선. 없으면 ENV/기본값.
+    const effectiveStartPrice = policy.startPrice ?? opts.startPrice;
     const startedAt = new Date(now.getTime());
     const endsAt = new Date(startedAt.getTime() + opts.auctionDays * 24 * 60 * 60 * 1000);
 
@@ -144,7 +146,7 @@ export class ReleaseInventoryUseCase {
       companyId,
       startedAt,
       endsAt,
-      startPrice: opts.startPrice,
+      startPrice: effectiveStartPrice,
       minIncrement: opts.minIncrement,
       allocations: alloc.allocations,
       periodIndex: window.periodIndex,

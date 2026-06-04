@@ -3,11 +3,14 @@
 // baseDate부터 count개의 startedAt를 결정적으로 생성한다.
 // 외부 의존 0(인바리언트 #7). 재현 테스트는 baseDate를 인자로 줘서 결정적.
 
+/** 정책별 발행 매물 시작가(콘). null/undefined면 ENV/기본값 사용. */
+export type PolicyStartPrice = { startPrice?: bigint | null };
+
 export type ReleasePolicy =
-  | { cadence: "none" } // 자동 분산 비활성 — 풀 수집 시 모든 매물이 baseDate(targetYear 1/1 또는 now)로
-  | { cadence: "daily"; timeOfDay: string; quantity: number }
-  | { cadence: "weekly"; dayOfWeek: number; timeOfDay: string; quantity: number } // 0=일 … 6=토
-  | { cadence: "monthly"; dayOfMonth: number; timeOfDay: string; quantity: number }; // 1..31, 월말 EOM 폴백
+  | ({ cadence: "none" } & PolicyStartPrice)
+  | ({ cadence: "daily"; timeOfDay: string; quantity: number } & PolicyStartPrice)
+  | ({ cadence: "weekly"; dayOfWeek: number; timeOfDay: string; quantity: number } & PolicyStartPrice) // 0=일 … 6=토
+  | ({ cadence: "monthly"; dayOfMonth: number; timeOfDay: string; quantity: number } & PolicyStartPrice); // 1..31, 월말 EOM 폴백
 
 /**
  * baseDate(이후)부터 정책대로 발행 시각을 채워 count개의 startedAt 배열을 반환.

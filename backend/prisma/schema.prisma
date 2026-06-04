@@ -558,6 +558,8 @@ model ReleasePolicy {
   timeOfDay   String?  @map("time_of_day")
   /// 1회 발행 시 오픈할 매물 수. none이면 null.
   quantity    Int?
+  /// 이 정책으로 발행되는 매물의 시작가(콘). null이면 ENV/기본값 사용.
+  startPrice  BigInt?  @map("start_price")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("release_policy")

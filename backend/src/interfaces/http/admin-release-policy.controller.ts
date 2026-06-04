@@ -10,24 +10,37 @@ import { GetReleasePolicyUseCase } from "@/application/leave-pool/get-release-po
 import { UpdateReleasePolicyUseCase } from "@/application/leave-pool/update-release-policy.use-case";
 import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
 
+// 정책별 시작가(콘) — null/생략은 ENV/기본값 사용. 양의 정수 string/number 허용.
+const startPriceSchema = z
+  .union([z.string(), z.number()])
+  .nullable()
+  .optional()
+  .refine(
+    (v) => v == null || (Number.isFinite(Number(v)) && Number(v) > 0),
+    "startPrice 는 양수여야 합니다",
+  );
+
 const policySchema = z.discriminatedUnion("cadence", [
-  z.object({ cadence: z.literal("none") }),
+  z.object({ cadence: z.literal("none"), startPrice: startPriceSchema }),
   z.object({
     cadence: z.literal("daily"),
     timeOfDay: z.string(),
     quantity: z.number().int().positive(),
+    startPrice: startPriceSchema,
   }),
   z.object({
     cadence: z.literal("weekly"),
     dayOfWeek: z.number().int().min(0).max(6),
     timeOfDay: z.string(),
     quantity: z.number().int().positive(),
+    startPrice: startPriceSchema,
   }),
   z.object({
     cadence: z.literal("monthly"),
     dayOfMonth: z.number().int().min(1).max(31),
     timeOfDay: z.string(),
     quantity: z.number().int().positive(),
+    startPrice: startPriceSchema,
   }),
 ]);
 

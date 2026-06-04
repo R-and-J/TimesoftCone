@@ -37,6 +37,8 @@ export default function AdminAuctionsPage() {
   const upcomingQ = useQuery(() => listAuctions(["CREATED"]), []);
   const openQ = useQuery(() => listAuctions(["OPEN"]), []);
   const upcomingReleaseQ = useQuery(() => getUpcomingRelease(), []);
+  const [showEnded, setShowEnded] = useState(false);
+  const endedQ = useQuery(() => (showEnded ? listAuctions(["AWARDED", "UNSOLD"]) : Promise.resolve([] as AuctionListItem[])), [showEnded]);
 
   // 행 선택 — id Set.
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -323,6 +325,47 @@ export default function AdminAuctionsPage() {
               ))}
             </div>
           </Card>
+
+          {/* 종료 매물 목록 — AWARDED + UNSOLD. 기본 닫혀있고 열면 fetch. */}
+          <Card p={p} padding={0} style={{ marginTop: 16 }}>
+            <div
+              onClick={() => setShowEnded((v) => !v)}
+              style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: showEnded ? `1px solid ${p.line}` : "none", cursor: "pointer" }}
+            >
+              <Pill p={p} tone="neutral" size="sm">종료</Pill>
+              <div style={{ fontSize: 13, fontWeight: 700, color: p.ink }}>
+                종료된 매물 ({(summaryQ.data?.byStatus.AWARDED ?? 0) + (summaryQ.data?.byStatus.UNSOLD ?? 0)}건)
+              </div>
+              <div style={{ flex: 1 }} />
+              <div style={{ fontSize: 11, color: p.inkMuted }}>
+                {showEnded ? "▲ 접기" : "▼ 펼치기"}
+              </div>
+            </div>
+            {showEnded && (
+              <div style={{ padding: 12, maxHeight: 480, overflow: "auto" }}>
+                {endedQ.loading && (
+                  <div style={{ padding: 18, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
+                    불러오는 중…
+                  </div>
+                )}
+                {!endedQ.loading && endedQ.data?.length === 0 && (
+                  <div style={{ padding: 18, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
+                    종료된 매물이 없습니다.
+                  </div>
+                )}
+                {endedQ.data?.map((a) => (
+                  <ManageableRow
+                    key={a.id}
+                    p={p}
+                    a={a}
+                    variant="ended"
+                    checked={false}
+                    onCheck={() => {}}
+                  />
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 
@@ -416,12 +459,14 @@ export default function AdminAuctionsPage() {
                   style={inputStyle(p)}
                 />
               </FieldBlock>
-              <FieldBlock p={p} label="시작가 (콘 · 정책 고정 30,000)">
+              <FieldBlock p={p} label="시작가 (콘)">
                 <input
                   type="number"
+                  min={1}
+                  step={100}
                   value={editForm.startPrice}
-                  readOnly
-                  style={{ ...inputStyle(p), background: p.bgDeep, color: p.inkMuted, cursor: "not-allowed" }}
+                  onChange={(e) => setEditForm((f) => ({ ...f, startPrice: e.target.value }))}
+                  style={inputStyle(p)}
                 />
               </FieldBlock>
             </div>
@@ -473,14 +518,25 @@ function PolicyModal({
   const [dayOfMonth, setDayOfMonth] = useState(initial.cadence === "monthly" ? initial.dayOfMonth : 3);
   const [timeOfDay, setTimeOfDay] = useState(initial.cadence !== "none" ? initial.timeOfDay : "09:00");
   const [quantity, setQuantity] = useState(initial.cadence !== "none" ? initial.quantity : 5);
+  // 정책 시작가 — 비우면 ENV 기본(30,000).
+  const [startPrice, setStartPrice] = useState(initial.startPrice ?? "30000");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
+    const startPriceTrim = String(startPrice).trim();
+    const startPriceValue = startPriceTrim === "" ? null : startPriceTrim;
+    if (startPriceValue !== null) {
+      const n = Number(startPriceValue);
+      if (!Number.isInteger(n) || n <= 0) {
+        onError("시작가는 1 이상 정수여야 합니다 (비우면 기본값 사용)");
+        return;
+      }
+    }
     let body: ReleasePolicy;
-    if (cadence === "none") body = { cadence };
-    else if (cadence === "daily") body = { cadence, timeOfDay, quantity };
-    else if (cadence === "weekly") body = { cadence, dayOfWeek, timeOfDay, quantity };
-    else body = { cadence, dayOfMonth, timeOfDay, quantity };
+    if (cadence === "none") body = { cadence, startPrice: startPriceValue };
+    else if (cadence === "daily") body = { cadence, timeOfDay, quantity, startPrice: startPriceValue };
+    else if (cadence === "weekly") body = { cadence, dayOfWeek, timeOfDay, quantity, startPrice: startPriceValue };
+    else body = { cadence, dayOfMonth, timeOfDay, quantity, startPrice: startPriceValue };
     setSaving(true);
     try {
       await updateReleasePolicy(body);
@@ -540,6 +596,18 @@ function PolicyModal({
           </div>
         )}
 
+        <FieldBlock p={p} label="시작가 (콘 · 비우면 기본 30,000)">
+          <input
+            type="number"
+            min={1}
+            step={100}
+            value={startPrice}
+            onChange={(e) => setStartPrice(e.target.value)}
+            placeholder="30000"
+            style={inputStyle(p)}
+          />
+        </FieldBlock>
+
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
           <Btn p={p} variant="ghost" size="md" disabled={saving} onClick={onClose}>취소</Btn>
           <Btn p={p} variant="primary" size="md" disabled={saving} onClick={save}>
@@ -563,7 +631,7 @@ function CreateAuctionModal({
   const [startedAt, setStartedAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 3600_000))));
   const [endsAt, setEndsAt] = useState(toLocalDatetimeInput(roundToHour(new Date(Date.now() + 8 * 3600_000))));
   // 시작가는 30,000 콘 고정 정책(서버에서 강제). 입력은 안내용 readonly.
-  const startPrice = "30000";
+  const [startPrice, setStartPrice] = useState("30000");
   const [quantity, setQuantity] = useState("1");
   const [creating, setCreating] = useState(false);
 
@@ -613,12 +681,14 @@ function CreateAuctionModal({
           <FieldBlock p={p} label="발행 수량 (1일권 × N)">
             <input type="number" min={1} max={1000} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} style={inputStyle(p)} />
           </FieldBlock>
-          <FieldBlock p={p} label="시작가 (콘 · 정책 고정 30,000)">
+          <FieldBlock p={p} label="시작가 (콘)">
             <input
               type="number"
+              min={1}
+              step={100}
               value={startPrice}
-              readOnly
-              style={{ ...inputStyle(p), background: p.bgDeep, color: p.inkMuted, cursor: "not-allowed" }}
+              onChange={(e) => setStartPrice(e.target.value)}
+              style={inputStyle(p)}
             />
           </FieldBlock>
         </div>
@@ -647,32 +717,53 @@ function ManageableRow({
 }: {
   p: typeof PALETTES.cobalt;
   a: AuctionListItem;
-  variant: "draft" | "upcoming";
+  variant: "draft" | "upcoming" | "ended";
   checked: boolean;
   onCheck: () => void;
-  onClick: () => void;
+  onClick?: () => void;
 }) {
   const isDraft = variant === "draft";
+  const isEnded = variant === "ended";
+  const endedTone: "success" | "danger" = a.status === "UNSOLD" ? "danger" : "success";
+  const endedLabel = a.status === "UNSOLD" ? "유찰" : "낙찰";
   return (
     <div
       style={{
         display: "flex", alignItems: "center", gap: 14, padding: "10px 8px",
         borderBottom: `1px solid ${p.line}`, borderRadius: 6, transition: "background 120ms",
         background: checked ? p.accentSoft : undefined,
+        opacity: isEnded ? 0.85 : 1,
       }}
-      onMouseEnter={(e) => !checked && (e.currentTarget.style.background = p.bg)}
-      onMouseLeave={(e) => !checked && (e.currentTarget.style.background = "transparent")}
+      onMouseEnter={(e) => !checked && !isEnded && (e.currentTarget.style.background = p.bg)}
+      onMouseLeave={(e) => !checked && !isEnded && (e.currentTarget.style.background = "transparent")}
     >
-      <input type="checkbox" checked={checked} onChange={onCheck} onClick={(e) => e.stopPropagation()} />
+      {!isEnded && (
+        <input type="checkbox" checked={checked} onChange={onCheck} onClick={(e) => e.stopPropagation()} />
+      )}
       <div
-        onClick={onClick}
-        title={isDraft ? "클릭해서 시간 정하기(예약) / 즉시 오픈" : "클릭해서 예약 변경 / 즉시 오픈"}
-        style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, cursor: "pointer" }}
+        onClick={!isEnded ? onClick : undefined}
+        title={
+          isEnded
+            ? undefined
+            : isDraft
+              ? "클릭해서 시간 정하기(예약) / 즉시 오픈"
+              : "클릭해서 예약 변경 / 즉시 오픈"
+        }
+        style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, cursor: isEnded ? "default" : "pointer" }}
       >
         <div className="mono" style={{ width: 110, fontSize: 12, color: p.inkSoft, fontWeight: 600 }}>{a.id}</div>
-        <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>연차 {a.leaveDays}일권</div>
-        <div className="mono" style={{ fontSize: 12, color: p.inkSoft, width: 110, textAlign: "right" }}>
-          시작가 {fmt.point(Number(a.startPrice))} 콘
+        <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>
+          연차 {a.leaveDays}일권
+          {isEnded && a.status === "AWARDED" && a.highestBidderName && (
+            <span style={{ fontSize: 11, color: p.inkMuted, fontWeight: 500, marginLeft: 8 }}>
+              · 낙찰 <span style={{ color: p.ink, fontWeight: 700 }}>{a.highestBidderName}</span>
+            </span>
+          )}
+        </div>
+        <div className="mono" style={{ fontSize: 12, color: p.inkSoft, width: 130, textAlign: "right" }}>
+          {isEnded && a.status === "AWARDED"
+            ? <>최종가 <span style={{ color: p.ink, fontWeight: 700 }}>{fmt.point(Number(a.highest))}</span> 콘</>
+            : <>시작가 {fmt.point(Number(a.startPrice))} 콘</>}
         </div>
         <div style={{ fontSize: 12, color: isDraft ? p.inkMuted : p.inkSoft, width: 130 }}>
           {isDraft ? "오픈 시각 미정" : `오픈 ${formatTime(new Date(a.startedAt))}`}
@@ -680,7 +771,13 @@ function ManageableRow({
         <div style={{ fontSize: 12, color: isDraft ? p.inkMuted : p.inkSoft, width: 130 }}>
           {isDraft ? "마감 시각 미정" : `마감 ${formatTime(new Date(a.endsAt))}`}
         </div>
-        <Pill p={p} tone={isDraft ? "warn" : "neutral"} size="sm">{isDraft ? "보류" : "예정"}</Pill>
+        <Pill
+          p={p}
+          tone={isEnded ? endedTone : isDraft ? "warn" : "neutral"}
+          size="sm"
+        >
+          {isEnded ? endedLabel : isDraft ? "보류" : "예정"}
+        </Pill>
       </div>
     </div>
   );

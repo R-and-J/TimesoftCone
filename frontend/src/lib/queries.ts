@@ -631,11 +631,13 @@ export function closeAuctionNow(id: string) {
 }
 
 // ── 풀 분산 정책 (관리자 경매관리 탭) ─────────────────────────────
+/** 정책별 시작가(콘). null/생략은 ENV/기본값 사용. BigIntInterceptor가 wire에선 string. */
+export type PolicyStartPrice = { startPrice?: string | number | null };
 export type ReleasePolicy =
-  | { cadence: "none" }
-  | { cadence: "daily"; timeOfDay: string; quantity: number }
-  | { cadence: "weekly"; dayOfWeek: number; timeOfDay: string; quantity: number }
-  | { cadence: "monthly"; dayOfMonth: number; timeOfDay: string; quantity: number };
+  | ({ cadence: "none" } & PolicyStartPrice)
+  | ({ cadence: "daily"; timeOfDay: string; quantity: number } & PolicyStartPrice)
+  | ({ cadence: "weekly"; dayOfWeek: number; timeOfDay: string; quantity: number } & PolicyStartPrice)
+  | ({ cadence: "monthly"; dayOfMonth: number; timeOfDay: string; quantity: number } & PolicyStartPrice);
 
 export function getReleasePolicy() {
   return apiGet<ReleasePolicy>("/admin/release-policy");

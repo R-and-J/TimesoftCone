@@ -40,16 +40,18 @@ export class OpenAuctionUseCase {
     const auction = await this.auctions.findById(auctionId);
     if (!auction) throw new NotFoundException(`Auction ${idRaw} not found`);
     try {
-      // 시작가는 정책상 고정 — input.startPrice가 와도 configureBeforeOpen에 전달하지 않는다.
+      // 시작가 포함 모든 설정 input 우선 — 정책 고정 해제(2026-06-04).
       const hasAnyConfig =
         input.startedAt !== undefined ||
         input.endsAt !== undefined ||
+        input.startPrice !== undefined ||
         input.leaveDays !== undefined ||
         input.minIncrement !== undefined;
       if (hasAnyConfig) {
         auction.configureBeforeOpen({
           startedAt: input.startedAt !== undefined ? new Date(input.startedAt) : undefined,
           endsAt: input.endsAt !== undefined ? new Date(input.endsAt) : undefined,
+          startPrice: input.startPrice !== undefined ? Cone.of(input.startPrice) : undefined,
           leaveDays: input.leaveDays !== undefined ? Number(input.leaveDays) : undefined,
           minIncrement: input.minIncrement !== undefined ? Cone.of(input.minIncrement) : undefined,
         });
