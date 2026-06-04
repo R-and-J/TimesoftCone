@@ -165,6 +165,9 @@ export function getMyDividend(userId: string | number) {
 export type DividendLine = {
   userId: string;
   name: string;
+  team: string | null;
+  jobRank: string | null;
+  jobTitle: string | null;
   contributedDays: number;
   stakeRatio: number;
   amount: string;

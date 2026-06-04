@@ -25,6 +25,9 @@ import { Cone } from "@/domain/shared/value-objects/cone";
 export type DividendLine = {
   userId: bigint;
   name: string;
+  team: string | null;
+  jobRank: string | null;
+  jobTitle: string | null;
   contributedDays: number;
   stakeRatio: number;
   amount: bigint;
@@ -85,13 +88,16 @@ export class SettleYearEndDividendUseCase {
       this.prisma.stake.findMany({
         where: { year, days: { gt: 0 }, ...co },
         orderBy: [{ days: "desc" }, { userId: "asc" }],
-        include: { user: { select: { name: true } } },
+        include: { user: { select: { name: true, team: true, jobRank: true, jobTitle: true } } },
       }),
       this.prisma.ledgerEntry.count({ where: { actionType: "DIVIDEND", ...co } }),
     ]);
     const contributors = stakeRows.map((s) => ({
       id: s.userId,
       name: s.user.name,
+      team: s.user.team ?? null,
+      jobRank: s.user.jobRank ?? null,
+      jobTitle: s.user.jobTitle ?? null,
       contributedDays: s.days,
     }));
 
@@ -127,6 +133,9 @@ export class SettleYearEndDividendUseCase {
       return {
         userId: c.id,
         name: c.name,
+        team: c.team,
+        jobRank: c.jobRank,
+        jobTitle: c.jobTitle,
         contributedDays: c.contributedDays,
         stakeRatio: c.contributedDays / totalDays,
         amount,

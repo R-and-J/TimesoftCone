@@ -716,6 +716,37 @@ function OpenRow({ p, a, onClick }: { p: typeof PALETTES.cobalt; a: AuctionListI
   );
 }
 
+function UpcomingReleaseBanner({ p, data }: { p: typeof PALETTES.cobalt; data: UpcomingReleaseResponse | null }) {
+  if (!data) return null;
+  // 풀이 비어 있고 정책도 발행할 게 없으면 굳이 표시 X.
+  if (data.totalRemaining === 0 && !data.hasPending) return null;
+  const occ = new Date(data.occurrenceDate);
+  const cadenceLabel = data.cadence === "none" ? "배치 미사용 (즉시 전량)" :
+    data.cadence === "daily" ? "매일" :
+    data.cadence === "weekly" ? "매주" :
+    "매월";
+  return (
+    <div style={{
+      margin: "10px 16px 0", padding: "12px 14px",
+      background: p.bg, border: `1px dashed ${p.line}`, borderRadius: 10,
+      display: "flex", alignItems: "center", gap: 12,
+    }}>
+      <Pill p={p} tone="warn" size="sm" style={{ fontSize: 10 }}>다음 자동 발행</Pill>
+      <div style={{ flex: 1, fontSize: 12, color: p.inkSoft, lineHeight: 1.5 }}>
+        <div>
+          <b style={{ color: p.ink }}>{occ.toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })}</b>
+          {" · "}{cadenceLabel}
+          {" · "}
+          <b style={{ color: p.ink }}>{data.quantity}건</b> 매물 자동 생성 예정
+        </div>
+        <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 2 }}>
+          풀 잔여 {data.totalRemaining}일 · 회차 식별자 <span className="mono">{data.periodIndex}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KpiCard({ k, v, sub, good }: { k: string; v: string | number; sub: string; good?: boolean }) {
   const p = PALETTES.cobalt;
   return (

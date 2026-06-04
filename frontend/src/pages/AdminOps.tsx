@@ -685,12 +685,19 @@ export default function AdminOpsPage() {
                           borderBottom: `1px solid ${p.line}`,
                         }}
                       >
-                        <div style={{ flex: 1, fontSize: 13, color: p.ink, fontWeight: 600 }}>
-                          {l.name}
-                          {l.isTopStake && (
-                            <Pill p={p} tone="success" size="sm" style={{ marginLeft: 8 }}>
-                              stake 1위
-                            </Pill>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>
+                            {l.name}
+                            {l.isTopStake && (
+                              <Pill p={p} tone="success" size="sm" style={{ marginLeft: 8 }}>
+                                stake 1위
+                              </Pill>
+                            )}
+                          </div>
+                          {(l.team || l.jobRank || l.jobTitle) && (
+                            <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 2 }}>
+                              {[l.team, [l.jobRank, l.jobTitle].filter(Boolean).join(" / ")].filter(Boolean).join(" · ")}
+                            </div>
                           )}
                         </div>
                         <div style={{ fontSize: 12, color: p.inkMuted, width: 90, textAlign: "right" }}>
