@@ -40,6 +40,7 @@ export default function RedemptionPage() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingReceiptId, setConfirmingReceiptId] = useState<number | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const balance = balanceQ.data ? Number(balanceQ.data.balance) : 0;
 
@@ -104,25 +105,69 @@ export default function RedemptionPage() {
       >
         <TopNav p={p} active="redemption" />
         <div style={{ flex: 1, padding: "24px 40px", overflow: "auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon.bolt size={14} /> 스토어 · 교환 신청
+          {(() => {
+            const approved = (requestsQ.data ?? []).filter((r) => r.status === "APPROVED");
+            return (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon.bolt size={14} /> 스토어 · 교환 신청
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em", marginTop: 4 }}>
+                    내 포인트로 교환
+                  </div>
+                  <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
+                    신청 시 포인트가 잠기고, 관리자가 승인하면 쿠폰을 발급합니다. 반려 시 자동 환불.
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 320, flexShrink: 0 }}>
+                  <Card p={p} padding={16}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>현재 잔액</div>
+                        <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: p.ink, marginTop: 2, letterSpacing: "-0.02em" }}>
+                          {fmt.point(balance)}<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                        </div>
+                      </div>
+                      <Btn p={p} variant="ghost" size="sm" onClick={() => setHistoryOpen(true)}>
+                        📦 보관함 {(requestsQ.data?.length ?? 0) > 0 ? `(${requestsQ.data!.length})` : ""}
+                      </Btn>
+                    </div>
+                  </Card>
+                  {approved.length > 0 && (
+                    <Card p={p} padding={16} style={{ border: `2px solid ${p.accent}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: p.ink, marginBottom: 10 }}>
+                        <span style={{ fontSize: 14 }}>📦</span>
+                        수령 대기 {approved.length}건
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {approved.map((r) => (
+                          <div key={r.id} style={{ padding: 10, background: p.bg, borderRadius: 8, border: `1px solid ${p.line}` }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: p.ink, marginBottom: 4 }}>{r.itemName}</div>
+                            {r.couponCode && (
+                              <div className="mono" style={{ fontSize: 11, color: p.inkSoft, wordBreak: "break-all", marginBottom: 8, lineHeight: 1.4 }}>
+                                {r.couponCode}
+                              </div>
+                            )}
+                            <Btn
+                              p={p}
+                              variant="primary"
+                              size="sm"
+                              disabled={confirmingReceiptId === r.id}
+                              onClick={() => doConfirmReceived(r.id)}
+                              style={{ width: "100%" }}
+                            >
+                              {confirmingReceiptId === r.id ? "처리 중…" : "수령 완료"}
+                            </Btn>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </div>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em", marginTop: 4 }}>
-                내 포인트로 교환
-              </div>
-              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                신청 시 포인트가 잠기고, 관리자가 승인하면 쿠폰을 발급합니다. 반려 시 자동 환불.
-              </div>
-            </div>
-            <Card p={p} padding={16} style={{ minWidth: 220 }}>
-              <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>현재 잔액</div>
-              <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: p.ink, marginTop: 2, letterSpacing: "-0.02em" }}>
-                {fmt.point(balance)}<span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
-              </div>
-            </Card>
-          </div>
+            );
+          })()}
 
           {/* 카탈로그 */}
           {[...byCategory.entries()].map(([cat, list]) => (
@@ -168,17 +213,39 @@ export default function RedemptionPage() {
             </div>
           ))}
 
-          {/* 내 신청 내역 */}
-          <Card p={p} padding={0} style={{ marginTop: 8 }}>
-            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${p.line}` }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: p.ink, letterSpacing: "-0.01em" }}>내 신청 내역</div>
-              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
-                {requestsQ.data?.length ?? 0}건
+        </div>
+      </div>
+
+      {/* 보관함 모달 — 모든 신청 내역(PENDING / APPROVED / RECEIVED / REJECTED) */}
+      {historyOpen && (
+        <div
+          onClick={() => setHistoryOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 720, maxWidth: "92vw", maxHeight: "86vh",
+              background: p.surface, borderRadius: 16,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            <div style={{ padding: "18px 22px", borderBottom: `1px solid ${p.line}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: p.ink }}>📦 내 보관함</div>
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
+                  전체 {requestsQ.data?.length ?? 0}건 — 신청·승인·수령·반려 내역
+                </div>
               </div>
+              <Btn p={p} variant="ghost" size="sm" onClick={() => setHistoryOpen(false)}>닫기</Btn>
             </div>
-            <div>
+            <div style={{ overflow: "auto", flex: 1 }}>
               {requestsQ.data?.length === 0 && (
-                <div style={{ padding: 24, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
+                <div style={{ padding: 40, textAlign: "center", color: p.inkMuted, fontSize: 13 }}>
                   아직 신청 내역이 없습니다.
                 </div>
               )}
@@ -188,12 +255,12 @@ export default function RedemptionPage() {
                   <div
                     key={r.id}
                     style={{
-                      padding: "14px 20px",
+                      padding: "14px 22px",
                       fontSize: 12,
                       borderBottom: isLast ? "none" : `1px solid ${p.line}`,
                     }}
                   >
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 130px 90px", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 120px 90px", alignItems: "center", gap: 8 }}>
                       <div>
                         <div style={{ color: p.ink, fontWeight: 700 }}>{r.itemName}</div>
                         {r.note && (
@@ -211,43 +278,30 @@ export default function RedemptionPage() {
                       </div>
                     </div>
 
-                    {/* APPROVED: 쿠폰 + 수령 버튼 */}
-                    {r.status === "APPROVED" && r.couponCode && (
-                      <div style={{ marginTop: 10, padding: 12, background: p.bg, borderRadius: 8, border: `1px solid ${p.line}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 10, color: p.inkMuted, fontWeight: 700, marginBottom: 4 }}>쿠폰/안내</div>
-                            <div className="mono" style={{ fontSize: 13, color: p.ink, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-                              {r.couponCode}
-                            </div>
-                            {r.decisionNote && (
-                              <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 6 }}>비고: {r.decisionNote}</div>
-                            )}
-                          </div>
-                          <Btn
-                            p={p}
-                            variant="primary"
-                            size="sm"
-                            disabled={confirmingReceiptId === r.id}
-                            onClick={() => doConfirmReceived(r.id)}
-                          >
-                            {confirmingReceiptId === r.id ? "처리 중…" : "수령 완료"}
-                          </Btn>
-                        </div>
+                    {r.status === "APPROVED" && (
+                      <div style={{ marginTop: 6, fontSize: 11, color: p.inkMuted }}>
+                        우상단 「수령 대기」에서 수령 완료를 진행하세요.
                       </div>
                     )}
 
-                    {/* RECEIVED: 쿠폰 보존 표시 + 수령일 */}
                     {r.status === "RECEIVED" && (
-                      <div style={{ marginTop: 8, fontSize: 11, color: p.inkMuted }}>
-                        {r.receivedAt && `수령 ${new Date(r.receivedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+                      <div style={{ marginTop: 10, padding: 12, background: p.bg, borderRadius: 8, border: `1px solid ${p.line}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: r.couponCode ? 6 : 0 }}>
+                          <div style={{ fontSize: 10, color: p.inkMuted, fontWeight: 700 }}>쿠폰/안내</div>
+                          {r.receivedAt && (
+                            <div style={{ fontSize: 10, color: p.inkMuted }}>
+                              수령 {new Date(r.receivedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          )}
+                        </div>
                         {r.couponCode && (
-                          <div className="mono" style={{ marginTop: 4, color: p.inkSoft, fontSize: 11 }}>{r.couponCode}</div>
+                          <div className="mono" style={{ fontSize: 13, color: p.ink, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                            {r.couponCode}
+                          </div>
                         )}
                       </div>
                     )}
 
-                    {/* REJECTED: 사유 + 환불 표시 */}
                     {r.status === "REJECTED" && (
                       <div style={{ marginTop: 8, padding: 10, background: p.bg, borderRadius: 8, fontSize: 11, color: p.inkSoft }}>
                         <span style={{ color: p.danger, fontWeight: 700 }}>반려</span>
@@ -259,9 +313,9 @@ export default function RedemptionPage() {
                 );
               })}
             </div>
-          </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 신청 확인 모달 */}
       {confirming && (
