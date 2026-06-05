@@ -1,4 +1,4 @@
-// 스토어(코드명) — 자립형 배포 콘 소모처(ADR-023 v2). UI 표시명은 "스쿱 마켓".
+// 스쿱 마켓 — 자립형 배포 콘 소모처(ADR-023 v2 코드명: Redemption).
 // 흐름: PENDING(차감/잠금) → APPROVED(쿠폰 발급) → RECEIVED(사용자 수령 컨펌)
 //                       ↘ REJECTED(환불)
 

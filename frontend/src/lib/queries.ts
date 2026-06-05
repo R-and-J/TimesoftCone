@@ -379,7 +379,7 @@ export function adminCreditWallet(userId: string, amount: number, reason: string
   }>("/admin/wallet/credit", { userId, amount, reason });
 }
 
-// ── Redemption (스토어 — ADR-023 자립형 콘 소모처) ──────────────
+// ── Redemption (스쿱 마켓 — ADR-023 자립형 콘 소모처) ──────────────
 export type RedemptionItem = {
   id: number;
   sku: string;
@@ -741,7 +741,7 @@ export function purgeUnsold(upToYear?: number) {
   return apiPost<{ upToYear: number; deleted: number }>(`/admin/auctions/purge-unsold${qs}`, {});
 }
 
-// ── 스토어 관리 (Admin, 회사 스코프) ──────────────────────────────────
+// ── 스쿱 마켓 관리 (Admin, 회사 스코프) ──────────────────────────────────
 export type AdminStoreItem = {
   id: number;
   sku: string;

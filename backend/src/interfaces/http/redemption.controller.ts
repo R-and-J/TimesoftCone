@@ -1,4 +1,4 @@
-// 스토어 — 자립형 배포 콘 소모처 (ADR-023 v2).
+// 스쿱 마켓 — 자립형 배포 콘 소모처 (ADR-023 v2 코드명: Redemption).
 //   GET  /api/redemption/items               — 인증 사용자: 카탈로그 조회
 //   GET  /api/users/:userId/redemption-orders — 옛 즉시결제 이력(history, deprecated)
 //

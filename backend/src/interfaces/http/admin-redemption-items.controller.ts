@@ -1,4 +1,4 @@
-// 스토어 관리 — ADMIN 전용 (2026-06-04). 회사 스코프.
+// 스쿱 마켓 관리 — ADMIN 전용 (2026-06-04). 회사 스코프.
 //   GET    /api/admin/redemption/items            카탈로그 전체(비활성 포함)
 //   POST   /api/admin/redemption/items            신규 추가
 //   PATCH  /api/admin/redemption/items/:id        필드 수정

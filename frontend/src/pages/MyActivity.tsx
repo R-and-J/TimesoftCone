@@ -23,8 +23,8 @@ const TYPE_LABEL: Record<string, { bg: string; fg: string; label: string }> = {
   DIVIDEND:         { bg: "#FFF4E0", fg: "#E08B19", label: "배당" },
   CREDIT_ADMIN:     { bg: "#F3F0FF", fg: "#7C3AED", label: "관리자 적립" },
   EXPIRE:           { bg: "#FDECEE", fg: "#DC3F4A", label: "만료" },
-  REDEEM:           { bg: "#FFF1E6", fg: "#C2410C", label: "스토어 결제" },
-  REDEEM_REFUND:    { bg: "#FFEFE6", fg: "#9A3412", label: "스토어 환불" },
+  REDEEM:           { bg: "#FFF1E6", fg: "#C2410C", label: "스쿱 마켓 결제" },
+  REDEEM_REFUND:    { bg: "#FFEFE6", fg: "#9A3412", label: "스쿱 마켓 환불" },
   CHARGE_REQUESTED: { bg: "#F1F5F9", fg: "#475569", label: "충전 신청" },
   CHARGE_REJECTED:  { bg: "#FDECEE", fg: "#9F1239", label: "충전 거절" },
 };
@@ -575,9 +575,9 @@ function defaultDesc(t: string): string {
     case "EXPIRE":
       return "만료";
     case "REDEEM":
-      return "스토어 결제";
+      return "스쿱 마켓 결제";
     case "REDEEM_REFUND":
-      return "스토어 환불";
+      return "스쿱 마켓 환불";
     case "CHARGE_REQUESTED":
       return "충전 신청";
     case "CHARGE_REJECTED":

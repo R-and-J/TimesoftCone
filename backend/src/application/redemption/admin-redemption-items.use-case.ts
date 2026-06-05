@@ -1,4 +1,4 @@
-// 스토어 관리(2026-06-04) — Admin CRUD UseCase 묶음.
+// 스쿱 마켓 관리(2026-06-04) — Admin CRUD UseCase 묶음.
 // 회사 스코프: super(null)는 전 회사, 그 외엔 자기 회사 카탈로그.
 // 모든 쓰기 작업은 redemption_item_audit에 같은 트랜잭션으로 1행씩 기록한다.
 

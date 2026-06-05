@@ -1,4 +1,4 @@
-// ListRedemptionItems — 스토어 상품 카탈로그 조회 (ADR-023, 회사 스코프).
+// ListRedemptionItems — 스쿱 마켓 상품 카탈로그 조회 (ADR-023, 회사 스코프).
 
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/adapters/persistence/prisma.service";
