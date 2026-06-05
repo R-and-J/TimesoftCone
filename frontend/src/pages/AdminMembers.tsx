@@ -712,9 +712,9 @@ export default function AdminMembersPage() {
                   top: 0,
                 }}
               >
-                <span style={{ textAlign: "center" }}>#</span>
+                <span>#</span>
                 <span>요청자</span>
-                <span style={{ textAlign: "right" }}>금액</span>
+                <span>금액</span>
                 <span>사유</span>
                 {/* Pill sm padding 0 8 — 헤더에도 같은 paddingLeft를 줘서 Pill 텍스트와 정렬. */}
                 <span style={{ paddingLeft: 8 }}>상태</span>
@@ -752,9 +752,9 @@ export default function AdminMembersPage() {
                       onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.bg; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.surface; }}
                     >
-                      <span className="mono" style={{ color: p.inkMuted, textAlign: "center" }}>#{r.id}</span>
+                      <span className="mono" style={{ color: p.inkMuted }}>#{r.id}</span>
                       <span style={{ fontWeight: 700 }}>{r.userName}</span>
-                      <span className="mono" style={{ textAlign: "right", fontWeight: 700 }}>
+                      <span className="mono" style={{ fontWeight: 700 }}>
                         {fmt.point(Number(r.amount))} 콘
                       </span>
                       <span
