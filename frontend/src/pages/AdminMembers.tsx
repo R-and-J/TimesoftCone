@@ -13,6 +13,7 @@ import {
   adminCreditWallet,
   approveChargeRequest,
   getAdminChargeRequest,
+  listAdminChargeRequests,
   listMembers,
   rejectChargeRequest,
   syncMembers,
@@ -94,6 +95,89 @@ export default function AdminMembersPage() {
   const [crediting, setCrediting] = useState(false);
   const [chargeReq, setChargeReq] = useState<ChargeRequestRow | null>(null);
 
+  // 충전요청 목록 모달 — 닫은 알림을 다시 모아보기 위한 진입점("콘" 헤더의 [요청함] 버튼).
+  const [chargeListOpen, setChargeListOpen] = useState(false);
+  const [chargeListFilter, setChargeListFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
+  const [chargeListRows, setChargeListRows] = useState<ChargeRequestRow[]>([]);
+  const [chargeListLoading, setChargeListLoading] = useState(false);
+  // 헤더 버튼의 배지로 쓸 PENDING 개수 — 모달이 닫혀있어도 표시되도록 별도로 폴링.
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+
+  // 모달을 거치지 않고 표 행에서 바로 처리 — 빠른 일괄 처리용.
+  // 처리 후 목록과 PENDING 배지를 동기화한다.
+  const [rowBusy, setRowBusy] = useState<number | null>(null);
+  const reloadAfterRowAction = async () => {
+    await loadChargeList(chargeListFilter);
+    try {
+      const rows = await listAdminChargeRequests("PENDING");
+      setPendingCount(rows.length);
+    } catch { /* 무시 */ }
+    await membersQ.refetch();
+  };
+  const doApproveRow = async (r: ChargeRequestRow) => {
+    setRowBusy(r.id);
+    try {
+      const res = await approveChargeRequest(r.id);
+      toast.push(
+        "success",
+        `${r.userName} 승인 — +${fmt.point(Number(res.amount))} 콘 (잔액 ${fmt.point(Number(res.newBalance))} 콘)`,
+      );
+      await reloadAfterRowAction();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setRowBusy(null);
+    }
+  };
+  const doRejectRow = async (r: ChargeRequestRow) => {
+    const note = prompt(`#${r.id} ${r.userName} — 반려 사유(선택)`) ?? undefined;
+    setRowBusy(r.id);
+    try {
+      await rejectChargeRequest(r.id, note);
+      toast.push("success", `${r.userName} 충전 요청 반려`);
+      await reloadAfterRowAction();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setRowBusy(null);
+    }
+  };
+
+  const loadChargeList = async (filter: "ALL" | "PENDING" | "APPROVED" | "REJECTED") => {
+    setChargeListLoading(true);
+    try {
+      const status = filter === "ALL" ? undefined : filter;
+      const rows = await listAdminChargeRequests(status);
+      setChargeListRows(rows);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setChargeListLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (chargeListOpen) loadChargeList(chargeListFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chargeListOpen, chargeListFilter]);
+  // PENDING 배지 — 페이지 진입 시 1회 + 60초 폴링.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const rows = await listAdminChargeRequests("PENDING");
+        if (!cancelled) setPendingCount(rows.length);
+      } catch {
+        /* 무시 — 배지일 뿐 */
+      }
+    };
+    fetchCount();
+    const t = window.setInterval(fetchCount, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, []);
+
   const openCredit = (m: MemberRow) => {
     setCreditFor(m);
     setCreditAmount("");
@@ -147,6 +231,12 @@ export default function AdminMembersPage() {
       setChargeReq(null);
       clearParam();
       await membersQ.refetch();
+      if (chargeListOpen) await loadChargeList(chargeListFilter);
+      // 배지 즉시 갱신.
+      try {
+        const rows = await listAdminChargeRequests("PENDING");
+        setPendingCount(rows.length);
+      } catch { /* 무시 */ }
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
@@ -163,6 +253,11 @@ export default function AdminMembersPage() {
       setCreditFor(null);
       setChargeReq(null);
       clearParam();
+      if (chargeListOpen) await loadChargeList(chargeListFilter);
+      try {
+        const rows = await listAdminChargeRequests("PENDING");
+        setPendingCount(rows.length);
+      } catch { /* 무시 */ }
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
@@ -191,14 +286,7 @@ export default function AdminMembersPage() {
           clearParam();
           return;
         }
-        if (req.status !== "PENDING") {
-          toast.push(
-            "error",
-            `이 요청은 이미 ${req.status === "APPROVED" ? "승인" : "반려"}되었습니다`,
-          );
-          clearParam();
-          return;
-        }
+        // 처리된 요청도 read-only로 표시(모달이 status에 따라 분기).
         openCreditFromRequest(member, req);
       } catch (e) {
         toast.push("error", (e as Error).message);
@@ -429,6 +517,8 @@ export default function AdminMembersPage() {
               openCredit,
               openEdit,
               toggleActive,
+              openChargeList: () => setChargeListOpen(true),
+              pendingCount,
             })}
             footer={
               <span>
@@ -456,8 +546,13 @@ export default function AdminMembersPage() {
             onClick={(e) => e.stopPropagation()}
             style={{ width: 440, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
-              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "콘 관리"}
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+              {chargeReq ? `충전 요청 #${chargeReq.id}` : "콘 관리"}
+              {chargeReq && chargeReq.status !== "PENDING" && (
+                <Pill p={p} size="sm" tone={chargeReq.status === "APPROVED" ? "success" : "danger"} style={{ fontSize: 10 }}>
+                  {chargeReq.status === "APPROVED" ? "승인됨" : "반려됨"}
+                </Pill>
+              )}
             </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>
               <b>{creditFor.name}</b> · 사번 {creditFor.empId}
@@ -491,8 +586,36 @@ export default function AdminMembersPage() {
               />
             </Field>
 
-            <div style={{ display: "flex", justifyContent: chargeReq ? "space-between" : "flex-end", gap: 8, marginTop: 14 }}>
-              {chargeReq ? (
+            {chargeReq && chargeReq.status !== "PENDING" && (
+              <div
+                style={{
+                  marginTop: 4,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: p.bgDeep,
+                  border: `1px solid ${p.line}`,
+                  fontSize: 12,
+                  color: p.inkSoft,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div>
+                  <b>처리</b>{" "}
+                  {chargeReq.decidedAt
+                    ? new Date(chargeReq.decidedAt).toLocaleString("ko-KR")
+                    : "—"}
+                  {chargeReq.decidedByName && <> · {chargeReq.decidedByName}</>}
+                </div>
+                {chargeReq.decisionNote && (
+                  <div>
+                    <b>관리자 메모</b> {chargeReq.decisionNote}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: chargeReq && chargeReq.status === "PENDING" ? "space-between" : "flex-end", gap: 8, marginTop: 14 }}>
+              {chargeReq && chargeReq.status === "PENDING" ? (
                 <>
                   <Btn p={p} variant="danger" size="md" disabled={crediting} onClick={doRejectRequest}>
                     {crediting ? "처리 중…" : "반려"}
@@ -504,6 +627,8 @@ export default function AdminMembersPage() {
                     </Btn>
                   </div>
                 </>
+              ) : chargeReq ? (
+                <Btn p={p} variant="ghost" size="md" onClick={() => { setCreditFor(null); setChargeReq(null); clearParam(); }}>닫기</Btn>
               ) : (
                 <>
                   <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => setCreditFor(null)}>취소</Btn>
@@ -512,6 +637,180 @@ export default function AdminMembersPage() {
                   </Btn>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {chargeListOpen && (
+        <div
+          onClick={() => setChargeListOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 190,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 1040, maxWidth: "96vw", maxHeight: "86vh", display: "flex", flexDirection: "column",
+              background: p.surface, borderRadius: 16, padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: p.ink }}>충전 요청 모아보기</div>
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
+                  알림에서 닫은 요청도 여기서 다시 처리할 수 있습니다.
+                </div>
+              </div>
+              <Btn p={p} variant="ghost" size="sm" onClick={() => setChargeListOpen(false)}>닫기</Btn>
+            </div>
+
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {([
+                { id: "PENDING" as const, label: "대기" },
+                { id: "APPROVED" as const, label: "승인" },
+                { id: "REJECTED" as const, label: "반려" },
+                { id: "ALL" as const, label: "전체" },
+              ]).map((t) => {
+                const on = t.id === chargeListFilter;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => !on && setChargeListFilter(t.id)}
+                    style={{
+                      padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      color: on ? p.surface : p.inkMuted, background: on ? p.ink : p.surface,
+                      border: `1px solid ${on ? p.ink : p.line}`, cursor: on ? "default" : "pointer",
+                    }}
+                  >
+                    {t.label}
+                  </div>
+                );
+              })}
+              <div style={{ flex: 1 }} />
+              <Btn p={p} variant="ghost" size="sm" disabled={chargeListLoading} onClick={() => loadChargeList(chargeListFilter)}>
+                {chargeListLoading ? "불러오는 중…" : "새로고침"}
+              </Btn>
+            </div>
+
+            <div style={{ flex: 1, overflow: "auto", border: `1px solid ${p.line}`, borderRadius: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "56px 130px 110px minmax(220px, 2.4fr) 70px 150px 150px",
+                  gap: 10,
+                  padding: "10px 14px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: p.inkMuted,
+                  background: p.bgDeep,
+                  borderBottom: `1px solid ${p.line}`,
+                  position: "sticky",
+                  top: 0,
+                }}
+              >
+                <span>#</span>
+                <span>요청자</span>
+                <span style={{ textAlign: "right" }}>금액</span>
+                <span>사유</span>
+                <span>상태</span>
+                <span>요청 일시</span>
+                <span style={{ paddingLeft: 8 }}>작업</span>
+              </div>
+              {chargeListLoading && chargeListRows.length === 0 ? (
+                <div style={{ padding: "32px 14px", fontSize: 12, color: p.inkMuted, textAlign: "center" }}>
+                  불러오는 중…
+                </div>
+              ) : chargeListRows.length === 0 ? (
+                <div style={{ padding: "32px 14px", fontSize: 12, color: p.inkMuted, textAlign: "center" }}>
+                  표시할 요청이 없습니다.
+                </div>
+              ) : (
+                chargeListRows.map((r) => {
+                  const member = data?.members.find((m) => m.userId === r.userId);
+                  const canOpenDetail = !!member;
+                  const busy = rowBusy === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "56px 130px 110px minmax(220px, 2.4fr) 70px 150px 150px",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        fontSize: 12,
+                        color: p.ink,
+                        borderBottom: `1px solid ${p.line}`,
+                        background: p.surface,
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.bg; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.surface; }}
+                    >
+                      <span className="mono" style={{ color: p.inkMuted }}>#{r.id}</span>
+                      <span style={{ fontWeight: 700 }}>{r.userName}</span>
+                      <span className="mono" style={{ textAlign: "right", fontWeight: 700 }}>
+                        {fmt.point(Number(r.amount))} 콘
+                      </span>
+                      <span
+                        style={{
+                          color: p.inkSoft,
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          lineHeight: 1.4,
+                          wordBreak: "break-word",
+                        }}
+                        title={r.note ?? undefined}
+                      >
+                        {r.note ?? "—"}
+                      </span>
+                      <span>
+                        <Pill
+                          p={p}
+                          size="sm"
+                          tone={r.status === "PENDING" ? "warn" : r.status === "APPROVED" ? "success" : "danger"}
+                          style={{ fontSize: 9 }}
+                        >
+                          {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "반려"}
+                        </Pill>
+                      </span>
+                      <span style={{ color: p.inkMuted, fontSize: 11 }}>
+                        {new Date(r.createdAt).toLocaleString("ko-KR")}
+                      </span>
+                      <span style={{ display: "inline-flex", gap: 6 }}>
+                        {r.status === "PENDING" ? (
+                          <>
+                            <Btn p={p} variant="primary" size="sm" disabled={busy} onClick={() => doApproveRow(r)}>
+                              {busy ? "…" : "승인"}
+                            </Btn>
+                            <Btn p={p} variant="danger" size="sm" disabled={busy} onClick={() => doRejectRow(r)}>
+                              반려
+                            </Btn>
+                          </>
+                        ) : (
+                          <Btn
+                            p={p}
+                            variant="ghost"
+                            size="sm"
+                            disabled={!canOpenDetail}
+                            onClick={() => canOpenDetail && openCreditFromRequest(member!, r)}
+                          >
+                            상세
+                          </Btn>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 8 }}>
+              총 {chargeListRows.length}건 · 대기 건은 표에서 바로 승인/반려, 처리된 건은 「상세」로 결정 내역을 볼 수 있습니다.
             </div>
           </div>
         </div>
@@ -776,6 +1075,8 @@ function memberColumns({
   openCredit,
   openEdit,
   toggleActive,
+  openChargeList,
+  pendingCount,
 }: {
   w: string[];
   p: Palette;
@@ -783,6 +1084,8 @@ function memberColumns({
   openCredit: (m: MemberRow) => void;
   openEdit: (m: MemberRow) => void;
   toggleActive: (m: MemberRow) => void;
+  openChargeList: () => void;
+  pendingCount: number | null;
 }): GridColumn<MemberRow>[] {
   const cols: GridColumn<MemberRow>[] = [
     {
@@ -861,7 +1164,34 @@ function memberColumns({
     },
     {
       key: "balance",
-      header: "콘",
+      header: (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          콘
+          <Btn p={p} variant="ghost" size="sm" onClick={openChargeList}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              요청함
+              {pendingCount !== null && pendingCount > 0 && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    minWidth: 16,
+                    padding: "0 5px",
+                    borderRadius: 999,
+                    background: "#ef4444",
+                    color: "#fff",
+                    fontSize: 9,
+                    fontWeight: 800,
+                    textAlign: "center",
+                    lineHeight: "14px",
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </span>
+          </Btn>
+        </span>
+      ),
       width: w[6],
       align: "center",
       render: (m) => (
