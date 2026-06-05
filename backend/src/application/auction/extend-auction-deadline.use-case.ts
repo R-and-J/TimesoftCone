@@ -1,5 +1,6 @@
-// ExtendAuctionDeadline — 관리자가 OPEN 매물의 마감 시각을 늘린다.
-// 입찰자 보호: 앞으로 당기는 건 막음(즉시 마감은 CloseAuctionImmediatelyUseCase로).
+// ExtendAuctionDeadline — 관리자가 OPEN 매물의 마감 시각을 자유 수정(연장·단축 모두).
+// 단, 새 마감 시각은 미래여야 함(즉시 마감은 CloseAuctionImmediatelyUseCase로 별도).
+// 이름은 "Extend"지만 동작은 "Adjust" — API 후방호환을 위해 라우트 이름 유지.
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { AUCTION_REPOSITORY, type AuctionRepository } from "@/ports/auction-repository";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
@@ -19,7 +20,7 @@ export class ExtendAuctionDeadlineUseCase {
     const newEndsAt = new Date(input.endsAt);
     const now = new Date();
     if (newEndsAt <= now) {
-      throw new BadRequestException("연장은 미래 시각만 가능합니다 (즉시 마감은 close-now 사용)");
+      throw new BadRequestException("새 마감은 현재 시각보다 늦어야 합니다 (즉시 마감은 close-now 사용)");
     }
     try {
       auction.adminAdjustDeadline(newEndsAt, now);

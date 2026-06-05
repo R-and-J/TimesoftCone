@@ -76,7 +76,7 @@ export default function AdminAuctionsPage() {
     await Promise.all([summaryQ.refetch(), upcomingQ.refetch(), openQ.refetch(), policyQ.refetch()]);
   };
 
-  // ── 진행 중 매물 — 마감 연장 / 즉시 마감 ────────────────────────
+  // ── 진행 중 매물 — 마감 수정 / 즉시 마감 ────────────────────────
   const openOpenModal = (a: AuctionListItem) => {
     setOpenModalFor(a);
     // 기본값: 현재 마감 + 1시간
@@ -85,14 +85,14 @@ export default function AdminAuctionsPage() {
   const doExtend = async () => {
     if (!openModalFor) return;
     const newEndsAt = new Date(extendForm);
-    if (newEndsAt <= new Date(openModalFor.endsAt)) {
-      toast.push("error", "새 마감은 현재 마감보다 늦어야 합니다");
+    if (newEndsAt <= new Date()) {
+      toast.push("error", "새 마감은 현재 시각보다 늦어야 합니다 (즉시 마감이면 [즉시 마감] 버튼 사용)");
       return;
     }
     setOpenActing(true);
     try {
       const r = await extendAuctionDeadline(openModalFor.id, newEndsAt.toISOString());
-      toast.push("success", `${r.id} 마감 연장 — ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
+      toast.push("success", `${r.id} 마감 수정 — ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
       setOpenModalFor(null);
       await Promise.all([summaryQ.refetch(), openQ.refetch()]);
     } catch (e) {
@@ -273,7 +273,7 @@ export default function AdminAuctionsPage() {
             </Card>
           )}
 
-          {/* 진행 중 목록 — OPEN. 마감 연장 / 즉시 마감 가능. */}
+          {/* 진행 중 목록 — OPEN. 마감 수정 / 즉시 마감 가능. */}
           <Card p={p} padding={0} style={{ marginBottom: 16 }}>
             <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${p.line}` }}>
               <Pill p={p} tone="success" size="sm">진행</Pill>
@@ -281,7 +281,7 @@ export default function AdminAuctionsPage() {
                 진행 중 ({openQ.data?.length ?? "—"}건)
               </div>
               <div style={{ flex: 1 }} />
-              <div style={{ fontSize: 11, color: p.inkMuted }}>클릭 → 마감 연장 / 즉시 마감</div>
+              <div style={{ fontSize: 11, color: p.inkMuted }}>클릭 → 마감 수정 / 즉시 마감</div>
             </div>
             <div style={{ padding: 12, maxHeight: 360, overflow: "auto" }}>
               {openQ.data?.length === 0 && (
@@ -411,7 +411,7 @@ export default function AdminAuctionsPage() {
               {" · "}입찰 {openModalFor.bidCount}회
             </div>
 
-            <FieldBlock p={p} label="새 마감 시각 (연장 — 현재 마감보다 늦어야 함)">
+            <FieldBlock p={p} label="새 마감 시각 (현재 시각보다 늦어야 함 · 단축도 가능)">
               <input
                 type="datetime-local"
                 value={extendForm}
@@ -427,7 +427,7 @@ export default function AdminAuctionsPage() {
               <div style={{ display: "flex", gap: 8 }}>
                 <Btn p={p} variant="ghost" size="md" disabled={openActing} onClick={() => setOpenModalFor(null)}>닫기</Btn>
                 <Btn p={p} variant="primary" size="md" disabled={openActing} onClick={doExtend}>
-                  {openActing ? "처리 중…" : "마감 연장"}
+                  {openActing ? "처리 중…" : "마감 수정"}
                 </Btn>
               </div>
             </div>
@@ -789,7 +789,7 @@ function OpenRow({ p, a, onClick }: { p: typeof PALETTES.cobalt; a: AuctionListI
   return (
     <div
       onClick={onClick}
-      title="클릭해서 마감 연장 / 즉시 마감"
+      title="클릭해서 마감 수정 / 즉시 마감"
       style={{
         display: "flex", alignItems: "center", gap: 16, padding: "10px 8px",
         borderBottom: `1px solid ${p.line}`, borderRadius: 6, cursor: "pointer", transition: "background 120ms",
