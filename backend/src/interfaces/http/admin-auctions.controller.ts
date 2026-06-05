@@ -8,7 +8,6 @@ import {
   Param,
   Post,
   Query,
-  UsePipes,
 } from "@nestjs/common";
 import { z } from "zod";
 import { CreateAuctionUseCase } from "@/application/auction/create-auction.use-case";
@@ -88,10 +87,9 @@ export class AdminAuctionsController {
   ) {}
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createSchema))
   async create(
     @CompanyScope() companyId: bigint | null,
-    @Body() body: z.infer<typeof createSchema>,
+    @Body(new ZodValidationPipe(createSchema)) body: z.infer<typeof createSchema>,
   ) {
     try {
       // 매물은 생성자(회사 관리자) 회사 소속. super가 "전체"면 use-case가 EZPASS(1)로.

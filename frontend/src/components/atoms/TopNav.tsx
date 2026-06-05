@@ -121,12 +121,13 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
   // 직급(ezpass clsf_nm)을 우선 표시. 없으면 role 라벨로 폴백. (ADR-020)
   const displayRole = role ?? current.jobRank ?? roleLabel(current.role);
 
+  // 순서: 벌고(경매장) → 쓰고(스쿱 마켓) → 보고(내 활동) → 정산(연말 배당) — 콘 흐름 따라감.
   const items: { id: NonNullable<Props["active"]>; label: string }[] = [
     { id: "dashboard", label: "홈" },
     { id: "auction", label: "경매장" },
+    { id: "redemption", label: "스쿱 마켓" },
     { id: "activity", label: "내 활동" },
     { id: "dividend", label: "연말 배당" },
-    { id: "redemption", label: "스쿱 마켓" },
     // "관리"는 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN)에게만 노출.
     ...(isAdmin(current.role) ? [{ id: "admin" as const, label: "관리" }] : []),
   ];
