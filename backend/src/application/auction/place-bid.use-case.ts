@@ -120,7 +120,7 @@ export class PlaceBidUseCase {
             amount: previous.amount.toBigInt(),
             balanceAfter: prevWallet.balance,
             auctionId: auctionId.toString(),
-            refNote: "Outbid — auto refund",
+            refNote: "더 높은 입찰로 자동 환불",
           }),
         );
       }

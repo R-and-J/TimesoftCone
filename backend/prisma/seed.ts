@@ -53,7 +53,7 @@ async function bid(id: string, bidderId: bigint, amount: number, companyId: bigi
   if (a.highestBidder !== null) {
     const nb = (bal[String(a.highestBidder)] ?? 0n) + a.highest;
     await setWallet(a.highestBidder, nb);
-    await ledger(a.highestBidder, "REFUND", a.highest, nb, id, "Outbid — auto refund", companyId);
+    await ledger(a.highestBidder, "REFUND", a.highest, nb, id, "더 높은 입찰로 자동 환불", companyId);
   }
   const myBal = (bal[String(bidderId)] ?? 0n) - amt;
   if (myBal < 0n) throw new Error(`insufficient: user ${bidderId} ${bal[String(bidderId)]} < ${amt}`);
