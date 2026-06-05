@@ -1169,7 +1169,7 @@ function memberColumns({
       header: (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           콘
-          <Btn p={p} variant="ghost" size="sm" onClick={openChargeList}>
+          <Btn p={p} variant="soft" size="sm" onClick={openChargeList}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               요청함
               {pendingCount !== null && pendingCount > 0 && (

@@ -143,7 +143,19 @@ export function DataGrid<T>({
         }}
       >
         {columns.map((c) => (
-          <div key={c.key} style={{ textAlign: c.align, minWidth: 0 }}>
+          <div
+            key={c.key}
+            style={{
+              textAlign: c.align,
+              minWidth: 0,
+              // 헤더 셀끼리 세로 가운데 정렬 — 일부 셀에 버튼/배지가 들어가도 줄이 어긋나지 않도록.
+              display: "flex",
+              alignItems: "center",
+              justifyContent:
+                c.align === "right" ? "flex-end" : c.align === "center" ? "center" : "flex-start",
+              minHeight: 28,
+            }}
+          >
             {c.header}
           </div>
         ))}
