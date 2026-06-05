@@ -549,9 +549,11 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          {/* Quick links */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-            {[
+          {/* Quick links — EZPASS 사용자는 상단 [휴가 사용 신청 ↗] 버튼이 이미 있어서
+              하단의 "연차 사용 신청" 카드는 중복이라 제거(같은 위치 = 상단 버튼). EXAM은 그대로. */}
+          {(() => {
+            const isEzpassUser = user.role === "EZPASS" || user.role === "EZPASS_ADMIN";
+            const quickLinks = [
               {
                 i: <Icon.hammer size={22} />,
                 t: "경매장 둘러보기",
@@ -573,14 +575,19 @@ export default function DashboardPage() {
                 tone: p.warn,
                 path: "/activity",
               },
-              {
-                i: <Icon.spark size={22} />,
-                t: "연차 사용 신청",
-                s: "그룹웨어로 연결",
-                tone: p.inkSoft,
-                path: "/dashboard",
-              },
-            ].map((it, i) => (
+              ...(isEzpassUser
+                ? []
+                : [{
+                    i: <Icon.spark size={22} />,
+                    t: "연차 사용 신청",
+                    s: "그룹웨어로 연결",
+                    tone: p.inkSoft,
+                    path: "/dashboard",
+                  }]),
+            ];
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${quickLinks.length}, 1fr)`, gap: 16 }}>
+                {quickLinks.map((it, i) => (
               <Card key={i} p={p} padding={20} hover onClick={() => navigate(it.path)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <div
@@ -603,8 +610,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
