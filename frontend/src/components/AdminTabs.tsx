@@ -8,12 +8,12 @@ import { getAdminStats } from "@/lib/queries";
 
 type AdminTab = "ops" | "ledger" | "members" | "redemption" | "auctions" | "store";
 
-// 사람 → 매물 → 상품(스토어) → 그 후속 신청 → 원장 흐름.
+// 사람 → 매물 → 상품(스쿱 마켓) → 그 후속 신청 → 원장 흐름.
 const TABS: { id: AdminTab; label: string; route: string }[] = [
   { id: "ops", label: "운영", route: "/admin/ops" },
   { id: "members", label: "회원관리", route: "/admin/members" },
   { id: "auctions", label: "경매관리", route: "/admin/auctions" },
-  { id: "store", label: "스토어", route: "/admin/store" },
+  { id: "store", label: "스쿱 마켓", route: "/admin/store" },
   { id: "redemption", label: "교환 신청", route: "/admin/redemption" },
   { id: "ledger", label: "원장", route: "/admin/ledger" },
 ];

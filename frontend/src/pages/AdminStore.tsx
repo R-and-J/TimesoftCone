@@ -237,7 +237,7 @@ export default function AdminStorePage() {
           >
             <div>
               <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon.bolt size={14} /> 스토어 · 자기 회사 카탈로그
+                <Icon.bolt size={14} /> 스쿱 마켓 · 자기 회사 카탈로그
               </div>
               <div style={{ fontSize: 28, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em", marginTop: 4 }}>
                 상품 {summary.total} · 활성 {summary.active} · 비활성 {summary.inactive}

@@ -126,7 +126,7 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
     { id: "auction", label: "경매장" },
     { id: "activity", label: "내 활동" },
     { id: "dividend", label: "연말 배당" },
-    { id: "redemption", label: "스토어" },
+    { id: "redemption", label: "스쿱 마켓" },
     // "관리"는 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN)에게만 노출.
     ...(isAdmin(current.role) ? [{ id: "admin" as const, label: "관리" }] : []),
   ];
