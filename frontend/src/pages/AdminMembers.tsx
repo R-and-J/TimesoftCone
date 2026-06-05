@@ -712,13 +712,15 @@ export default function AdminMembersPage() {
                   top: 0,
                 }}
               >
-                <span>#</span>
+                <span style={{ textAlign: "center" }}>#</span>
                 <span>요청자</span>
                 <span style={{ textAlign: "right" }}>금액</span>
                 <span>사유</span>
-                <span>상태</span>
+                {/* Pill sm padding 0 8 — 헤더에도 같은 paddingLeft를 줘서 Pill 텍스트와 정렬. */}
+                <span style={{ paddingLeft: 8 }}>상태</span>
                 <span>요청 일시</span>
-                <span style={{ paddingLeft: 8 }}>작업</span>
+                {/* Btn sm padding 0 14 — 헤더에도 같은 paddingLeft를 줘서 버튼 라벨과 정렬. */}
+                <span style={{ paddingLeft: 14 }}>작업</span>
               </div>
               {chargeListLoading && chargeListRows.length === 0 ? (
                 <div style={{ padding: "32px 14px", fontSize: 12, color: p.inkMuted, textAlign: "center" }}>
@@ -750,7 +752,7 @@ export default function AdminMembersPage() {
                       onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.bg; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.surface; }}
                     >
-                      <span className="mono" style={{ color: p.inkMuted }}>#{r.id}</span>
+                      <span className="mono" style={{ color: p.inkMuted, textAlign: "center" }}>#{r.id}</span>
                       <span style={{ fontWeight: 700 }}>{r.userName}</span>
                       <span className="mono" style={{ textAlign: "right", fontWeight: 700 }}>
                         {fmt.point(Number(r.amount))} 콘
