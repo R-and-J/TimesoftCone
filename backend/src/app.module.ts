@@ -75,6 +75,7 @@ import {
 import { RedeemItemUseCase } from "./application/redemption/redeem-item.use-case";
 import { ListMyRedemptionOrdersUseCase } from "./application/redemption/list-my-redemption-orders.use-case";
 import { SubmitRedemptionRequestUseCase } from "./application/redemption/submit-redemption-request.use-case";
+import { SubmitCustomRedemptionRequestUseCase } from "./application/redemption/submit-custom-redemption-request.use-case";
 import { ApproveRedemptionRequestUseCase } from "./application/redemption/approve-redemption-request.use-case";
 import { RejectRedemptionRequestUseCase } from "./application/redemption/reject-redemption-request.use-case";
 import { ConfirmRedemptionReceivedUseCase } from "./application/redemption/confirm-redemption-received.use-case";
@@ -278,6 +279,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     RedeemItemUseCase,
     ListMyRedemptionOrdersUseCase,
     SubmitRedemptionRequestUseCase,
+    SubmitCustomRedemptionRequestUseCase,
     ApproveRedemptionRequestUseCase,
     RejectRedemptionRequestUseCase,
     ConfirmRedemptionReceivedUseCase,

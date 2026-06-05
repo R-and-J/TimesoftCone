@@ -237,6 +237,8 @@ async function seedRedemptionCatalog() {
     { sku: "TWOSOME-CAKE-SET", name: "아메리카노 + 조각케익 세트", brand: "투썸플레이스", description: "투썸 기프티콘", priceP: 12000n, stock: 30, category: "카페 상품권", displayOrder: 31 },
     { sku: "KAKAO-GIFT-10K", name: "카카오톡 선물하기 10,000원권", brand: "카카오", description: "원하는 상품 자유 선택", priceP: 10000n, stock: null, category: "기프티콘", displayOrder: 40 },
     { sku: "KAKAO-GIFT-30K", name: "카카오톡 선물하기 30,000원권", brand: "카카오", description: "원하는 상품 자유 선택", priceP: 30000n, stock: null, category: "기프티콘", displayOrder: 41 },
+    // 자유 신청용 placeholder — 사용자가 직접 물품·금액 제안. priceP=1은 placeholder(실제 청구는 input).
+    { sku: "CUSTOM-WISH", name: "원하는대로 담기", brand: null, description: "카탈로그에 없는 물품을 직접 제안해보세요", priceP: 1n, stock: null, category: "자유 신청", displayOrder: 100 },
   ];
   for (const it of items) {
     await prisma.redemptionItem.upsert({

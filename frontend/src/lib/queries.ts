@@ -454,6 +454,18 @@ export function submitRedemptionRequest(itemId: number, note?: string) {
   }>("/redemption/requests", note ? { itemId, note } : { itemId });
 }
 
+/** 자유 제안형 신청 — "원하는대로 담기". 사용자가 물품명·금액·요청 사항 직접 입력. */
+export function submitCustomRedemptionRequest(input: { customName: string; customPriceP: number | string; note?: string }) {
+  return apiPost<{
+    id: number;
+    itemId: number;
+    itemName: string;
+    pricePAtRequest: string;
+    status: "PENDING";
+    createdAt: string;
+  }>("/redemption/requests/custom", input);
+}
+
 export function listMyRedemptionRequests() {
   return apiGet<RedemptionRequestRow[]>("/redemption/requests");
 }
