@@ -1,5 +1,8 @@
 // 정산 데이터 핸드오프 export — 도입사 HR/급여로 넘길 CSV·MD·JSON·xlsx (ADR-021).
-// RBAC는 아직 없음(scope-cuts CUT-8) — 후속 PR에서 ADMIN 가드.
+// ADMIN 계열만(@Roles). 멀티테넌시: @CompanyScope로 로그인 관리자 회사로 한정한다.
+//   - EZPASS_ADMIN → 자기 회사(예: timesoftcone) 유저만, EXAM_ADMIN → exam 회사만.
+//   - super ADMIN → X-Company-Id 스위처 선택 회사, 없으면 전 회사 통합(null).
+// 프론트는 fetch(Bearer + X-Company-Id)로 받으므로 새 탭/브라우저 직접이동 안 함.
 //
 // 사람이 보는 포맷(csv/md/xlsx)은 한글 헤더 + 한글 파일명(프로젝트명 포함)으로 내보낸다.
 // json은 시스템 연동용이라 원본 영문 키를 유지.
@@ -8,7 +11,7 @@ import { Controller, Get, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { Workbook } from "exceljs";
 import { ExportSettlementUseCase } from "@/application/admin/export-settlement.use-case";
-import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES, CompanyScope } from "./auth/auth.decorators";
 
 const PROJECT = "타임소프트콘";
 
@@ -90,8 +93,9 @@ const MIME = {
 export class AdminExportController {
   constructor(private readonly exporter: ExportSettlementUseCase) {}
 
-  /** 항목별 메타: 한글 헤더 라벨 + 파일/시트 한글명 + json 키 + 데이터 소스. */
-  private datasets() {
+  /** 항목별 메타: 한글 헤더 라벨 + 파일/시트 한글명 + json 키 + 데이터 소스.
+   *  companyId로 데이터 소스를 회사 스코프로 한정(null=전 회사). */
+  private datasets(companyId: bigint | null) {
     return {
       "leave-grants": {
         sheet: "낙찰 연차 부여 내역",
@@ -109,7 +113,7 @@ export class AdminExportController {
           amountPoint: "낙찰콘",
           grantedAt: "부여일시",
         } as Labels,
-        fetch: () => this.exporter.leaveGrants() as Promise<Row[]>,
+        fetch: () => this.exporter.leaveGrants(companyId) as Promise<Row[]>,
       },
       dividends: {
         sheet: "연말 배당 내역",
@@ -123,7 +127,7 @@ export class AdminExportController {
           stakePct: "지분율(%)",
           dividendPoint: "배당콘",
         } as Labels,
-        fetch: () => this.exporter.dividends() as Promise<Row[]>,
+        fetch: () => this.exporter.dividends(companyId) as Promise<Row[]>,
       },
       spending: {
         sheet: "지출 내역",
@@ -136,7 +140,7 @@ export class AdminExportController {
           spentPoint: "지출콘",
           wins: "낙찰건수",
         } as Labels,
-        fetch: () => this.exporter.spending() as Promise<Row[]>,
+        fetch: () => this.exporter.spending(companyId) as Promise<Row[]>,
       },
     };
   }
@@ -169,9 +173,10 @@ export class AdminExportController {
   async combined(
     @Query("sets") setsRaw = "",
     @Query("format") format = "xlsx",
+    @CompanyScope() companyId: bigint | null,
     @Res() res: Response,
   ) {
-    const DS = this.datasets();
+    const DS = this.datasets(companyId);
     let keys = setsRaw
       .split(",")
       .map((s) => s.trim())
@@ -221,22 +226,34 @@ export class AdminExportController {
 
   /** 낙찰 AUCTION 연차 부여 내역. ?format=csv|json|md (기본 json) */
   @Get("leave-grants")
-  async leaveGrants(@Query("format") format = "json", @Res() res: Response) {
-    const ds = this.datasets()["leave-grants"];
+  async leaveGrants(
+    @Query("format") format = "json",
+    @CompanyScope() companyId: bigint | null,
+    @Res() res: Response,
+  ) {
+    const ds = this.datasets(companyId)["leave-grants"];
     this.sendOne(res, format, await ds.fetch(), ds);
   }
 
   /** 연말 배당 내역. ?format=csv|json|md */
   @Get("dividends")
-  async dividends(@Query("format") format = "json", @Res() res: Response) {
-    const ds = this.datasets().dividends;
+  async dividends(
+    @Query("format") format = "json",
+    @CompanyScope() companyId: bigint | null,
+    @Res() res: Response,
+  ) {
+    const ds = this.datasets(companyId).dividends;
     this.sendOne(res, format, await ds.fetch(), ds);
   }
 
   /** 지출 내역 — 누가 얼마나 썼나(낙찰 escrow 기여). ?format=csv|json|md */
   @Get("spending")
-  async spending(@Query("format") format = "json", @Res() res: Response) {
-    const ds = this.datasets().spending;
+  async spending(
+    @Query("format") format = "json",
+    @CompanyScope() companyId: bigint | null,
+    @Res() res: Response,
+  ) {
+    const ds = this.datasets(companyId).spending;
     this.sendOne(res, format, await ds.fetch(), ds);
   }
 }

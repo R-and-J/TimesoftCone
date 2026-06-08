@@ -198,7 +198,8 @@ export default function AdminAuctionsPage() {
       });
       toast.push("success", `${r.id} 즉시 오픈 — 마감 ${new Date(r.endsAt).toLocaleString("ko-KR")}`);
       setEditingFor(null);
-      await Promise.all([summaryQ.refetch(), upcomingQ.refetch()]);
+      // 즉시 오픈은 CREATED→OPEN 전이 — 진행 중(openQ) 목록도 갱신해야 새 매물이 바로 보임.
+      await Promise.all([summaryQ.refetch(), upcomingQ.refetch(), openQ.refetch()]);
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {

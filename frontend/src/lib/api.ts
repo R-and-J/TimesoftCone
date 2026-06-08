@@ -109,3 +109,38 @@ export function apiPatch<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   }).then((r) => handle<T>(r, hadToken));
 }
+
+/** Content-Disposition에서 파일명 추출 (RFC 5987 filename*=UTF-8'' 우선, 없으면 filename=). */
+function parseFilename(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (star) {
+    try { return decodeURIComponent(star[1]); } catch { /* fall through */ }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(disposition);
+  return plain ? plain[1] : fallback;
+}
+
+/**
+ * 첨부파일(Content-Disposition) 다운로드. <a href> 직접 이동과 달리 인증 헤더(Bearer)를
+ * 실어 보내므로 ADMIN 가드 라우트(/api/admin/export 등)에서도 동작한다. 페이지 이동/새 탭 없음.
+ */
+export async function downloadFile(path: string, fallbackName = "download"): Promise<void> {
+  const hadToken = getAuthToken() !== null;
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
+  if (!res.ok) {
+    // 에러 응답은 JSON일 가능성이 높으니 handle로 메시지 추출 + 401 세션 정리 재사용.
+    await handle(res, hadToken);
+    return;
+  }
+  const blob = await res.blob();
+  const name = parseFilename(res.headers.get("Content-Disposition"), fallbackName);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

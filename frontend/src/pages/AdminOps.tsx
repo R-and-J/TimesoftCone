@@ -6,7 +6,7 @@ import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
 import { YearSelect } from "@/components/YearSelect";
 import { useQuery } from "@/lib/use-query";
-import { apiPost } from "@/lib/api";
+import { apiPost, downloadFile } from "@/lib/api";
 import {
   collectLeavePool,
   getAdminStats,
@@ -22,9 +22,6 @@ import {
 } from "@/lib/queries";
 import { useToast } from "@/lib/toast";
 
-// 정산 데이터 export 다운로드 링크 베이스 (ADR-021). VITE_API_BASE 없으면 vite 프록시(/api).
-const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
-
 // 내보내기 모달에서 고르는 항목/형식.
 const EXPORT_SETS = [
   { key: "leave-grants", label: "낙찰 연차 부여 내역", desc: "누가 어떤 경매로 며칠" },
@@ -36,15 +33,6 @@ const EXPORT_FORMATS = [
   { key: "md", label: "Markdown (.md · 노션/문서)" },
   { key: "json", label: "JSON" },
 ] as const;
-
-/** 첨부(Content-Disposition) 응답을 페이지 이동 없이 다운로드 트리거. */
-function triggerDownload(url: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
 
 /** datetime-local input용 로컬 시각 문자열(YYYY-MM-DDTHH:MM). */
 function toLocalDatetimeInput(d: Date): string {
@@ -220,14 +208,21 @@ export default function AdminOpsPage() {
     }
   };
 
-  const doExport = () => {
+  const doExport = async () => {
     const sel = EXPORT_SETS.filter((s) => exportSets[s.key]).map((s) => s.key);
     if (sel.length === 0) {
       toast.push("error", "내보낼 항목을 하나 이상 선택하세요");
       return;
     }
-    triggerDownload(`${API_BASE}/admin/export?sets=${sel.join(",")}&format=${exportFmt}`);
-    setExportOpen(false);
+    try {
+      await downloadFile(
+        `/admin/export?sets=${sel.join(",")}&format=${exportFmt}`,
+        `정산데이터.${exportFmt}`,
+      );
+      setExportOpen(false);
+    } catch (e) {
+      toast.push("error", e instanceof Error ? e.message : "내보내기에 실패했습니다");
+    }
   };
 
   const triggerSettle = async () => {
