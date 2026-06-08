@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시연 시나리오 보고서 — 타임소프트콘</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  :root{
+    --ink:#37352f; --muted:#787774; --faint:#9b9a97;
+    --line:#e9e9e7; --line2:#ededec;
+    --bg-gray:#f7f7f5;
+    --ui-bg:#ddebf1; --ui-tx:#183347;
+    --db-bg:#faebdd; --db-tx:#5c3b23;
+    --blue:#337ea9;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-font-smoothing:antialiased;}
+  body{
+    font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,
+      system-ui,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    font-weight:500;
+    color:var(--ink); line-height:1.65; margin:0; background:#fff;
+    font-size:16px; -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{max-width:820px; margin:0 auto; padding:60px 48px 120px;}
+  .emoji{font-size:42px; line-height:1; display:block; margin-bottom:14px;}
+  h1.title{font-size:38px; font-weight:800; letter-spacing:-.5px; margin:0 0 4px;}
+  .subtitle{color:var(--muted); font-size:15px; font-weight:500; margin:0 0 28px;}
+
+  h2.sec{font-size:25px; font-weight:600; letter-spacing:-.3px; margin:46px 0 4px; padding-top:8px;}
+  h3.sub{font-size:18.5px; font-weight:600; margin:30px 0 6px;}
+  p{margin:8px 0; color:var(--ink);}
+  .ref{color:var(--faint); font-size:13.5px; margin:4px 0 2px;}
+
+  /* Notion callout */
+  .callout{display:flex; gap:12px; align-items:flex-start; background:var(--bg-gray);
+    border-radius:6px; padding:16px 16px; margin:16px 0; font-size:14.5px; line-height:1.6;}
+  .callout .ic{font-size:18px; line-height:1.5; flex:0 0 auto;}
+  .callout .bd{color:#4f4d47;}
+
+  /* Notion divider */
+  .hr{border:none; border-top:1px solid var(--line); margin:34px 0;}
+
+  /* Notion table */
+  .tbl-wrap{margin:14px 0; overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:14px; border:1px solid var(--line);}
+  th,td{border:1px solid var(--line); padding:9px 12px; vertical-align:top; text-align:left;}
+  th{background:var(--bg-gray); color:var(--muted); font-weight:600; font-size:13px; text-align:left;}
+  td.c{text-align:center; white-space:nowrap; color:var(--muted); font-weight:500;}
+  tbody tr:hover{background:#fbfbfa;}
+
+  /* result lines + Notion-style colored pills */
+  .res .l{display:block; margin:3px 0;}
+  .pill{display:inline-block; border-radius:4px; padding:1px 7px; font-size:12px;
+    font-weight:600; margin-right:5px; letter-spacing:.2px;}
+  .pill.ui{background:var(--ui-bg); color:var(--ui-tx);}
+  .pill.db{background:var(--db-bg); color:var(--db-tx);}
+
+  /* key bullets */
+  ul.keys{list-style:none; padding:0; margin:12px 0;}
+  ul.keys li{margin:10px 0; padding:14px 16px; background:var(--bg-gray); border-radius:6px; font-size:14.5px; line-height:1.6;}
+  ul.keys b{display:inline-block; margin-bottom:2px;}
+  ul.keys b.ui{color:var(--ui-tx);} ul.keys b.db{color:var(--db-tx);}
+
+  /* Notion to-do checklist */
+  ul.check{list-style:none; padding:0; margin:12px 0;}
+  ul.check li{display:flex; align-items:flex-start; gap:10px; margin:7px 0; font-size:14.5px;}
+  ul.check li .box{flex:0 0 auto; width:16px; height:16px; margin-top:3px;
+    border:1.4px solid #c7c7c4; border-radius:3px; background:#fff;}
+
+  /* 증빙 이미지 갤러리 */
+  .gal-label{font-weight:600; font-size:14.5px; margin:20px 0 4px;}
+  .gal-note{font-size:12.5px; color:var(--faint); margin:0 0 12px;}
+  .gal-group{font-weight:600; font-size:13.5px; color:var(--muted); margin:22px 0 2px; padding-bottom:4px; border-bottom:1px solid var(--line2);}
+  .gallery{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin:14px 0 6px;}
+  figure.shot-card{margin:0;}
+  .ph{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    height:175px; border:1.5px dashed #cfcfca; border-radius:8px; background:var(--bg-gray);
+    color:var(--faint); text-align:center; padding:12px;}
+  .ph .ico{font-size:25px;}
+  .ph .code{font-weight:700; color:var(--muted); font-size:13px;}
+  .ph .hint{font-size:12px;}
+  .ph .fname{font-size:11.5px; color:#b3b2ad; font-family:ui-monospace,Menlo,Consolas,monospace;}
+  figure.shot-card img.shot{width:100%; border:1px solid var(--line); border-radius:8px; display:block;}
+  figure.shot-card figcaption{margin-top:7px; font-size:12.5px; color:var(--muted); text-align:center;}
+  @media(max-width:680px){ .gallery{grid-template-columns:1fr;} }
+  footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
+  @media print{ .page{padding:0 8px;} tbody tr:hover{background:transparent;} }
+  @media (max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">시연 시나리오 보고서</h1>
+  <p class="subtitle">타임소프트콘 — 사내 연차 경매 시스템(B2E 연차 경매·에스크로 배당 플랫폼)</p>
+
+  <div class="callout"><span class="bd"><b>목적</b> · 라이브 시연의 순서, 단계별 예상 입력값, 기대 결과(UI·로직/DB)를 사전 정의하고, 시연을 뒷받침하는 검증 증빙 및 백업 자료를 규정한다.</span></div>
+ 
+  <h3 class="sub">시연 핵심 검증 포인트</h3>
+  <p>본 시연은 단순 기능 시연을 넘어, 다음 두 가지 아키텍처적 차별점을 실제 동작으로 검증한다.</p>
+  <ul class="keys">
+    <li><b class="db">배당 정산의 멱등성 (액트 4)</b><br>연 1회만 실행되어야 하는 정산 로직이 중복 호출되더라도 HTTP 409로 차단됨을 검증하여 데이터 안정성을 확보한다.</li>
+    <li><b class="ui">완전 무중단 멀티테넌시 (액트 5)</b><br>코드 변경 없이 컨텍스트(JWT companyId)에 따라 데이터 스코프가 완벽히 격리되는 아키텍처를 검증한다.</li>
+    <li><b class="db">ezpass 그룹웨어 연동 (액트 1·3)</b><br>회원 신원·REGULAR 연차는 ezpass가 정본이며 위임 인증으로 동기화되고, 낙찰 연차의 사용(기안·승인)도 ezpass와 연동된다. 본 시스템은 콘·연차 잔고만 내부에서 소유한다.</li>
+  </ul>
+
+  <hr class="hr">
+
+  <h2 class="sec">1. 시연 환경 · 사전 준비</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">항목</th><th>값 / 확인 방법</th></tr></thead>
+    <tbody>
+      <tr><td>백엔드</td><td>http://localhost:3002 (PORT env) — 기동 로그 "TimesoftCone API listening on :3002" 확인 (별도 health 라우트 없음, 로그인 성공으로 정상 판단)</td></tr>
+      <tr><td>프론트엔드</td><td>http://localhost:5173 — 로그인 페이지 정상 표시. Vite /api 프록시가 백엔드로 포워딩</td></tr>
+      <tr><td>원격 시연</td><td>AnyDesk로 시연 PC 공유</td></tr>
+      <tr><td>브라우저 창 배치</td><td>창 A(Chrome, 사용자1) · 창 B(Chrome 시크릿, 사용자2) · 관리자(Edge, super/exam admin) · ezpass admin(Edge)</td></tr>
+      <tr><td>시드 적용</td><td>super@admin.local 로그인 성공 = 시드 정상</td></tr>
+      <tr><td>시스템 시각</td><td>12/31 근접 시 배당 스케줄러 자동 발동 위험 → 시연 전 확인</td></tr>
+      <tr><td>한글 폰트 / 토스트</td><td>데모 PC에서 사전 1회 점검 (OUTBID·AUCTION_WON 알림 동작)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">데모 계정 (시드 그대로)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>역할</th><th>이메일</th><th>비밀번호</th><th>초기 자산</th></tr></thead>
+    <tbody>
+      <tr><td>최고관리자 (ADMIN · 회사 스위처)</td><td>super@admin.local</td><td>로컬 계정</td><td>—</td></tr>
+      <tr><td>ezpass 관리자 (EZPASS_ADMIN)</td><td>ezpass 그룹웨어 계정</td><td>ezpass 발급</td><td>—</td></tr>
+      <tr><td>ezpass 사용자1</td><td>user001@timesoftcone.com</td><td>ezpass 계정</td><td>콘 잔액 · REGULAR 연차 = ezpass 동기화</td></tr>
+      <tr><td>ezpass 사용자2</td><td>user002@timesoftcone.com</td><td>ezpass 계정</td><td>콘 잔액 · REGULAR 연차 = ezpass 동기화</td></tr>
+      <tr><td>(비교용) EXAM 관리자 — 독립형 로컬 인증</td><td>examadmin@exam.com</td><td>1234</td><td>액트 3-4·5 멀티테넌트 비교용</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><span class="ic">🔗</span><span class="bd"><b>ezpass(사내 그룹웨어) 연동</b> · 회원 신원·권한·REGULAR 연차의 정본(source of truth)은 ezpass다. @timesoftcone.com 도메인 로그인은 ezpass 위임 인증으로 라우팅되며, 매 로그인 시 회원 정보·연차가 ezpass에서 동기화된다. 본 시스템은 콘(경매금)과 AUCTION/EVENT 연차만 내부에서 소유한다.</span></div>
+  <div class="callout"><span class="ic">💡</span><span class="bd"><b>개념 요약</b> · 회사가 발행한 사내 가상 통화(콘)로 동료의 연차를 경매 매입하고, 연말에 누적된 콘이 연차 공급자에게 복지 포인트 배당으로 환원된다. 회사의 신규 지출은 발생하지 않으며, 콘은 임직원 간 순환만 한다.</span></div>
+
+  <hr class="hr">
+
+  <h2 class="sec">2. 시연 순서 · 예상 입력값 · 기대 결과</h2>
+  <p>전체 5막. 기대 결과는 <span class="pill ui">UI</span> 화면 변화와 <span class="pill db">로직/DB</span> 백엔드·데이터 안전장치로 분리해 기술한다.</p>
+
+  <h3 class="sub">액트 1 — 사용자 1일권 구매 (입찰 → 자동 환불 → 낙찰 → 연차 부여)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td class="c">1-1</td><td>로그인 + 대시보드</td><td>창 A: user001@timesoftcone.com (ezpass 계정)</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>우상단 콘 잔액, 내 연차 위젯 REGULAR 연차(파란 막대) 노출 — 모두 ezpass 동기화 값</span>
+        <span class="l"><span class="pill db">로직/DB</span>@timesoftcone.com 도메인 → ezpass 위임 인증으로 자동 라우팅, 로그인 시 회원·연차 동기화</span></div></td></tr>
+      <tr><td class="c">1-2</td><td>경매 목록 → 상세 → 입찰</td><td>경매 목록 → Grid 뷰 → 1일권 매물 클릭 → 30,100 콘 입찰</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>경매 상세 내 시작가(30,000 콘) 노출, 입찰 후 콘 잔액 즉시 −30,100 차감 반영</span>
+        <span class="l"><span class="pill db">로직/DB</span>지갑 차감·에스크로 적립·거래 원장 생성(INSERT)을 단일 트랜잭션으로 처리하여 데이터 무결성 보장</span></div></td></tr>
+      <tr><td class="c">1-3</td><td>다른 사용자 덮어쓰기 → 자동 환불</td><td>창 B: user002@timesoftcone.com (ezpass 계정) 로그인 → 같은 매물 30,200 콘 입찰</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>창 B 잔액 −30,200 + "최고가 입찰" 토스트. 창 A 새로고침 시 30,100 콘 자동 환불로 잔액 복구 + "덮어쓰기 당했습니다" 알림</span>
+        <span class="l"><span class="pill db">로직/DB</span>직전 최고가(창 A)에 30,100 콘 자동 환불을 보상 INSERT로 처리(원장 불변)</span></div></td></tr>
+      <tr><td class="c">1-4</td><td>즉시 마감 → 낙찰 → AUCTION 연차</td><td>관리자: super@admin.local → /admin/auctions → 해당 매물 즉시 마감</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>창 B "낙찰! AUCTION 1일 부여됨" 토스트, 대시보드에 AUCTION 1일(노란 막대) 추가. 잔액 변동 없음</span>
+        <span class="l"><span class="pill db">로직/DB</span>낙찰 확정 + AUCTION 연차 로컬 부여를 단일 DB 트랜잭션으로 처리(외부 그룹웨어 호출 없음)</span></div></td></tr>
+      <tr><td class="c">1-5</td><td>낙찰 연차 사용 (ezpass 연동)</td><td>user002 → ezpass(그룹웨어) 휴가 화면에서 낙찰받은 AUCTION 1일로 휴가 신청</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>ezpass 휴가 화면에서 연차 사용 신청·승인 진행 — 기안/승인 워크플로는 ezpass가 소유</span>
+        <span class="l"><span class="pill db">로직/DB</span>사용 결과가 본 시스템 연차 잔고에 반영되며, 차감 우선순위 AUCTION → EVENT → REGULAR를 내부에서 보장</span></div></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">액트 2 — 스토어 → 수령 대기 → 보관함</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td class="c">2-1</td><td>교환 신청</td><td>창 A user001 → 스토어 → 카카오 10,000원권 → 신청</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>"교환 신청 완료" 토스트, 잔액 −10,000 콘 반영</span>
+        <span class="l"><span class="pill db">로직/DB</span>신청분 10,000 콘 잠금 처리(미승인 상태로 보류)</span></div></td></tr>
+      <tr><td class="c">2-2</td><td>관리자 승인 + 쿠폰 발급</td><td>관리자 → 「교환 신청」 탭 → 「대기」 KPI 클릭(필터) → 승인 → 쿠폰코드 KAKAO-DEMO-1234-5678 입력</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>신청 상태 승인으로 변경. KPI 카드 클릭=필터, 재클릭=해제</span>
+        <span class="l"><span class="pill db">로직/DB</span>발급 쿠폰코드 저장 + 승인 이력 기록</span></div></td></tr>
+      <tr><td class="c">2-3</td><td>수령 대기 → 수령 완료 → 보관함</td><td>창 A 새로고침 → 「📦 수령 대기 1건」 카드의 수령 완료 클릭 → 「보관함(N)」 클릭</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>쿠폰코드 포함 수령 대기 카드 노출, 수령 완료 시 카드 사라짐, 보관함 모달에서 쿠폰 재확인</span>
+        <span class="l"><span class="pill db">로직/DB</span>수령 완료 상태 전이, 발급 쿠폰 영구 보존</span></div></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">액트 3 — 관리자 운영 기능 점검</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td class="c">3-1</td><td>운영 KPI + 내보내기</td><td>super@admin.local → /admin/ops → "정산 데이터 내보내기"</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>KPI 5칸(에스크로·진행·예정·유찰·오늘 낙찰) 표시</span>
+        <span class="l"><span class="pill db">로직/DB</span>Excel/MD/JSON 정산 데이터 파일 생성·다운로드</span></div></td></tr>
+      <tr><td class="c">3-2①</td><td>유찰 매물 처리 — EVENT</td><td>"유찰 재고" 카드 → 검색 user003 → 클릭 → EVENT 휴가 지급</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>"user003에게 EVENT 1일 지급" 토스트, KPI 유찰 −1</span>
+        <span class="l"><span class="pill db">로직/DB</span>유찰 매물 → EVENT 연차 전환 부여(REGULAR/AUCTION과 분리)</span></div></td></tr>
+      <tr><td class="c">3-2②</td><td>유찰 매물 처리 — REOPEN</td><td>다른 유찰 매물 → REOPEN 토글 → 마감 시각 입력 → 재경매</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>"기존 매물 → 새 매물 ID 재오픈" 토스트, /admin/auctions에 새 매물 노출</span>
+        <span class="l"><span class="pill db">로직/DB</span>기존 유찰 매물을 신규 경매 인벤토리로 재생성</span></div></td></tr>
+      <tr><td class="c">3-3</td><td>스토어 상품 관리</td><td>「스토어」 탭 → 「상품 추가」 → SKU DEMO-001, "데모 상품", 5,000 콘 → 저장 → 비활성화 토글</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>표에 행 즉시 추가, 비활성화 시 창 A /redemption 카탈로그에서 상품 사라짐</span>
+        <span class="l"><span class="pill db">로직/DB</span>모든 액션을 감사 로그 CREATE/DEACTIVATE로 INSERT-only 기록(사후 조작 불가)</span></div></td></tr>
+      <tr><td class="c">3-4</td><td>회원관리 두 탭</td><td>/admin/members → EZPASS 탭 ↔ EXAM 탭 전환</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>EZPASS 탭: 회원추가·작업 컬럼 없음(「지금 동기화」만). EXAM 탭: 회원 추가·행별 수정/비활성 있음</span>
+        <span class="l"><span class="pill db">로직/DB</span>위임형(EZPASS)·독립형(EXAM) 회사를 동일 코드의 어댑터 분기로 처리</span></div></td></tr>
+      <tr><td class="c">3-5</td><td>충전 처리 (옵션)</td><td>EXAM 회원 행 "콘 관리" → +50,000 콘 / 사유 "데모 보너스" → 적용</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>잔액 즉시 반영</span>
+        <span class="l"><span class="pill db">로직/DB</span>원장 CREDIT_ADMIN INSERT(사유 필수 — 감사 추적성 보장)</span></div></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">액트 4 — 연말 일괄 정산 (핵심: 풀 수집 + 배당 → 에스크로 0)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td class="c">4-1</td><td>사전 설명</td><td>(구두 설명) 시드에 전년도(2025) 경매 39건 + stake 10명 존재</td><td class="c">—</td></tr>
+      <tr><td class="c">4-2</td><td>연말 풀 수집</td><td>/admin/ops → "풀 수집" → dryRun → "수집 실행"</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>기여자별 일수 미리보기, /admin/auctions에 익년도 매물 노출</span>
+        <span class="l"><span class="pill db">로직/DB</span>REGULAR 미사용분 → 익년도 매물 N개 생성(LP-2026-*), 연도당 1회 DB UNIQUE 보장</span></div></td></tr>
+      <tr><td class="c">4-3</td><td>연말 배당 정산</td><td>"연말 배당" → dryRun 미리보기 → 실지급</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>시뮬레이션(dryRun) 화면에 기여도별 지분율 명시(user001 30.8%/12일, user002~010 각 7.7%/3일), 배당 완료 토스트 알림</span>
+        <span class="l"><span class="pill db">로직/DB</span>누적 에스크로 풀 잔액 전액 배당 처리 완료(에스크로 잔액 0원), 원장에 DIVIDEND 데이터 10건 INSERT</span></div></td></tr>
+      <tr><td class="c">4-4</td><td>멱등성 확인</td><td>"연말 배당" 한 번 더 실행</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>재실행 시 정산 거부 안내</span>
+        <span class="l"><span class="pill db">로직/DB</span>HTTP 409("이미 정산됨") 반환 — dividend_run.year UNIQUE로 연 1회 중복 정산 원천 차단</span></div></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">액트 5 — 회사별 데이터 격리 (멀티테넌트)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td class="c">5-1</td><td>회사 스위처</td><td>super@admin.local → 우상단 스위처 → EZPASS ↔ EXAM 전환</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>회원·매물·원장·통계가 회사별로 완전히 교체</span>
+        <span class="l"><span class="pill db">로직/DB</span>컨텍스트 전환에 따라 데이터 스코프 전체가 회사 단위로 분리</span></div></td></tr>
+      <tr><td class="c">5-2</td><td>다른 회사로 직접 로그인</td><td>새 시크릿창 → examadmin@exam.com → /admin/members</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>EXAM 직원만 표시, EZPASS 데이터 없음, 회사 스위처 미노출</span>
+        <span class="l"><span class="pill db">로직/DB</span>JWT companyId가 모든 쿼리에 자동 스코프 — 타 회사 데이터는 조회조차 불가</span></div></td></tr>
+      <tr><td class="c">5-3</td><td>신규 회사 추가 (구두 설명)</td><td>(구두 설명) company 행 + 사용자 companyId 추가</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>—</span>
+        <span class="l"><span class="pill db">로직/DB</span>코드 변경 0으로 신규 회사 온보딩, 도메인 추가 시 인증 라우팅 자동 적용</span></div></td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec">3. 시연 시나리오별 검증 증빙 및 백업 자료 관리</h2>
+  <p>각 시연 단계를 뒷받침하는 검증 증빙(스크린샷·영상)을 사전에 확보하여, 시연 환경 이상 시에도 동일한 결과를 제시할 수 있도록 한다.</p>
+
+  <h3 class="sub">3-1. 검증 증빙 자료 (구간별 요약)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:14%">구간</th><th>핵심 증빙</th><th style="width:24%">형식 (코드)</th></tr></thead>
+    <tbody>
+      <tr><td class="c">액트 1</td><td>대시보드 · 입찰 · 자동 환불 · 낙찰 · ezpass 연차 사용</td><td>스크린샷 C-01~04·15 + 영상 V-01</td></tr>
+      <tr><td class="c">액트 2</td><td>교환 신청 → 수령 대기 → 보관함</td><td>스크린샷 C-05</td></tr>
+      <tr><td class="c">액트 3</td><td>운영 KPI · 유찰 처리 · 스토어 CRUD · 회원관리</td><td>스크린샷 C-06~09</td></tr>
+      <tr><td class="c">액트 4</td><td>배당 dryRun 지분율 · 에스크로 0 · 멱등성 409</td><td>스크린샷 C-10~12 + 영상 V-02</td></tr>
+      <tr><td class="c">액트 5</td><td>회사 스위처 전·후 · 감사 원장(INSERT-only)</td><td>스크린샷 C-13~14</td></tr>
+      <tr><td class="c">폴백</td><td>발표 PPT PDF 백업본 (presentation/TimesoftCone.pdf)</td><td>PDF P-01</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><span class="ic">🗂️</span><span class="bd"><b>자료 관리 규칙</b> · 파일명 act{막}-{단계}-{설명}.png (예: act1-3-refund.png), 영상은 act{막}-flow.mp4. presentation/img/ 하위에 모아 두고, 시연 PC 로컬과 USB·클라우드에 이중 보관한다.</span></div>
+
+  <p class="gal-label">증빙 이미지</p>
+  <p class="gal-note">실제 시연 캡처. 브라우저·OS 영역을 제거하고 웹 화면만 잘라 정리했다. (영상 V-01·V-02와 일부 화면 409·에스크로 0·회사 스위처는 시연 당일 추가 캡처)</p>
+
+  <p class="gal-group">액트 1 · 사용자 1일권 구매 (ezpass 사용자)</p>
+  <div class="gallery">
+    <figure class="shot-card"><img class="shot" src="img/act1-1-dashboard.png" alt="대시보드"><figcaption>C-01 · 대시보드 (콘 잔액·연차)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act1-2-auction-list.png" alt="경매장 목록"><figcaption>C-02 · 경매장 목록 (Grid·마감 탭)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act1-2-bid-win.png" alt="입찰 상세와 낙찰 토스트"><figcaption>C-02 · 입찰 상세 + 낙찰 토스트</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act1-3-activity.png" alt="내 활동 거래 내역"><figcaption>C-03 · 내 활동·거래 내역</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act1-5-ezpass-leave.png" alt="ezpass 휴가 화면"><figcaption>C-15 · ezpass 휴가 신청 화면</figcaption></figure>
+  </div>
+
+  <p class="gal-group">액트 2 · 스토어 → 수령 → 보관함</p>
+  <div class="gallery">
+    <figure class="shot-card"><img class="shot" src="img/act2-store.png" alt="스쿱 마켓"><figcaption>C-05 · 스쿱 마켓 (스토어)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act2-redeem-approve.png" alt="교환 신청 승인"><figcaption>C-05 · 교환 신청 승인 (관리자)</figcaption></figure>
+  </div>
+
+  <p class="gal-group">액트 3 · 관리자 운영</p>
+  <div class="gallery">
+    <figure class="shot-card"><img class="shot" src="img/act3-1-ops.png" alt="운영 대시보드 KPI"><figcaption>C-06 · 운영 KPI 대시보드</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-1-export.png" alt="정산 데이터 내보내기"><figcaption>C-06 · 정산 데이터 내보내기</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-1-export-xlsx.png" alt="내보낸 정산 엑셀"><figcaption>C-06 · 내보낸 정산 엑셀</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-2-auction-mgmt.png" alt="경매 관리 매물 추가"><figcaption>C-07 · 경매 관리 · 매물 추가/재오픈</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-3-store-admin.png" alt="스토어 상품 관리"><figcaption>C-08 · 스토어 상품 관리 (CRUD)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-4-members.png" alt="회원관리 ezpass 탭"><figcaption>C-09 · 회원관리 (ezpass 연동)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-5-charge.png" alt="콘 관리 충전"><figcaption>관리자 콘 관리 · 충전</figcaption></figure>
+  </div>
+
+  <p class="gal-group">액트 4 · 연말 일괄 정산</p>
+  <div class="gallery">
+    <figure class="shot-card"><img class="shot" src="img/act4-3-dividend.png" alt="연말 배당 시뮬레이션"><figcaption>C-10 · 연말 배당 시뮬레이션 (지분율 30.8%)</figcaption></figure>
+  </div>
+
+  <p class="gal-group">액트 5 · 감사 · 데이터 격리</p>
+  <div class="gallery">
+    <figure class="shot-card"><img class="shot" src="img/act5-ledger.png" alt="거래 원장"><figcaption>C-14 · 거래 원장 (INSERT-only)</figcaption></figure>
+  </div>
+
+  <h3 class="sub">3-2. 시연 환경별 예외 상황 대응 및 결함 복구 시나리오</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:40%">예외 상황</th><th>대응 / 복구 시나리오</th></tr></thead>
+    <tbody>
+      <tr><td>백엔드 다운</td><td>PPT(P-01) 재오픈 → 백업 캡처(C-01~C-15)로 흐름 설명</td></tr>
+      <tr><td>즉시 마감 동작 지연</td><td>AWARDED 상태 매물 캡처(C-04)로 대체 제시</td></tr>
+      <tr><td>배당 dryRun 빈 화면</td><td>C-12(409 "이미 정산됨")로 전환 → 멱등성 검증 시연으로 활용</td></tr>
+      <tr><td>멀티테넌트 화면 미표시</td><td>C-13 또는 헥사고날/ER 다이어그램(presentation/img/)으로 구조 설명</td></tr>
+      <tr><td>토스트/알림 미표시</td><td>해당 단계 캡처(C-03·C-04)로 결과만 제시</td></tr>
+      <tr><td>시간 초과</td><td>액트 3-5(충전)·5-3(신규 회사 설명)부터 생략. 액트 4(연말 배당)는 생략하지 않는다</td></tr>
+      <tr><td>영상 재생 불가</td><td>대응 스틸컷(C-시리즈)으로 분할 설명</td></tr>
+    </tbody>
+  </table></div>
+
+  <footer>타임소프트콘 · 시연 시나리오 보고서</footer>
+
+</div>
+</body>
+</html>

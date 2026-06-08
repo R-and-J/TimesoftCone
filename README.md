@@ -57,6 +57,7 @@
 
 ### 05. 인수인계 (Handover)
 - [개발 인수인계서](05_handover/handover.md) — 철학 + ADR 요약 + Action Item
+- [시연 시나리오 문서](05_handover/demo-scenario.md) — 시연 순서·예상 입력값·기대 결과 + 실패 시 대체 자료
 
 ### 06. 기술/운영 (Tech)
 - [기술 스택 결정서](06_tech/tech-stack.md)
@@ -99,6 +100,7 @@
 | ADR | 009 | ✅ Accepted (v2 개정) |
 | ADR | 010~018 | ✅ Accepted (구조·휴가 내부화·정산 규칙) |
 | 인수인계 | handover.md | ✅ v1.1 베이스 + Action 복원 |
+| 인수인계 | demo-scenario.md | ✅ v1 (시연 순서·입력값·기대결과·대체자료) |
 | 기술 | tech-stack.md | 🟡 선택지 제시, 미결정 |
 | 기술 | db-schema.sql | ✅ v2 (wallet/ledger_entry 분리) |
 | 기술 | git-workflow.md | 🟡 제안 |
