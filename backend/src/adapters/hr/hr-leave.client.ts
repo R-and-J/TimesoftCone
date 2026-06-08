@@ -1,7 +1,7 @@
 // HrLeaveClientAdapter — HrLeaveClient 구현 (ADR-005 Outbox가 호출).
 //
 // 두 가지 모드:
-//   - HR_API_URL 설정됨 → 그 엔드포인트로 실제 POST (회사 HR API 연동).
+//   - HR_API_URL 설정됨 → 그 엔드콘으로 실제 POST (회사 HR API 연동).
 //   - 미설정 → Mock: 로그만 남김(연동 시연용). 외부 의존 0.
 // 데모용 실패 주입: HR_FAIL_RATE(0~1) 확률로 throw → Outbox 재시도/DLQ 시연.
 //

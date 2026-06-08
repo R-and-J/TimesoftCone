@@ -15,6 +15,11 @@ import { useToast } from "@/lib/toast";
 import { getBalance, getLeave, getMyDividend, listAuctions, submitChargeRequest } from "@/lib/queries";
 import { useNavigate } from "react-router-dom";
 
+// 휴가 기안/승인은 외부 그룹웨어(ezpass) 담당(out of scope) — 신청 화면으로 새 탭 유도. env로 덮어씀.
+const EZPASS_LEAVE_URL =
+  (import.meta.env.VITE_EZPASS_LEAVE_URL as string | undefined) ??
+  "https://dev.performax.timesoft.internal/";
+
 export default function DashboardPage() {
   const p = PALETTES.cobalt;
   const navigate = useNavigate();
@@ -28,13 +33,13 @@ export default function DashboardPage() {
   const submitCharge = async () => {
     const amount = Number(chargeAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.push("error", "금액은 1P 이상의 숫자여야 합니다");
+      toast.push("error", "금액은 1콘 이상의 숫자여야 합니다");
       return;
     }
     setCharging(true);
     try {
       await submitChargeRequest(amount, chargeNote.trim() || undefined);
-      toast.push("success", `${fmt.point(amount)}P 충전 요청 등록 — 관리자 승인 대기`);
+      toast.push("success", `${fmt.point(amount)}콘 충전 요청 등록 — 관리자 승인 대기`);
       setChargeOpen(false);
       setChargeAmount("");
       setChargeNote("");
@@ -97,11 +102,19 @@ export default function DashboardPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn p={p} variant="ghost" size="md">
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <Icon.cal size={16} /> 휴가 사용 신청
-                </span>
-              </Btn>
+              {/* 휴가 신청은 외부 그룹웨어(ezpass) 담당 — EZPASS 연동 사용자에게만 노출. */}
+              {(user.role === "EZPASS" || user.role === "EZPASS_ADMIN") && (
+                <Btn
+                  p={p}
+                  variant="ghost"
+                  size="md"
+                  onClick={() => window.open(EZPASS_LEAVE_URL, "_blank", "noopener")}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Icon.cal size={16} /> 휴가 사용 신청 ↗
+                  </span>
+                </Btn>
+              )}
               <Btn p={p} variant="dark" size="md" onClick={() => navigate("/auction")}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                   <Icon.hammer size={16} /> 경매장 입장
@@ -128,16 +141,12 @@ export default function DashboardPage() {
                 <BrandGlyph color="#fff" size={220} />
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-                  내 복지 포인트
-                </div>
                 <div
                   className="mono"
                   style={{
                     fontSize: 56,
                     fontWeight: 800,
                     letterSpacing: "-0.03em",
-                    marginTop: 6,
                     lineHeight: 1,
                   }}
                 >
@@ -153,16 +162,14 @@ export default function DashboardPage() {
                       marginLeft: 6,
                       color: "rgba(255,255,255,0.7)",
                     }}
-                  >
-                    P
-                  </span>
+                  >콘</span>
                 </div>
                 {balanceQ.error && (
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
                     백엔드 연결 실패: {balanceQ.error.message}
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 24, alignItems: "center" }}>
                   <Pill
                     p={p}
                     tone="dark"
@@ -170,6 +177,49 @@ export default function DashboardPage() {
                   >
                     실시간 잔액
                   </Pill>
+                  <button
+                    onClick={() => {
+                      void balanceQ.refetch();
+                      void leaveQ.refetch();
+                      void dividendQ.refetch();
+                    }}
+                    disabled={balanceQ.loading}
+                    title="잔액·연차·배당 새로고침"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.14)",
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: balanceQ.loading ? "wait" : "pointer",
+                      opacity: balanceQ.loading ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transformOrigin: "center",
+                        animation: balanceQ.loading ? "dg-spin 1s linear infinite" : "none",
+                      }}
+                    >
+                      <path d="M21 12a9 9 0 1 1-3-6.7" />
+                      <polyline points="21 4 21 11 14 11" />
+                    </svg>
+                    {balanceQ.loading ? "갱신 중" : "새로고침"}
+                  </button>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
                   <Btn p={p} variant="primary" size="sm" onClick={() => navigate("/activity")}>
@@ -223,7 +273,7 @@ export default function DashboardPage() {
                   : dividendQ.error
                     ? "오류"
                     : fmt.point(dividendNum ?? 0)}{" "}
-                <span style={{ fontSize: 16, color: p.inkMuted }}>P</span>
+                <span style={{ fontSize: 16, color: p.inkMuted }}>콘</span>
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 4 }}>
                 지분율 {(stakeRatio * 100).toFixed(1)}% · 기여 {contributedDays}일
@@ -255,7 +305,7 @@ export default function DashboardPage() {
                   color: p.inkMuted,
                 }}
               >
-                <span>현재 에스크로 {escrowNum !== null ? fmt.point(escrowNum) : "—"} P</span>
+                <span>현재 에스크로 {escrowNum !== null ? fmt.point(escrowNum) : "—"} 콘</span>
                 <span className="mono" style={{ fontWeight: 600 }}>
                   {(stakeRatio * 100).toFixed(1)}%
                 </span>
@@ -439,7 +489,7 @@ export default function DashboardPage() {
                       }}
                     >
                       {fmt.point(highest)}
-                      <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                      <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
                     </div>
                     <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 2 }}>
                       입찰 {a.bidCount}회
@@ -499,9 +549,11 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          {/* Quick links */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-            {[
+          {/* Quick links — EZPASS 사용자는 상단 [휴가 사용 신청 ↗] 버튼이 이미 있어서
+              하단의 "연차 사용 신청" 카드는 중복이라 제거(같은 위치 = 상단 버튼). EXAM은 그대로. */}
+          {(() => {
+            const isEzpassUser = user.role === "EZPASS" || user.role === "EZPASS_ADMIN";
+            const quickLinks = [
               {
                 i: <Icon.hammer size={22} />,
                 t: "경매장 둘러보기",
@@ -523,14 +575,19 @@ export default function DashboardPage() {
                 tone: p.warn,
                 path: "/activity",
               },
-              {
-                i: <Icon.spark size={22} />,
-                t: "연차 사용 신청",
-                s: "그룹웨어로 연결",
-                tone: p.inkSoft,
-                path: "/dashboard",
-              },
-            ].map((it, i) => (
+              ...(isEzpassUser
+                ? []
+                : [{
+                    i: <Icon.spark size={22} />,
+                    t: "연차 사용 신청",
+                    s: "그룹웨어로 연결",
+                    tone: p.inkSoft,
+                    path: "/dashboard",
+                  }]),
+            ];
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${quickLinks.length}, 1fr)`, gap: 16 }}>
+                {quickLinks.map((it, i) => (
               <Card key={i} p={p} padding={20} hover onClick={() => navigate(it.path)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <div
@@ -553,8 +610,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

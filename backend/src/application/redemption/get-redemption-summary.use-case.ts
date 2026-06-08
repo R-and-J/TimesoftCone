@@ -14,9 +14,10 @@ export type RedemptionSummary = {
 export class GetRedemptionSummaryUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(): Promise<RedemptionSummary> {
+  async execute(companyId?: bigint | null): Promise<RedemptionSummary> {
     const rows = await this.prisma.redemptionRequest.groupBy({
       by: ["status"],
+      where: companyId != null ? { companyId } : undefined, // 멀티테넌시 회사 스코프
       _count: { _all: true },
     });
     const out: RedemptionSummary = { pending: 0, approved: 0, received: 0, rejected: 0 };

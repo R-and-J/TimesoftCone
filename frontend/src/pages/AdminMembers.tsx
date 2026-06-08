@@ -1,28 +1,26 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { PALETTES, FONT, fmt, type Palette } from "@/lib/tokens";
 import { Btn, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AdminTabs } from "@/components/AdminTabs";
-import { DataGrid } from "@/components/DataGrid";
+import { DataGrid, type GridColumn } from "@/components/DataGrid";
 import { useQuery } from "@/lib/use-query";
 import { useToast } from "@/lib/toast";
 import {
   adminCreditWallet,
   approveChargeRequest,
   getAdminChargeRequest,
+  listAdminChargeRequests,
   listMembers,
   rejectChargeRequest,
   syncMembers,
   createMember,
   updateMember,
-  checkLeaveSync,
-  reconcileUserLeave,
   type ChargeRequestRow,
   type MemberRow,
-  type LeaveSyncReport,
-  type LeaveSyncRow,
 } from "@/lib/queries";
 import { roleLabel, canManageEzpass, canManageExam } from "@/lib/roles";
 import { useCurrentUser } from "@/lib/current-user";
@@ -82,10 +80,12 @@ export default function AdminMembersPage() {
       : m.role === "EXAM" || m.role === "EXAM_ADMIN" || m.role === "ADMIN",
   );
 
-  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/포인트/휴가/작업). 위임형은 작업이 충전 한 개라 좁다.
+  // 컬럼 폭(사번/이름/이메일/부서/직급·직책/권한/콘(+관리)/휴가/작업).
+  // 콘 컬럼이 "잔액 + 관리 버튼"을 같이 담아 넓어졌고, 작업은 수정/비활성만 남아 좁아졌다.
+  // EZPASS 탭에선 작업 컬럼 자체를 제외하므로 w[8]은 EXAM 탭에서만 의미가 있다.
   const w = isLocal
-    ? ["110px", "1fr", "200px", "1fr", "150px", "80px", "110px", "120px", "220px"]
-    : ["120px", "1fr", "220px", "1.2fr", "160px", "90px", "110px", "120px", "80px"];
+    ? ["110px", "1fr", "200px", "1fr", "150px", "130px", "180px", "120px", "150px"]
+    : ["120px", "1fr", "220px", "1.2fr", "160px", "130px", "180px", "120px", "150px"];
 
   // 충전 모달 상태.
   // free: 관리자 자유 충전. request: 알림에서 들어온 충전 요청(승인/반려).
@@ -95,41 +95,88 @@ export default function AdminMembersPage() {
   const [crediting, setCrediting] = useState(false);
   const [chargeReq, setChargeReq] = useState<ChargeRequestRow | null>(null);
 
-  // ezpass 연차 정합 점검 — 평소 자동 sync(낙찰→Outbox→streYryc)면 항상 일치.
-  // drift 발생 시(데이터 이슈 등)에만 [점검] 트리거 → 행별 [동기] 비상조치.
-  const [syncReport, setSyncReport] = useState<LeaveSyncReport | null>(null);
-  const [syncChecking, setSyncChecking] = useState(false);
-  const [reconciling, setReconciling] = useState<string | null>(null);
+  // 충전요청 목록 모달 — 닫은 알림을 다시 모아보기 위한 진입점("콘" 헤더의 [요청함] 버튼).
+  const [chargeListOpen, setChargeListOpen] = useState(false);
+  const [chargeListFilter, setChargeListFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
+  const [chargeListRows, setChargeListRows] = useState<ChargeRequestRow[]>([]);
+  const [chargeListLoading, setChargeListLoading] = useState(false);
+  // 헤더 버튼의 배지로 쓸 PENDING 개수 — 모달이 닫혀있어도 표시되도록 별도로 폴링.
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
 
-  const runLeaveSyncCheck = async () => {
-    setSyncChecking(true);
+  // 모달을 거치지 않고 표 행에서 바로 처리 — 빠른 일괄 처리용.
+  // 처리 후 목록과 PENDING 배지를 동기화한다.
+  const [rowBusy, setRowBusy] = useState<number | null>(null);
+  const reloadAfterRowAction = async () => {
+    await loadChargeList(chargeListFilter);
     try {
-      const r = await checkLeaveSync();
-      setSyncReport(r);
-      if (r.driftCount === 0) toast.push("success", "ezpass 연차 정합 OK");
-      else toast.push("info", `drift ${r.driftCount}명 발견`);
-    } catch (e) {
-      toast.push("error", (e as Error).message);
-    } finally {
-      setSyncChecking(false);
-    }
+      const rows = await listAdminChargeRequests("PENDING");
+      setPendingCount(rows.length);
+    } catch { /* 무시 */ }
+    await membersQ.refetch();
   };
-
-  const doReconcile = async (userId: string) => {
-    setReconciling(userId);
+  const doApproveRow = async (r: ChargeRequestRow) => {
+    setRowBusy(r.id);
     try {
-      const r = await reconcileUserLeave(userId);
+      const res = await approveChargeRequest(r.id);
       toast.push(
         "success",
-        `동기됨 — ezpass mdat ${r.ezpassMdatBefore}→${r.ezpassMdatApplied} (atmc ${r.ezpassAtmc} + mdat ${r.ezpassMdatApplied} = ${r.ourTotal})`,
+        `${r.userName} 승인 — +${fmt.point(Number(res.amount))} 콘 (잔액 ${fmt.point(Number(res.newBalance))} 콘)`,
       );
-      await runLeaveSyncCheck();
+      await reloadAfterRowAction();
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
-      setReconciling(null);
+      setRowBusy(null);
     }
   };
+  const doRejectRow = async (r: ChargeRequestRow) => {
+    const note = prompt(`#${r.id} ${r.userName} — 반려 사유(선택)`) ?? undefined;
+    setRowBusy(r.id);
+    try {
+      await rejectChargeRequest(r.id, note);
+      toast.push("success", `${r.userName} 충전 요청 반려`);
+      await reloadAfterRowAction();
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setRowBusy(null);
+    }
+  };
+
+  const loadChargeList = async (filter: "ALL" | "PENDING" | "APPROVED" | "REJECTED") => {
+    setChargeListLoading(true);
+    try {
+      const status = filter === "ALL" ? undefined : filter;
+      const rows = await listAdminChargeRequests(status);
+      setChargeListRows(rows);
+    } catch (e) {
+      toast.push("error", (e as Error).message);
+    } finally {
+      setChargeListLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (chargeListOpen) loadChargeList(chargeListFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chargeListOpen, chargeListFilter]);
+  // PENDING 배지 — 페이지 진입 시 1회 + 60초 폴링.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const rows = await listAdminChargeRequests("PENDING");
+        if (!cancelled) setPendingCount(rows.length);
+      } catch {
+        /* 무시 — 배지일 뿐 */
+      }
+    };
+    fetchCount();
+    const t = window.setInterval(fetchCount, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, []);
 
   const openCredit = (m: MemberRow) => {
     setCreditFor(m);
@@ -161,7 +208,7 @@ export default function AdminMembersPage() {
       const sign = n > 0 ? "+" : "−";
       toast.push(
         "success",
-        `${creditFor.name} ${verb} — ${sign}${fmt.point(Math.abs(n))} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+        `${creditFor.name} ${verb} — ${sign}${fmt.point(Math.abs(n))} 콘 (잔액 ${fmt.point(Number(r.newBalance))} 콘)`,
       );
       setCreditFor(null);
       await membersQ.refetch();
@@ -178,12 +225,18 @@ export default function AdminMembersPage() {
       const r = await approveChargeRequest(chargeReq.id);
       toast.push(
         "success",
-        `${creditFor.name} 승인 — +${fmt.point(Number(r.amount))} P (잔액 ${fmt.point(Number(r.newBalance))} P)`,
+        `${creditFor.name} 승인 — +${fmt.point(Number(r.amount))} 콘 (잔액 ${fmt.point(Number(r.newBalance))} 콘)`,
       );
       setCreditFor(null);
       setChargeReq(null);
       clearParam();
       await membersQ.refetch();
+      if (chargeListOpen) await loadChargeList(chargeListFilter);
+      // 배지 즉시 갱신.
+      try {
+        const rows = await listAdminChargeRequests("PENDING");
+        setPendingCount(rows.length);
+      } catch { /* 무시 */ }
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
@@ -200,6 +253,11 @@ export default function AdminMembersPage() {
       setCreditFor(null);
       setChargeReq(null);
       clearParam();
+      if (chargeListOpen) await loadChargeList(chargeListFilter);
+      try {
+        const rows = await listAdminChargeRequests("PENDING");
+        setPendingCount(rows.length);
+      } catch { /* 무시 */ }
     } catch (e) {
       toast.push("error", (e as Error).message);
     } finally {
@@ -228,14 +286,7 @@ export default function AdminMembersPage() {
           clearParam();
           return;
         }
-        if (req.status !== "PENDING") {
-          toast.push(
-            "error",
-            `이 요청은 이미 ${req.status === "APPROVED" ? "승인" : "반려"}되었습니다`,
-          );
-          clearParam();
-          return;
-        }
+        // 처리된 요청도 read-only로 표시(모달이 status에 따라 분기).
         openCreditFromRequest(member, req);
       } catch (e) {
         toast.push("error", (e as Error).message);
@@ -364,7 +415,7 @@ export default function AdminMembersPage() {
                   gap: 6,
                 }}
               >
-                <Icon.shield size={14} /> 회원관리 · {isLocal ? "자립형 (자체 관리)" : "위임형 (ezpass 미러)"}
+                <Icon.shield size={14} /> 회원관리
               </div>
               <div
                 style={{
@@ -377,11 +428,11 @@ export default function AdminMembersPage() {
               >
                 회원 ({data?.total ?? "—"})
               </div>
-              <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
-                {isLocal ? "신원 정본은 이 시스템" : "신원 정본은 ezpass"} · 관리자{" "}
-                {data?.admins ?? "—"}명
-                {lastSync ? ` · 마지막 동기화 ${lastSync}` : ""}
-              </div>
+              {lastSync && (
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 6 }}>
+                  마지막 동기화 {lastSync}
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <Btn p={p} variant="ghost" size="md" onClick={() => membersQ.refetch()}>
@@ -446,89 +497,6 @@ export default function AdminMembersPage() {
             </div>
           )}
 
-          <div
-            style={{
-              padding: 12,
-              background: isLocal ? "#EEF2F7" : "#FFF4E0",
-              borderRadius: 10,
-              fontSize: 12,
-              color: isLocal ? p.inkSoft : p.warn,
-              lineHeight: 1.5,
-              marginBottom: 16,
-            }}
-          >
-            {isLocal ? (
-              <>
-                <strong>자립형 모드</strong>{" "}
-                <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-                  외부 그룹웨어 없이 이 시스템이 회원·인증을 직접 관리합니다. 회원 추가 시
-                  비밀번호로 로그인됩니다. 연차·경매금도 우리 시스템 소유입니다.
-                </span>
-              </>
-            ) : (
-              <>
-                <strong>⚠ 읽기 전용 (위임형)</strong>{" "}
-                <span style={{ color: p.inkSoft, fontWeight: 500 }}>
-                  회원 추가·수정은 ezpass(그룹웨어)에서 합니다. 여기서는 미러된 명단을 보고
-                  「지금 동기화」로 최신 상태를 당겨옵니다. 연차·경매금은 우리 시스템이 소유합니다.
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* ezpass 연차 정합 점검 — drift 있을 때만 페이지 상단에 노란 배너로 노출(평소엔 작은 점검 버튼) */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: syncReport ? 8 : 0 }}>
-              <div style={{ fontSize: 11, color: p.inkMuted }}>
-                평소엔 낙찰 자동 sync. 이슈로 어긋날 때만 점검·동기.
-              </div>
-              <Btn p={p} variant="ghost" size="sm" disabled={syncChecking} onClick={runLeaveSyncCheck}>
-                {syncChecking ? "점검 중…" : "ezpass 연차 동기 점검"}
-              </Btn>
-            </div>
-            {syncReport && syncReport.driftCount > 0 && (
-              <div style={{ padding: 12, background: "#FFF4E0", border: `1px solid #F3CD7F`, borderRadius: 10, fontSize: 12 }}>
-                <div style={{ fontWeight: 700, color: p.warn, marginBottom: 8 }}>
-                  ⚠ ezpass와 어긋난 사용자 {syncReport.driftCount}명 ({syncReport.year}년 기준)
-                </div>
-                {syncReport.rows.filter((r) => !r.inSync).map((r: LeaveSyncRow) => {
-                  const targetMdat = r.ezpassAtmc !== null ? r.ourTotal - r.ezpassAtmc : null;
-                  return (
-                    <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "1.2fr 2fr 1fr 130px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: `1px solid #F3CD7F` }}>
-                      <div style={{ color: p.ink, fontWeight: 600 }}>{r.name} <span style={{ color: p.inkMuted, fontWeight: 400 }}>· {r.email}</span></div>
-                      <div className="mono" style={{ color: p.inkSoft, fontSize: 11, lineHeight: 1.5 }}>
-                        <div>
-                          우리 합 <b style={{ color: p.ink }}>{r.ourTotal}</b> (REG {r.ourRegular} + AUC {r.ourAuctionDays})
-                        </div>
-                        <div>
-                          ezpass 합 <b style={{ color: p.ink }}>{r.ezpassTotal ?? "?"}</b> (atmc {r.ezpassAtmc ?? "?"} + mdat {r.ezpassMdat ?? "?"})
-                          {targetMdat !== null && ` → 동기 시 mdat=${targetMdat}`}
-                        </div>
-                      </div>
-                      <div style={{ color: p.inkMuted, fontSize: 11 }}>{r.error ?? "—"}</div>
-                      <div style={{ textAlign: "right" }}>
-                        <Btn
-                          p={p}
-                          variant="primary"
-                          size="sm"
-                          disabled={reconciling === r.userId || !!r.error}
-                          onClick={() => doReconcile(r.userId)}
-                        >
-                          {reconciling === r.userId ? "동기 중…" : "ezpass에 동기"}
-                        </Btn>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {syncReport && syncReport.driftCount === 0 && (
-              <div style={{ padding: 8, fontSize: 11, color: p.success, marginTop: 8 }}>
-                ✓ 정합 OK · {new Date(syncReport.checkedAt).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </div>
-            )}
-          </div>
-
           <DataGrid<MemberRow>
             p={p}
             rows={shownMembers}
@@ -542,115 +510,16 @@ export default function AdminMembersPage() {
             }
             rowStyle={(m) => ({ opacity: m.active ? 1 : 0.5 })}
             maxHeight={560}
-            columns={[
-              {
-                key: "empId",
-                header: "사번",
-                width: w[0],
-                render: (m) => (
-                  <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
-                    {m.empId}
-                  </span>
-                ),
-              },
-              {
-                key: "name",
-                header: "이름",
-                width: w[1],
-                render: (m) => (
-                  <span style={{ color: p.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {m.name}
-                    {!m.active && (
-                      <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
-                        비활성
-                      </Pill>
-                    )}
-                  </span>
-                ),
-              },
-              {
-                key: "email",
-                header: "이메일",
-                width: w[2],
-                render: (m) => (
-                  <span className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
-                    {m.email ?? "—"}
-                  </span>
-                ),
-              },
-              {
-                key: "team",
-                header: "부서",
-                width: w[3],
-                render: (m) => <span style={{ color: p.inkSoft }}>{m.team ?? "—"}</span>,
-              },
-              {
-                key: "rank",
-                header: "직급 / 직책",
-                width: w[4],
-                render: (m) => (
-                  <span style={{ color: p.inkSoft }}>
-                    {[m.jobRank, m.jobTitle].filter(Boolean).join(" / ") || "—"}
-                  </span>
-                ),
-              },
-              {
-                key: "role",
-                header: "권한",
-                width: w[5],
-                render: (m) => (
-                  <Pill
-                    p={p}
-                    size="sm"
-                    tone={m.role === "ADMIN" ? "accent" : m.role === "EXAM" ? "warn" : "neutral"}
-                    style={{ fontSize: 10, fontWeight: 700 }}
-                  >
-                    {roleLabel(m.role)}
-                  </Pill>
-                ),
-              },
-              {
-                key: "balance",
-                header: "포인트",
-                width: w[6],
-                align: "right",
-                render: (m) => (
-                  <span className="mono" style={{ color: p.ink, fontWeight: 700, fontSize: 12 }}>
-                    {fmt.point(Number(m.balance))} P
-                  </span>
-                ),
-              },
-              {
-                key: "leave",
-                header: "휴가",
-                width: w[7],
-                render: (m) => <LeaveBar lv={m.leave} p={p} />,
-              },
-              {
-                key: "actions",
-                header: "작업",
-                width: w[8],
-                align: "right",
-                render: (m) => (
-                  <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
-                    <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
-                      관리
-                    </Btn>
-                    {/* exam 영역(EXAM/EXAM_ADMIN)만 수정·비활성. EZPASS·ADMIN은 읽기. */}
-                    {(m.role === "EXAM" || m.role === "EXAM_ADMIN") && (
-                      <>
-                        <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
-                          수정
-                        </Btn>
-                        <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
-                          {m.active ? "비활성" : "활성"}
-                        </Btn>
-                      </>
-                    )}
-                  </span>
-                ),
-              },
-            ]}
+            columns={memberColumns({
+              w,
+              p,
+              onEzpassTab,
+              openCredit,
+              openEdit,
+              toggleActive,
+              openChargeList: () => setChargeListOpen(true),
+              pendingCount,
+            })}
             footer={
               <span>
                 {onEzpassTab ? "ezpass 연동" : "exam 독립"} {shownMembers.length}명 · 전체 {data?.total ?? 0}명
@@ -677,8 +546,13 @@ export default function AdminMembersPage() {
             onClick={(e) => e.stopPropagation()}
             style={{ width: 440, background: p.surface, borderRadius: 16, padding: 24, boxShadow: "0 20px 60px rgba(11,25,41,0.25)" }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4 }}>
-              {chargeReq ? `충전 요청 #${chargeReq.id} 처리` : "포인트 관리"}
+            <div style={{ fontSize: 18, fontWeight: 800, color: p.ink, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+              {chargeReq ? `충전 요청 #${chargeReq.id}` : "콘 관리"}
+              {chargeReq && chargeReq.status !== "PENDING" && (
+                <Pill p={p} size="sm" tone={chargeReq.status === "APPROVED" ? "success" : "danger"} style={{ fontSize: 10 }}>
+                  {chargeReq.status === "APPROVED" ? "승인됨" : "반려됨"}
+                </Pill>
+              )}
             </div>
             <div style={{ fontSize: 12, color: p.inkMuted, marginBottom: 4 }}>
               <b>{creditFor.name}</b> · 사번 {creditFor.empId}
@@ -689,10 +563,10 @@ export default function AdminMembersPage() {
               )}
             </div>
             <div className="mono" style={{ fontSize: 12, color: p.inkSoft, marginBottom: 16 }}>
-              현재 잔액 {fmt.point(Number(creditFor.balance))} P
+              현재 잔액 {fmt.point(Number(creditFor.balance))} 콘
             </div>
 
-            <Field label={chargeReq ? "요청 금액 (P)" : "금액 (P · 음수=차감)"}>
+            <Field label={chargeReq ? "요청 금액 (P)" : "금액 (콘 · 음수=차감)"}>
               <input
                 style={{ ...inp(p), background: chargeReq ? p.bgDeep : p.bg }}
                 type="number" step={100}
@@ -712,8 +586,36 @@ export default function AdminMembersPage() {
               />
             </Field>
 
-            <div style={{ display: "flex", justifyContent: chargeReq ? "space-between" : "flex-end", gap: 8, marginTop: 14 }}>
-              {chargeReq ? (
+            {chargeReq && chargeReq.status !== "PENDING" && (
+              <div
+                style={{
+                  marginTop: 4,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: p.bgDeep,
+                  border: `1px solid ${p.line}`,
+                  fontSize: 12,
+                  color: p.inkSoft,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div>
+                  <b>처리</b>{" "}
+                  {chargeReq.decidedAt
+                    ? new Date(chargeReq.decidedAt).toLocaleString("ko-KR")
+                    : "—"}
+                  {chargeReq.decidedByName && <> · {chargeReq.decidedByName}</>}
+                </div>
+                {chargeReq.decisionNote && (
+                  <div>
+                    <b>관리자 메모</b> {chargeReq.decisionNote}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: chargeReq && chargeReq.status === "PENDING" ? "space-between" : "flex-end", gap: 8, marginTop: 14 }}>
+              {chargeReq && chargeReq.status === "PENDING" ? (
                 <>
                   <Btn p={p} variant="danger" size="md" disabled={crediting} onClick={doRejectRequest}>
                     {crediting ? "처리 중…" : "반려"}
@@ -725,6 +627,8 @@ export default function AdminMembersPage() {
                     </Btn>
                   </div>
                 </>
+              ) : chargeReq ? (
+                <Btn p={p} variant="ghost" size="md" onClick={() => { setCreditFor(null); setChargeReq(null); clearParam(); }}>닫기</Btn>
               ) : (
                 <>
                   <Btn p={p} variant="ghost" size="md" disabled={crediting} onClick={() => setCreditFor(null)}>취소</Btn>
@@ -733,6 +637,182 @@ export default function AdminMembersPage() {
                   </Btn>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {chargeListOpen && (
+        <div
+          onClick={() => setChargeListOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(11,25,41,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 190,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 1040, maxWidth: "96vw", maxHeight: "86vh", display: "flex", flexDirection: "column",
+              background: p.surface, borderRadius: 16, padding: 24,
+              boxShadow: "0 20px 60px rgba(11,25,41,0.25)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: p.ink }}>충전 요청 모아보기</div>
+                <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 2 }}>
+                  알림에서 닫은 요청도 여기서 다시 처리할 수 있습니다.
+                </div>
+              </div>
+              <Btn p={p} variant="ghost" size="sm" onClick={() => setChargeListOpen(false)}>닫기</Btn>
+            </div>
+
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {([
+                { id: "PENDING" as const, label: "대기" },
+                { id: "APPROVED" as const, label: "승인" },
+                { id: "REJECTED" as const, label: "반려" },
+                { id: "ALL" as const, label: "전체" },
+              ]).map((t) => {
+                const on = t.id === chargeListFilter;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => !on && setChargeListFilter(t.id)}
+                    style={{
+                      padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      color: on ? p.surface : p.inkMuted, background: on ? p.ink : p.surface,
+                      border: `1px solid ${on ? p.ink : p.line}`, cursor: on ? "default" : "pointer",
+                    }}
+                  >
+                    {t.label}
+                  </div>
+                );
+              })}
+              <div style={{ flex: 1 }} />
+              <Btn p={p} variant="ghost" size="sm" disabled={chargeListLoading} onClick={() => loadChargeList(chargeListFilter)}>
+                {chargeListLoading ? "불러오는 중…" : "새로고침"}
+              </Btn>
+            </div>
+
+            <div style={{ flex: 1, overflow: "auto", border: `1px solid ${p.line}`, borderRadius: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "56px 130px 110px minmax(220px, 2.4fr) 70px 150px 150px",
+                  gap: 10,
+                  padding: "10px 14px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: p.inkMuted,
+                  background: p.bgDeep,
+                  borderBottom: `1px solid ${p.line}`,
+                  position: "sticky",
+                  top: 0,
+                }}
+              >
+                <span>#</span>
+                <span>요청자</span>
+                <span>금액</span>
+                <span>사유</span>
+                {/* Pill sm padding 0 8 — 헤더에도 같은 paddingLeft를 줘서 Pill 텍스트와 정렬. */}
+                <span style={{ paddingLeft: 8 }}>상태</span>
+                <span>요청 일시</span>
+                {/* Btn sm padding 0 14 — 헤더에도 같은 paddingLeft를 줘서 버튼 라벨과 정렬. */}
+                <span style={{ paddingLeft: 14 }}>작업</span>
+              </div>
+              {chargeListLoading && chargeListRows.length === 0 ? (
+                <div style={{ padding: "32px 14px", fontSize: 12, color: p.inkMuted, textAlign: "center" }}>
+                  불러오는 중…
+                </div>
+              ) : chargeListRows.length === 0 ? (
+                <div style={{ padding: "32px 14px", fontSize: 12, color: p.inkMuted, textAlign: "center" }}>
+                  표시할 요청이 없습니다.
+                </div>
+              ) : (
+                chargeListRows.map((r) => {
+                  const member = data?.members.find((m) => m.userId === r.userId);
+                  const canOpenDetail = !!member;
+                  const busy = rowBusy === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "56px 130px 110px minmax(220px, 2.4fr) 70px 150px 150px",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        fontSize: 12,
+                        color: p.ink,
+                        borderBottom: `1px solid ${p.line}`,
+                        background: p.surface,
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.bg; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = p.surface; }}
+                    >
+                      <span className="mono" style={{ color: p.inkMuted }}>#{r.id}</span>
+                      <span style={{ fontWeight: 700 }}>{r.userName}</span>
+                      <span className="mono" style={{ fontWeight: 700 }}>
+                        {fmt.point(Number(r.amount))} 콘
+                      </span>
+                      <span
+                        style={{
+                          color: p.inkSoft,
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          lineHeight: 1.4,
+                          wordBreak: "break-word",
+                        }}
+                        title={r.note ?? undefined}
+                      >
+                        {r.note ?? "—"}
+                      </span>
+                      <span>
+                        <Pill
+                          p={p}
+                          size="sm"
+                          tone={r.status === "PENDING" ? "warn" : r.status === "APPROVED" ? "success" : "danger"}
+                          style={{ fontSize: 9 }}
+                        >
+                          {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "반려"}
+                        </Pill>
+                      </span>
+                      <span style={{ color: p.inkMuted, fontSize: 11 }}>
+                        {new Date(r.createdAt).toLocaleString("ko-KR")}
+                      </span>
+                      <span style={{ display: "inline-flex", gap: 6 }}>
+                        {r.status === "PENDING" ? (
+                          <>
+                            <Btn p={p} variant="primary" size="sm" disabled={busy} onClick={() => doApproveRow(r)}>
+                              {busy ? "…" : "승인"}
+                            </Btn>
+                            <Btn p={p} variant="danger" size="sm" disabled={busy} onClick={() => doRejectRow(r)}>
+                              반려
+                            </Btn>
+                          </>
+                        ) : (
+                          <Btn
+                            p={p}
+                            variant="ghost"
+                            size="sm"
+                            disabled={!canOpenDetail}
+                            onClick={() => canOpenDetail && openCreditFromRequest(member!, r)}
+                          >
+                            상세
+                          </Btn>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: p.inkMuted, marginTop: 8 }}>
+              총 {chargeListRows.length}건 · 대기 건은 표에서 바로 승인/반려, 처리된 건은 「상세」로 결정 내역을 볼 수 있습니다.
             </div>
           </div>
         </div>
@@ -861,32 +941,306 @@ function inp(p: Palette): CSSProperties {
   };
 }
 
-// 연차 시각화 — 파(REGULAR) + 노(AUCTION+EVENT) + 회(used). title에 상세.
+// 연차 시각화 — 파(REGULAR) + 주황(AUCTION) + 노랑(EVENT) + 회(used).
+// hover 시 종류별 일수 popover. 표 본문이 overflow:auto라 잘리지 않게 Portal+fixed.
 function LeaveBar({ lv, p }: { lv: MemberRow["leave"]; p: Palette }) {
   const grand = lv.regular + lv.auction + lv.event + lv.used;
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; placement: "below" | "above" } | null>(null);
+
   if (grand === 0) return <span style={{ color: p.inkMuted, fontSize: 11 }}>—</span>;
   const pct = (n: number) => (n / grand) * 100;
-  const noAucEvt = lv.auction + lv.event;
+
+  const POPOVER_HEIGHT = 160; // 대략 — 위/아래 결정용
+  const POPOVER_WIDTH = 240;  // 대략 — 좌/우 클램프용
+  const MARGIN = 12;
+  const onEnter = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    // 위/아래 — 아래 공간 부족하면 위로.
+    const spaceBelow = window.innerHeight - r.bottom;
+    const placement: "above" | "below" = spaceBelow < POPOVER_HEIGHT + 16 ? "above" : "below";
+    // 좌/우 — viewport 우측을 넘어가지 않게 클램프.
+    const maxLeft = window.innerWidth - POPOVER_WIDTH - MARGIN;
+    const left = Math.max(MARGIN, Math.min(r.left, maxLeft));
+    setPos({
+      top: placement === "below" ? r.bottom + 6 : r.top - 6,
+      left,
+      placement,
+    });
+  };
+  const onLeave = () => setPos(null);
+
   return (
-    <div title={`일반 ${lv.regular}일 · 경매/이벤트 ${noAucEvt}일 · 사용 ${lv.used}일 · 잔여 ${lv.total}일`}>
+    <>
       <div
-        style={{
-          display: "flex",
-          width: "100%",
-          maxWidth: 100,
-          height: 7,
-          borderRadius: 4,
-          overflow: "hidden",
-          background: p.bg,
-        }}
+        ref={ref}
+        style={{ display: "inline-block" }}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
       >
-        {lv.regular > 0 && <div style={{ width: `${pct(lv.regular)}%`, background: "#3b82f6" }} />}
-        {noAucEvt > 0 && <div style={{ width: `${pct(noAucEvt)}%`, background: "#f59e0b" }} />}
-        {lv.used > 0 && <div style={{ width: `${pct(lv.used)}%`, background: p.inkMuted }} />}
+        <div
+          style={{
+            display: "flex",
+            width: 100,
+            height: 7,
+            borderRadius: 4,
+            overflow: "hidden",
+            background: p.bg,
+          }}
+        >
+          {lv.regular > 0 && <div style={{ width: `${pct(lv.regular)}%`, background: "#3b82f6" }} />}
+          {lv.auction > 0 && <div style={{ width: `${pct(lv.auction)}%`, background: "#f59e0b" }} />}
+          {lv.event > 0 && <div style={{ width: `${pct(lv.event)}%`, background: "#eab308" }} />}
+          {lv.used > 0 && <div style={{ width: `${pct(lv.used)}%`, background: p.inkMuted }} />}
+        </div>
+        <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2, fontWeight: 600 }}>
+          잔여 <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}</span>일
+        </div>
       </div>
-      <div style={{ fontSize: 10, color: p.inkMuted, marginTop: 2, fontWeight: 600 }}>
-        잔여 <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}</span>일
-      </div>
+
+      {pos && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: pos.placement === "below" ? pos.top : undefined,
+            bottom: pos.placement === "above" ? window.innerHeight - pos.top : undefined,
+            left: pos.left,
+            background: p.surface,
+            border: `1px solid ${p.line}`,
+            borderRadius: 10,
+            padding: "10px 12px",
+            boxShadow: "0 8px 24px rgba(11,25,41,0.22)",
+            fontSize: 11,
+            color: p.ink,
+            zIndex: 9999,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            minWidth: 220,
+          }}
+        >
+          <LeaveLegend color="#3b82f6" label="일반(REGULAR)" days={lv.regular} p={p} />
+          <LeaveLegend color="#f59e0b" label="경매 낙찰(AUCTION)" days={lv.auction} p={p} />
+          <LeaveLegend color="#eab308" label="이벤트(EVENT)" days={lv.event} p={p} />
+          <LeaveLegend color={p.inkMuted} label="사용함" days={lv.used} p={p} muted />
+          <div
+            style={{
+              marginTop: 6,
+              paddingTop: 6,
+              borderTop: `1px solid ${p.line}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ color: p.inkMuted, fontWeight: 700 }}>잔여 합계</span>
+            <span style={{ color: p.ink, fontWeight: 800 }}>{lv.total}일</span>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+function LeaveLegend({
+  color,
+  label,
+  days,
+  p,
+  muted,
+}: {
+  color: string;
+  label: string;
+  days: number;
+  p: Palette;
+  muted?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+      <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+      <span style={{ flex: 1, color: muted ? p.inkMuted : p.inkSoft }}>{label}</span>
+      <span style={{ color: muted ? p.inkSoft : p.ink, fontWeight: 700, marginLeft: 14 }}>{days}일</span>
     </div>
   );
+}
+
+// 회원 표 컬럼 정의 — 모든 컬럼을 좌측 정렬로 통일.
+// Pill/Btn 같은 inline 박스는 컬럼 좌측에 그대로 두되, 헤더 텍스트에 박스 padding과
+// 같은 paddingLeft를 줘서 "박스 내부 텍스트"와 "헤더 텍스트"의 x좌표를 일치시킨다.
+// (Pill sm: padding 0 8 → 헤더 paddingLeft 8 / Btn sm: padding 0 14 → 헤더 paddingLeft 14)
+// EZPASS 탭에선 작업 컬럼(수정/비활성)을 통째로 제외 — EZPASS·ADMIN은 어차피 작업 권한이 없어 빈 칸만 남기 때문.
+function memberColumns({
+  w,
+  p,
+  onEzpassTab,
+  openCredit,
+  openEdit,
+  toggleActive,
+  openChargeList,
+  pendingCount,
+}: {
+  w: string[];
+  p: Palette;
+  onEzpassTab: boolean;
+  openCredit: (m: MemberRow) => void;
+  openEdit: (m: MemberRow) => void;
+  toggleActive: (m: MemberRow) => void;
+  openChargeList: () => void;
+  pendingCount: number | null;
+}): GridColumn<MemberRow>[] {
+  const cols: GridColumn<MemberRow>[] = [
+    {
+      key: "empId",
+      header: "사번",
+      width: w[0],
+      align: "left",
+      render: (m) => (
+        <span className="mono" style={{ color: p.inkMuted, fontWeight: 600 }}>
+          {m.empId}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      header: "이름",
+      width: w[1],
+      align: "left",
+      render: (m) => (
+        <span style={{ color: p.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {m.name}
+          {!m.active && (
+            // 비활성 Pill은 좌측 마진 -8로 자체 padding 상쇄(인접 텍스트 기준 정렬).
+            <Pill p={p} size="sm" tone="neutral" style={{ fontSize: 9 }}>
+              비활성
+            </Pill>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "email",
+      header: "이메일",
+      width: w[2],
+      align: "left",
+      render: (m) => (
+        <span className="mono" style={{ color: p.inkSoft, fontSize: 11 }}>
+          {m.email ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "team",
+      header: "부서",
+      width: w[3],
+      align: "left",
+      render: (m) => <span style={{ color: p.inkSoft }}>{m.team ?? "—"}</span>,
+    },
+    {
+      key: "rank",
+      header: "직급 / 직책",
+      width: w[4],
+      align: "left",
+      render: (m) => (
+        <span style={{ color: p.inkSoft }}>
+          {[m.jobRank, m.jobTitle].filter(Boolean).join(" / ") || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "role",
+      // 헤더에 Pill padding(8)과 같은 paddingLeft → 박스 내부 텍스트와 정확히 정렬.
+      header: <span style={{ paddingLeft: 8 }}>권한</span>,
+      width: w[5],
+      align: "left",
+      render: (m) => (
+        <Pill
+          p={p}
+          size="sm"
+          tone={m.role === "ADMIN" ? "accent" : m.role === "EXAM" ? "warn" : "neutral"}
+          style={{ fontSize: 10, fontWeight: 700 }}
+        >
+          {roleLabel(m.role)}
+        </Pill>
+      ),
+    },
+    {
+      key: "balance",
+      header: (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          콘
+          <Btn p={p} variant="soft" size="sm" onClick={openChargeList}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              요청함
+              {pendingCount !== null && pendingCount > 0 && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    minWidth: 16,
+                    padding: "0 5px",
+                    borderRadius: 999,
+                    background: "#ef4444",
+                    color: "#fff",
+                    fontSize: 9,
+                    fontWeight: 800,
+                    textAlign: "center",
+                    lineHeight: "14px",
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </span>
+          </Btn>
+        </span>
+      ),
+      width: w[6],
+      align: "center",
+      render: (m) => (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <span className="mono" style={{ color: p.ink, fontWeight: 700, fontSize: 12 }}>
+            {fmt.point(Number(m.balance))} 콘
+          </span>
+          <Btn p={p} variant="ghost" size="sm" onClick={() => openCredit(m)}>
+            관리
+          </Btn>
+        </span>
+      ),
+    },
+    {
+      key: "leave",
+      header: "휴가",
+      width: w[7],
+      align: "center",
+      render: (m) => <LeaveBar lv={m.leave} p={p} />,
+    },
+  ];
+
+  if (!onEzpassTab) {
+    cols.push({
+      key: "actions",
+      // 헤더에 Btn padding(14)과 같은 paddingLeft → 버튼 라벨과 정확히 정렬.
+      header: <span style={{ paddingLeft: 14 }}>작업</span>,
+      width: w[8],
+      align: "left",
+      render: (m) => {
+        // EXAM 영역(EXAM/EXAM_ADMIN)만 수정·비활성. 그 외(ADMIN 등)는 작업 권한 없음 → 빈 셀.
+        if (m.role !== "EXAM" && m.role !== "EXAM_ADMIN") {
+          return <span style={{ color: p.inkMuted, fontSize: 11, paddingLeft: 14 }}>—</span>;
+        }
+        return (
+          <span style={{ display: "inline-flex", gap: 6 }}>
+            <Btn p={p} variant="ghost" size="sm" onClick={() => openEdit(m)}>
+              수정
+            </Btn>
+            <Btn p={p} variant="ghost" size="sm" onClick={() => toggleActive(m)}>
+              {m.active ? "비활성" : "활성"}
+            </Btn>
+          </span>
+        );
+      },
+    });
+  }
+
+  return cols;
 }

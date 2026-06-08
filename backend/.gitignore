@@ -36,6 +36,8 @@ prisma/*.db-shm
 #   git update-index --skip-worktree backend/prisma/dev.db
 prisma/*.db
 !prisma/dev.db
+# 로컬 시드 스냅샷(db:snapshot/restore) — 개발자 PC 한정, 공유 X
+prisma/dev.db.snapshot
 
 # Docker 로컬 볼륨
 docker-data/

@@ -355,7 +355,7 @@ function Bar({ bar, idx, onClick }: { bar: Bar; idx: number; onClick: () => void
             : a.status === "UNSOLD"
               ? "유찰"
               : "예정 "}
-        {a.status !== "UNSOLD" && Number(a.highest).toLocaleString("ko-KR") + "P"}
+        {a.status !== "UNSOLD" && Number(a.highest).toLocaleString("ko-KR") + " 콘"}
       </span>
     </div>
   );

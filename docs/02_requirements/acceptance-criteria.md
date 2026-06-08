@@ -27,7 +27,7 @@
 | AC-1.1.3 | 직원 D가 `REGULAR` 미사용 0일 | 배치 실행 | D에 대한 `stake` row 미생성 — 0 기여자는 스킵 |
 | AC-1.1.4 | 동일 연도(2026)에 배치 1회 이미 실행 후 재실행 | 배치 재실행 | 매물·Stake 중복 생성 없음 — 재진입 가능(idempotent), [edge-cases](edge-cases.md) EC-10 |
 
-### 검증 포인트
+### 검증 콘
 
 - `Σ contributed_days = Σ REGULAR 미사용 일수` (정합성)
 - `Σ stake_ratio ≈ 1.0` (오차는 정밀도 한계 내, NUMERIC(10,8))
@@ -53,7 +53,7 @@
 | AC-2.1.2 | AC-2.1.1 직후 + 직원 B wallet 10000P | B가 6000P 입찰 | B wallet 6000P 차감 + A wallet 5000P **즉시 환불** · `auctions.highest_bid=6000` · `winner_id=B.id` · `LEDGER_ENTRY(BID,-6000,B)` + `LEDGER_ENTRY(REFUND,+5000,A)` · WebSocket 양쪽 알림 |
 | AC-2.1.3 | 경매 X 마감 시각 1초 전 | A가 입찰 | 정상 수락 (마감 시각 이전이므로) |
 
-### 검증 포인트
+### 검증 콘
 
 - 입찰 트랜잭션은 **단일 DB 트랜잭션** ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md))
 - 에스크로 등식: `Σ(BID + WIN) − Σ(REFUND + DIVIDEND) = ESCROW.balance` 진행 중에도 일관 ([DB-RULE-4](SRS.md#342-데이터-무결성-제약조건))
@@ -83,7 +83,7 @@
 | AC-2.2.1 | 경매 X 마감 시각 도달, 최고가 6000P (B 낙찰) | 마감 스케줄러 실행 | `auctions.status='CLOSED'` → 즉시 `AWARDED` 전이 · `LEDGER_ENTRY(WIN, 0, B, escrow_snapshot)` 기록 · `ESCROW.balance += 6000` · B에게 `AUCTION` 휴가 +1 ([FR-2.3](#fr-23--휴가-권한-부여)) · WebSocket `AWARDED` 발행 |
 | AC-2.2.2 | 경매 X 마감, 입찰자 없음 (highest_bid=0, winner_id=null) | 마감 스케줄러 실행 | `auctions.status='CLOSED'` → `UNSOLD` 전이 · 에스크로 변동 없음 · WebSocket `UNSOLD` 발행 |
 
-### 검증 포인트
+### 검증 콘
 
 - 차감·적립·휴가 부여가 **단일 트랜잭션** ([ADR-005](../04_decisions/ADR-005-hr-api-timing.md) 내부화 — Outbox 불요)
 - 트랜잭션 실패 시 *전체 롤백* + Slack Critical 알림
@@ -106,7 +106,7 @@
 | AC-2.3.1 | B가 경매 X 낙찰 (2027년 매물) | FR-2.2 트랜잭션 내 휴가 부여 | `leave_balance(B, 2027, AUCTION).allocated_days += 1` · 같은 트랜잭션 |
 | AC-2.3.2 | B가 이미 2027년 `AUCTION` 휴가 2일 보유, 추가 낙찰 | 휴가 부여 | `allocated_days: 2 → 3` (UPSERT) |
 
-### 검증 포인트
+### 검증 콘
 
 - FR-2.2와 **반드시 동일 트랜잭션** — 부분 커밋 시 정합성 붕괴
 - 멱등 키 `auction-{auctionId}-winner-{userId}` — 중복 호출 시 무효
@@ -127,7 +127,7 @@
 | AC-3.1.3 | 0/0/15 | 1일 차감 | REGULAR 15→14 |
 | AC-3.1.4 | 1/2/15 | 4일 차감 | AUCTION 1→0, EVENT 2→0, REGULAR 15→14 (순차 소진) |
 
-### 검증 포인트
+### 검증 콘
 
 - 사용자는 *순서를 선택할 수 없음* — API에 type 인자 받지 않음
 - 트랜잭션 단위로 처리 — 부분 차감 후 실패 시 전체 롤백
@@ -152,10 +152,10 @@
 | AC-4.1.3 | escrow=1001P, A=0.5 / B=0.5 (Stake 1위 동률) | 배당 배치 | floor: A 500 / B 500 (합 1000), 잔여 1P → user_id 오름차순 → A에게 +1 · 최종 A 501 / B 500 ([edge-cases](edge-cases.md) EC-7) |
 | AC-4.1.4 | escrow=1000P, A=1.0 (혼자) | 배당 배치 | A 배당 1000P |
 
-### 검증 포인트
+### 검증 콘
 
 - **불변식**: `Σ 최종배당 = ESCROW.balance` (currency별)
-- 에스크로 잔액을 *1포인트도 초과하지 않음*
+- 에스크로 잔액을 *1콘도 초과하지 않음*
 - 산정액 불일치 시 *배치 중단 + 수동 감사 대기*
 - `CREDIT_ADMIN` 항목은 집계에서 제외
 
@@ -177,7 +177,7 @@
 | AC-4.2.1 | 경매 X `UNSOLD` 상태, 직원 D 존재 | ADMIN이 `POST /admin/auctions/{X}/event-grant {empId: D, reason: '...'}` | `leave_balance(D, year, EVENT).allocated_days += 1` · `auctions.status='AWARDED'` · 에스크로 변동 없음 |
 | AC-4.2.2 | 경매 X `UNSOLD` 상태, 연말 도래 | 12/31 청산 배치 | `auctions.status='EXPIRED'` · 매물 영구 삭제 (Soft Delete) · 익년 이월 0 |
 
-### 검증 포인트
+### 검증 콘
 
 - 수동 지급 시 에스크로 *변동 없음* (구매자 없음)
 - `reason` 필수 (감사)
@@ -190,9 +190,9 @@
 
 ---
 
-## FR-5.1 · 관리자 포인트 적립
+## FR-5.1 · 관리자 콘 적립
 
-**목적**: 관리자가 직원 wallet에 분기·이벤트 포인트 적립. `LEDGER_ENTRY` `CREDIT_ADMIN` 기록. ([SRS](SRS.md) FR-5.1, [ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md))
+**목적**: 관리자가 직원 wallet에 분기·이벤트 콘 적립. `LEDGER_ENTRY` `CREDIT_ADMIN` 기록. ([SRS](SRS.md) FR-5.1, [ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md))
 
 ### 정상 시나리오
 
@@ -201,7 +201,7 @@
 | AC-5.1.1 | ADMIN K, 직원 D wallet 50000P | K가 `POST /admin/wallet/credit {userId: D, amount: 30000, reason: 'Q2 분기 지급'}` | D wallet 80000P · `LEDGER_ENTRY(CREDIT_ADMIN, +30000, D, reason='Q2...')` INSERT · `WalletCreditedEvent` 발행 |
 | AC-5.1.2 | ADMIN K, 직원 D 신규 (wallet row 없음) | 적립 호출 | wallet row UPSERT (balance=amount) · LEDGER_ENTRY 동일 |
 
-### 검증 포인트
+### 검증 콘
 
 - `CREDIT_ADMIN` 항목은 **에스크로 등식과 무관** — 감사 뷰에서 분리 집계
 - `reason` 필드 NOT NULL, 빈 문자열도 거부 (DB CHECK 제약)
@@ -230,7 +230,7 @@
 | AC-5.2.2 | 직원 D, 거래 50건 | D가 `GET /users/me/ledger?page=1&size=20` | `200 OK { items: [...20], total: 50, page: 1 }` |
 | AC-5.2.3 | ADMIN K가 직원 D 조회 | `GET /admin/wallet?userId=D&currency=WELFARE_POINT` | `200 OK` 정상 응답 |
 
-### 검증 포인트
+### 검증 콘
 
 - **ABAC (소유자 검사)**: `/users/me/*`는 토큰 user_id와 일치 검증, 불일치 시 403 ([permission-matrix](permission-matrix.md) §4.2)
 - 거래 내역 페이지네이션: 기본 20건, 최대 100건

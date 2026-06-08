@@ -26,6 +26,8 @@ export type AuthUser = {
   userId: bigint;
   role: Role;
   empId: string;
+  /** 소속 회사 id(멀티테넌시). super ADMIN은 null(전 회사). */
+  companyId: bigint | null;
 };
 
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
@@ -40,5 +42,24 @@ export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthUser => {
     const req = ctx.switchToHttp().getRequest<{ user: AuthUser }>();
     return req.user;
+  },
+);
+
+/** 멀티테넌시 유효 회사 스코프(핸들러 인자 주입).
+ *   - 일반 role: 자기 회사(user.companyId)로 고정.
+ *   - super ADMIN: 요청 헤더 X-Company-Id(스위처 선택) → 그 회사, 없으면 null(전 회사).
+ * use-case에 그대로 넘기면 됨(null=전 회사 미필터). */
+export const CompanyScope = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): bigint | null => {
+    const req = ctx
+      .switchToHttp()
+      .getRequest<{ user: AuthUser; headers: Record<string, string | undefined> }>();
+    const u = req.user;
+    if (u.role === "ADMIN") {
+      const h = req.headers["x-company-id"];
+      if (h && /^\d+$/.test(h)) return BigInt(h);
+      return null; // 전 회사 통합
+    }
+    return u.companyId;
   },
 );

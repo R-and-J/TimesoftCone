@@ -4,7 +4,7 @@
 // 호출한다 — 실패하면 throw → relay가 백오프 재시도/DLQ 처리.
 //
 // 주의(정책): ezpass의 실제 연차 테이블엔 쓰지 않는다(읽기 전용, 이중보상 방지 —
-// ADR-016/020). 그래서 기본 구현은 설정된 HR 엔드포인트(또는 mock)를 향하며,
+// ADR-016/020). 그래서 기본 구현은 설정된 HR 엔드콘(또는 mock)를 향하며,
 // ezpass 직접 쓰기는 하지 않는다.
 
 export const HR_LEAVE_CLIENT = Symbol("HR_LEAVE_CLIENT");

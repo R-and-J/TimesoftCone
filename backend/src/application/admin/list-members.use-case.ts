@@ -43,9 +43,11 @@ export class ListMembersUseCase {
     @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
-  async execute(): Promise<MemberList> {
+  /** companyId가 주어지면 그 회사 회원만(멀티테넌시). null=super ADMIN(전 회사). */
+  async execute(companyId?: bigint | null): Promise<MemberList> {
     const mode = this.config.get<string>("AUTH_MODE") === "local" ? "local" : "ezpass";
     const users = await this.prisma.user.findMany({
+      where: companyId != null ? { companyId } : undefined,
       orderBy: [{ role: "desc" }, { email: "asc" }],
       select: {
         id: true,

@@ -3,7 +3,7 @@
 //  로그인되므로, 프로필을 API 응답에서 받아 그대로 사용한다.)
 
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { clearAuthToken } from "./api";
+import { clearAuthToken, setCompanyScope } from "./api";
 import type { Role } from "./roles";
 
 export type CurrentUser = {
@@ -17,6 +17,10 @@ export type CurrentUser = {
   /** 직책 (ezpass ofcsprtps_nm). */
   jobTitle?: string | null;
   email: string | null;
+  /** 소속 회사 id(멀티테넌시). super ADMIN은 null(전 회사). */
+  companyId?: string | null;
+  /** 소속 회사 코드("EZPASS"|"EXAM"). super는 null. */
+  companyCode?: string | null;
 };
 
 const STORAGE_KEY = "timesoftcone.currentUser";
@@ -50,6 +54,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY);
     clearAuthToken();
+    setCompanyScope(null); // 회사 스위처 선택 초기화
     setUserState(null);
   };
 

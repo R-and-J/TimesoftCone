@@ -14,7 +14,7 @@
 // 부수효과(어댑터 트랜잭션 내부):
 //   1. leave_balance(userId, year=auction.endsAt 연도, EVENT).adjustedDays += auction.leaveDays
 //   2. 경매 행 DELETE — 인벤토리 소진(중복 지급 방지).
-// 본 단계는 wallet/escrow와 *무관*하다(EVENT 휴가는 시간이지 포인트가 아님,
+// 본 단계는 wallet/escrow와 *무관*하다(EVENT 휴가는 시간이지 콘이 아님,
 // ADR-002 3-flag).
 import { Inject, Injectable } from "@nestjs/common";
 import { LEAVE_ADMIN, type LeaveAdminPort } from "@/ports/leave-admin.port";

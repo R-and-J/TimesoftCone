@@ -5,17 +5,38 @@ import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { RELEASE_POLICY, type ReleasePolicyRepository } from "@/ports/release-policy.port";
 import type { ReleasePolicy } from "@/domain/leave-pool/release-plan";
 
-export type UpdateReleasePolicyInput = ReleasePolicy;
+/** HTTP 입력 — startPrice 는 string/number 둘 다 허용(컨트롤러 zod와 일치). */
+type RawStartPrice = bigint | number | string | null | undefined;
+export type UpdateReleasePolicyInput =
+  | { cadence: "none"; startPrice?: RawStartPrice }
+  | { cadence: "daily"; timeOfDay: string; quantity: number; startPrice?: RawStartPrice }
+  | { cadence: "weekly"; dayOfWeek: number; timeOfDay: string; quantity: number; startPrice?: RawStartPrice }
+  | { cadence: "monthly"; dayOfMonth: number; timeOfDay: string; quantity: number; startPrice?: RawStartPrice };
 
 @Injectable()
 export class UpdateReleasePolicyUseCase {
   constructor(@Inject(RELEASE_POLICY) private readonly repo: ReleasePolicyRepository) {}
 
   async execute(input: UpdateReleasePolicyInput): Promise<ReleasePolicy> {
-    validate(input);
-    await this.repo.set(input);
-    return input;
+    const startPrice = normalizeStartPrice(input.startPrice);
+    const policy = { ...input, startPrice } as ReleasePolicy;
+    validate(policy);
+    await this.repo.set(policy);
+    return policy;
   }
+}
+
+function normalizeStartPrice(v: RawStartPrice): bigint | null {
+  if (v == null) return null;
+  if (typeof v === "bigint") {
+    if (v <= 0n) throw new BadRequestException("startPrice 는 양의 정수여야 합니다");
+    return v;
+  }
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
+    throw new BadRequestException("startPrice 는 양의 정수여야 합니다");
+  }
+  return BigInt(n);
 }
 
 function validate(p: ReleasePolicy) {

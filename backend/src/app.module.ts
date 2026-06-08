@@ -26,10 +26,12 @@ import { EzpassHrLeaveClient } from "./adapters/hr/ezpass-hr-leave.client";
 import { EzpassAdminTokenService } from "./adapters/auth/ezpass-admin-token.service";
 import { InternalCatalogRedemption } from "./adapters/redemption/internal-catalog-redemption.adapter";
 import { AuctionStream } from "./adapters/realtime/auction-stream";
+import { NotificationStream } from "./adapters/realtime/notification-stream";
 import { SettleDueAuctionsScheduler } from "./adapters/scheduling/settle-due-auctions.scheduler";
 import { OpenDueAuctionsScheduler } from "./adapters/scheduling/open-due-auctions.scheduler";
 import { YearEndDividendScheduler } from "./adapters/scheduling/year-end-dividend.scheduler";
 import { LeavePoolScheduler } from "./adapters/scheduling/leave-pool.scheduler";
+import { ReleaseInventoryScheduler } from "./adapters/scheduling/release-inventory.scheduler";
 import { PurgeUnsoldAuctionsScheduler } from "./adapters/scheduling/purge-unsold.scheduler";
 import { OutboxRelayScheduler } from "./adapters/scheduling/outbox-relay.scheduler";
 
@@ -37,6 +39,7 @@ import { OutboxRelayScheduler } from "./adapters/scheduling/outbox-relay.schedul
 import { GetWalletBalanceUseCase } from "./application/wallet/get-wallet-balance.use-case";
 import { CreditWalletAdminUseCase } from "./application/wallet/credit-wallet-admin.use-case";
 import { CreateAuctionUseCase } from "./application/auction/create-auction.use-case";
+import { ReopenUnsoldAuctionUseCase } from "./application/auction/reopen-unsold-auction.use-case";
 import { OpenAuctionUseCase } from "./application/auction/open-auction.use-case";
 import { ScheduleAuctionUseCase } from "./application/auction/schedule-auction.use-case";
 import { OpenDueAuctionsUseCase } from "./application/auction/open-due-auctions.use-case";
@@ -62,9 +65,17 @@ import { ManageMembersUseCase } from "./application/admin/manage-members.use-cas
 import { ListNotificationsUseCase } from "./application/notification/list-notifications.use-case";
 import { MarkNotificationsReadUseCase } from "./application/notification/mark-notifications-read.use-case";
 import { ListRedemptionItemsUseCase } from "./application/redemption/list-redemption-items.use-case";
+import {
+  AdminListRedemptionItemsUseCase,
+  CreateRedemptionItemUseCase,
+  ListRedemptionItemAuditsUseCase,
+  SetRedemptionItemActiveUseCase,
+  UpdateRedemptionItemUseCase,
+} from "./application/redemption/admin-redemption-items.use-case";
 import { RedeemItemUseCase } from "./application/redemption/redeem-item.use-case";
 import { ListMyRedemptionOrdersUseCase } from "./application/redemption/list-my-redemption-orders.use-case";
 import { SubmitRedemptionRequestUseCase } from "./application/redemption/submit-redemption-request.use-case";
+import { SubmitCustomRedemptionRequestUseCase } from "./application/redemption/submit-custom-redemption-request.use-case";
 import { ApproveRedemptionRequestUseCase } from "./application/redemption/approve-redemption-request.use-case";
 import { RejectRedemptionRequestUseCase } from "./application/redemption/reject-redemption-request.use-case";
 import { ConfirmRedemptionReceivedUseCase } from "./application/redemption/confirm-redemption-received.use-case";
@@ -79,6 +90,7 @@ import { ListChargeRequestsUseCase } from "./application/wallet/charge/list-char
 import { GetMyDividendUseCase } from "./application/dividend/get-my-dividend.use-case";
 import { SettleYearEndDividendUseCase } from "./application/dividend/settle-year-end-dividend.use-case";
 import { CollectLeavePoolUseCase } from "./application/leave-pool/collect-leave-pool.use-case";
+import { ReleaseInventoryUseCase } from "./application/leave-pool/release-inventory.use-case";
 import { GetReleasePolicyUseCase } from "./application/leave-pool/get-release-policy.use-case";
 import { UpdateReleasePolicyUseCase } from "./application/leave-pool/update-release-policy.use-case";
 import { UseLeaveUseCase } from "./application/leave/use-leave.use-case";
@@ -97,6 +109,7 @@ import { AdminExportController } from "./interfaces/http/admin-export.controller
 import { AdminMembersController } from "./interfaces/http/admin-members.controller";
 import { NotificationsController } from "./interfaces/http/notifications.controller";
 import { RedemptionController, UserRedemptionOrdersController } from "./interfaces/http/redemption.controller";
+import { AdminRedemptionItemsController } from "./interfaces/http/admin-redemption-items.controller";
 import { RedemptionRequestsController } from "./interfaces/http/redemption-requests.controller";
 import { AdminRedemptionRequestsController } from "./interfaces/http/admin-redemption-requests.controller";
 import { AdminLeaveSyncController } from "./interfaces/http/admin-leave-sync.controller";
@@ -153,6 +166,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     AdminMembersController,
     NotificationsController,
     RedemptionController,
+    AdminRedemptionItemsController,
     UserRedemptionOrdersController,
     RedemptionRequestsController,
     AdminRedemptionRequestsController,
@@ -193,6 +207,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     InternalCatalogRedemption,
     AuctionStream,
     { provide: AUCTION_STREAM, useExisting: AuctionStream },
+    NotificationStream,
 
     { provide: WALLET_REPOSITORY, useExisting: PrismaWalletRepository },
     { provide: LEDGER_REPOSITORY, useExisting: PrismaLedgerRepository },
@@ -230,6 +245,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     GetWalletBalanceUseCase,
     CreditWalletAdminUseCase,
     CreateAuctionUseCase,
+    ReopenUnsoldAuctionUseCase,
     OpenAuctionUseCase,
     ScheduleAuctionUseCase,
     OpenDueAuctionsUseCase,
@@ -255,9 +271,15 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     ListNotificationsUseCase,
     MarkNotificationsReadUseCase,
     ListRedemptionItemsUseCase,
+    AdminListRedemptionItemsUseCase,
+    CreateRedemptionItemUseCase,
+    UpdateRedemptionItemUseCase,
+    SetRedemptionItemActiveUseCase,
+    ListRedemptionItemAuditsUseCase,
     RedeemItemUseCase,
     ListMyRedemptionOrdersUseCase,
     SubmitRedemptionRequestUseCase,
+    SubmitCustomRedemptionRequestUseCase,
     ApproveRedemptionRequestUseCase,
     RejectRedemptionRequestUseCase,
     ConfirmRedemptionReceivedUseCase,
@@ -272,6 +294,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     GetMyDividendUseCase,
     SettleYearEndDividendUseCase,
     CollectLeavePoolUseCase,
+    ReleaseInventoryUseCase,
     GetReleasePolicyUseCase,
     UpdateReleasePolicyUseCase,
     UseLeaveUseCase,
@@ -282,6 +305,7 @@ import { RELEASE_POLICY } from "./ports/release-policy.port";
     OpenDueAuctionsScheduler,
     YearEndDividendScheduler,
     LeavePoolScheduler,
+    ReleaseInventoryScheduler,
     PurgeUnsoldAuctionsScheduler,
     OutboxRelayScheduler,
   ],

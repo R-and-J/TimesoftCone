@@ -4,7 +4,7 @@ import { Controller, Get, Query } from "@nestjs/common";
 import type { LedgerActionType } from "@/domain/ledger/ledger-action-type";
 import { GetAdminStatsUseCase } from "@/application/admin/get-admin-stats.use-case";
 import { ListLedgerUseCase } from "@/application/admin/list-ledger.use-case";
-import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES, CompanyScope } from "./auth/auth.decorators";
 
 const ALL_ACTIONS: LedgerActionType[] = [
   "BID",
@@ -28,12 +28,13 @@ export class AdminController {
   ) {}
 
   @Get("stats")
-  getStats() {
-    return this.stats.execute();
+  getStats(@CompanyScope() companyId: bigint | null) {
+    return this.stats.execute(companyId);
   }
 
   @Get("ledger")
   listLedger(
+    @CompanyScope() companyId: bigint | null,
     @Query("actionTypes") actionTypesCsv?: string,
     @Query("from") from?: string,
     @Query("to") to?: string,
@@ -52,6 +53,7 @@ export class AdminController {
       to: to ? new Date(to) : undefined,
       limit: limit ? Number(limit) : undefined,
       cursor: cursor ? BigInt(cursor) : undefined,
+      companyId,
     });
   }
 }

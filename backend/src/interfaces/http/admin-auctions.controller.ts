@@ -8,11 +8,11 @@ import {
   Param,
   Post,
   Query,
-  UsePipes,
 } from "@nestjs/common";
 import { z } from "zod";
 import { CreateAuctionUseCase } from "@/application/auction/create-auction.use-case";
 import { OpenAuctionUseCase } from "@/application/auction/open-auction.use-case";
+import { ReopenUnsoldAuctionUseCase } from "@/application/auction/reopen-unsold-auction.use-case";
 import { ScheduleAuctionUseCase } from "@/application/auction/schedule-auction.use-case";
 import { SettleAuctionUseCase } from "@/application/auction/settle-auction.use-case";
 import { SettleDueAuctionsUseCase } from "@/application/auction/settle-due-auctions.use-case";
@@ -24,7 +24,7 @@ import { ExtendAuctionDeadlineUseCase } from "@/application/auction/extend-aucti
 import { CloseAuctionImmediatelyUseCase } from "@/application/auction/close-auction-immediately.use-case";
 import { DomainError } from "@/domain/shared/errors";
 import { ZodValidationPipe } from "./zod.pipe";
-import { Roles, ADMIN_ROLES } from "./auth/auth.decorators";
+import { Roles, ADMIN_ROLES, CompanyScope } from "./auth/auth.decorators";
 
 const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
   message: "Must be an ISO timestamp",
@@ -36,7 +36,8 @@ const createSchema = z.object({
     .union([z.string(), z.number()])
     .refine((v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 1000, "quantity must be 1~1000")
     .optional(),
-  startPrice: z.union([z.string(), z.number()]),
+  /** @deprecated 시작가는 30,000 P 고정 — 호환성을 위해 받지만 무시한다. */
+  startPrice: z.union([z.string(), z.number()]).optional(),
   minIncrement: z.union([z.string(), z.number()]).optional(),
   /** true면 DRAFT(보류) 매물로 생성. startedAt/endsAt 불필요. */
   asDraft: z.boolean().optional(),
@@ -49,6 +50,11 @@ const cancelSchema = z.object({
 });
 
 const extendSchema = z.object({ endsAt: isoDate });
+
+const reopenUnsoldSchema = z.object({
+  startedAt: isoDate,
+  endsAt: isoDate,
+});
 
 const openSchema = z.object({
   startedAt: isoDate.optional(),
@@ -77,13 +83,17 @@ export class AdminAuctionsController {
     private readonly nextIdUC: GetNextAuctionIdUseCase,
     private readonly extendUC: ExtendAuctionDeadlineUseCase,
     private readonly closeNowUC: CloseAuctionImmediatelyUseCase,
+    private readonly reopenUnsoldUC: ReopenUnsoldAuctionUseCase,
   ) {}
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createSchema))
-  async create(@Body() body: z.infer<typeof createSchema>) {
+  async create(
+    @CompanyScope() companyId: bigint | null,
+    @Body(new ZodValidationPipe(createSchema)) body: z.infer<typeof createSchema>,
+  ) {
     try {
-      return await this.createUC.execute(body);
+      // 매물은 생성자(회사 관리자) 회사 소속. super가 "전체"면 use-case가 EZPASS(1)로.
+      return await this.createUC.execute({ ...body, companyId });
     } catch (e) {
       if (e instanceof DomainError) throw new BadRequestException(e.message);
       throw e;
@@ -145,10 +155,10 @@ export class AdminAuctionsController {
     return this.openDueUC.execute();
   }
 
-  /** 경매관리 상단 카운터 — 총 / 오픈 예정 / 진행 중 / 종료. */
+  /** 경매관리 상단 카운터 — 총 / 오픈 예정 / 진행 중 / 종료. 회사 스코프. */
   @Get("summary")
-  async summary() {
-    return this.summaryUC.execute();
+  async summary(@CompanyScope() companyId: bigint | null) {
+    return this.summaryUC.execute(companyId);
   }
 
   /** 수동 추가 모달용 — 다음 채번 추천("A-YYYY-NNN"). */
@@ -176,6 +186,20 @@ export class AdminAuctionsController {
   async closeNow(@Param("id") id: string) {
     try {
       return await this.closeNowUC.execute(id);
+    } catch (e) {
+      if (e instanceof DomainError) throw new BadRequestException(e.message);
+      throw e;
+    }
+  }
+
+  /** UNSOLD 매물을 새 1일권 경매로 재오픈(FR-4.2 확장). 원본은 소진, 새 매물 1개 생성. */
+  @Post(":id/reopen-unsold")
+  async reopenUnsold(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(reopenUnsoldSchema)) body: z.infer<typeof reopenUnsoldSchema>,
+  ) {
+    try {
+      return await this.reopenUnsoldUC.execute({ auctionId: id, ...body });
     } catch (e) {
       if (e instanceof DomainError) throw new BadRequestException(e.message);
       throw e;

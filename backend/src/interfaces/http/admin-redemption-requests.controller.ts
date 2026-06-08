@@ -9,7 +9,7 @@ import { ApproveRedemptionRequestUseCase } from "@/application/redemption/approv
 import { RejectRedemptionRequestUseCase } from "@/application/redemption/reject-redemption-request.use-case";
 import { ListRedemptionRequestsUseCase } from "@/application/redemption/list-redemption-requests.use-case";
 import { GetRedemptionSummaryUseCase } from "@/application/redemption/get-redemption-summary.use-case";
-import { CurrentUser, Roles, ADMIN_ROLES, type AuthUser } from "./auth/auth.decorators";
+import { CurrentUser, CompanyScope, Roles, ADMIN_ROLES, type AuthUser } from "./auth/auth.decorators";
 import { ZodValidationPipe } from "./zod.pipe";
 
 const approveSchema = z.object({
@@ -34,16 +34,16 @@ export class AdminRedemptionRequestsController {
   ) {}
 
   @Get()
-  async listAll(@Query("status") status?: string) {
+  async listAll(@CompanyScope() companyId: bigint | null, @Query("status") status?: string) {
     const s = status && (STATUSES as readonly string[]).includes(status)
       ? (status as (typeof STATUSES)[number])
       : undefined;
-    return this.list.forAdmin(s);
+    return this.list.forAdmin(s, 50, companyId);
   }
 
   @Get("summary")
-  async getSummary() {
-    return this.summary.execute();
+  async getSummary(@CompanyScope() companyId: bigint | null) {
+    return this.summary.execute(companyId);
   }
 
   @Post(":id/approve")

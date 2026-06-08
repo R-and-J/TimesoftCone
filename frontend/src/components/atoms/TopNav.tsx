@@ -5,6 +5,7 @@ import { Brand } from "./Brand";
 import { Avatar } from "./Avatar";
 import { Icon } from "../icons";
 import { useCurrentUser } from "@/lib/current-user";
+import { getAuthToken, getCompanyScope, setCompanyScope } from "@/lib/api";
 import { roleLabel, isAdmin } from "@/lib/roles";
 import {
   listNotifications,
@@ -50,11 +51,45 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
         /* 알림 실패는 무시 — 핵심 흐름 아님 */
       }
     };
+    // 1) 첫 로드 + 탭 복귀 시 정본 조회.
     void load();
-    const t = setInterval(load, 20000); // 20초 폴링 (WebSocket은 CUT-6)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    // 2) SSE 스트림 — 새 알림 적재 즉시 push 수신, 그때마다 정본 다시 조회.
+    //    EventSource는 헤더 못 보내므로 JWT를 ?token= 쿼리로 전달(JwtAuthGuard에서 지원).
+    //    연결 끊기면 브라우저가 자동 재연결. 백업으로 60초 폴링도 같이.
+    const token = getAuthToken();
+    let es: EventSource | null = null;
+    if (token) {
+      try {
+        es = new EventSource(
+          `/api/users/${current.id}/notifications/stream?token=${encodeURIComponent(token)}`,
+        );
+        es.onmessage = () => {
+          // 신호 받으면 정본 GET(unread 카운트 + 최신 N개).
+          void load();
+        };
+        es.onerror = () => {
+          /* 자동 재연결에 맡김 — 에러 로그 X */
+        };
+      } catch {
+        /* EventSource 미지원/실패 → 폴링만으로 fallback */
+      }
+    }
+    const backupPoll = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 60000);
+
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(backupPoll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      if (es) es.close();
     };
   }, [current.id]);
 
@@ -72,16 +107,27 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
     }
   };
 
+  // 최고관리자(super ADMIN, role=ADMIN·무소속)는 회사 스위처로 전 회사를 넘나든다.
+  //   "전체"=null(통합 집계), 이지패스=1, EXAM=2. 선택값은 api.ts가 X-Company-Id로 첨부.
+  const isSuper = current.role === "ADMIN";
+  const [companyScope, setCompanyScopeState] = useState<string>(getCompanyScope() ?? "");
+  const onSwitchCompany = (v: string) => {
+    setCompanyScopeState(v);
+    setCompanyScope(v || null);
+    window.location.reload(); // 스코프 변경을 모든 화면에 즉시 반영
+  };
+
   const displayName = user ?? current.name;
   // 직급(ezpass clsf_nm)을 우선 표시. 없으면 role 라벨로 폴백. (ADR-020)
   const displayRole = role ?? current.jobRank ?? roleLabel(current.role);
 
+  // 순서: 벌고(경매장) → 쓰고(스쿱 마켓) → 보고(내 활동) → 정산(연말 배당) — 콘 흐름 따라감.
   const items: { id: NonNullable<Props["active"]>; label: string }[] = [
     { id: "dashboard", label: "홈" },
     { id: "auction", label: "경매장" },
+    { id: "redemption", label: "스쿱 마켓" },
     { id: "activity", label: "내 활동" },
     { id: "dividend", label: "연말 배당" },
-    { id: "redemption", label: "스토어" },
     // "관리"는 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN)에게만 노출.
     ...(isAdmin(current.role) ? [{ id: "admin" as const, label: "관리" }] : []),
   ];
@@ -124,6 +170,28 @@ export function TopNav({ p, active = "dashboard", user, role }: Props) {
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, color: p.inkSoft }}>
+        {isSuper && (
+          <select
+            value={companyScope}
+            onChange={(e) => onSwitchCompany(e.target.value)}
+            title="회사 전환(최고관리자)"
+            style={{
+              height: 34,
+              borderRadius: 10,
+              border: `1px solid ${p.line}`,
+              background: p.bg,
+              color: p.ink,
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "0 10px",
+              cursor: "pointer",
+            }}
+          >
+            <option value="">전체 회사</option>
+            <option value="1">이지패스</option>
+            <option value="2">EXAM</option>
+          </select>
+        )}
         <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <Icon.search />
         </div>

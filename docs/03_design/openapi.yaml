@@ -7,7 +7,7 @@ info:
 
     - 인증: Bearer JWT (SSO 발급)
     - 모든 응답은 `ApiSuccess` 또는 `ApiError` 봉투(envelope)로 감싸짐
-    - 내부 호출 엔드포인트(`/internal/*`)는 `X-Internal-Token` 헤더 필수 — 외부 노출 금지
+    - 내부 호출 엔드콘(`/internal/*`)는 `X-Internal-Token` 헤더 필수 — 외부 노출 금지
     - 권한 검증은 `permission-matrix.md` 1:1 매핑
   version: 0.1.0
   contact:
@@ -323,7 +323,7 @@ paths:
   /admin/wallet/credit:
     post:
       tags: [Admin - Employee]
-      summary: 직원 포인트 적립 (FR-5.1)
+      summary: 직원 콘 적립 (FR-5.1)
       description: CREDIT_ADMIN 액션으로 LEDGER_ENTRY INSERT. reason 필수.
       requestBody:
         required: true
@@ -871,7 +871,7 @@ components:
         reason:
           type: string
           minLength: 1
-          example: "2026 Q2 분기 복지 포인트 지급"
+          example: "2026 Q2 분기 복지 콘 지급"
 
     CreditWalletResult:
       type: object
@@ -948,7 +948,7 @@ components:
           type: integer
           format: int64
           minimum: 1
-          description: 입찰 금액 (포인트)
+          description: 입찰 금액 (콘)
 
     BidResult:
       type: object

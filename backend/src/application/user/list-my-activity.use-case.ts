@@ -11,6 +11,9 @@ export type ActivityRow = {
   actionType: string;
   auctionId: string | null;
   amount: bigint;
+  /** WIN 행 전용 — 매물의 최종 낙찰가(=highest). 실제 차감은 BID 시점이라 amount는 0이지만
+   *  사용자에게는 낙찰가가 보여야 자연스럽다. WIN 외에는 null. */
+  winningAmount: bigint | null;
   balanceAfter: bigint;
   refNote: string | null;
 };
@@ -48,12 +51,32 @@ export class ListMyActivityUseCase {
         }),
       ]);
 
+    // WIN 행에 매물의 낙찰가(highest)를 부가 — n+1 회피용 일괄 조회.
+    const winAuctionIds = Array.from(
+      new Set(
+        history
+          .filter((h) => h.actionType === "WIN" && h.auctionId)
+          .map((h) => h.auctionId as string),
+      ),
+    );
+    const auctions = winAuctionIds.length > 0
+      ? await this.prisma.auction.findMany({
+          where: { id: { in: winAuctionIds } },
+          select: { id: true, highest: true },
+        })
+      : [];
+    const highestMap = new Map(auctions.map((a) => [a.id, a.highest]));
+
     return {
       history: history.map((h) => ({
         occurredAt: h.occurredAt,
         actionType: h.actionType,
         auctionId: h.auctionId,
         amount: h.amount,
+        winningAmount:
+          h.actionType === "WIN" && h.auctionId
+            ? highestMap.get(h.auctionId) ?? null
+            : null,
         balanceAfter: h.balanceAfter,
         refNote: h.refNote,
       })),

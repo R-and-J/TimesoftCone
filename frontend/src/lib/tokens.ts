@@ -95,7 +95,7 @@ export const RADIUS = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
 
 export const fmt = {
   point: (n: number) => n.toLocaleString("ko-KR"),
-  pointP: (n: number) => `${n.toLocaleString("ko-KR")} P`,
+  pointP: (n: number) => `${n.toLocaleString("ko-KR")} 콘`,
   date: (iso: string) => {
     const d = new Date(iso);
     return `${d.getMonth() + 1}월 ${d.getDate()}일`;

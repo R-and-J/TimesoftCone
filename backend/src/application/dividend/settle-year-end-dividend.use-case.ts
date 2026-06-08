@@ -20,11 +20,14 @@ import { PrismaService } from "@/adapters/persistence/prisma.service";
 import { GetAdminStatsUseCase } from "@/application/admin/get-admin-stats.use-case";
 import { PAYOUT_CHANNEL, type PayoutChannel } from "@/ports/payout-channel";
 import { UserId } from "@/domain/shared/value-objects/user-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 
 export type DividendLine = {
   userId: bigint;
   name: string;
+  team: string | null;
+  jobRank: string | null;
+  jobTitle: string | null;
   contributedDays: number;
   stakeRatio: number;
   amount: bigint;
@@ -51,24 +54,50 @@ export class SettleYearEndDividendUseCase {
     @Inject(PAYOUT_CHANNEL) private readonly payoutChannel: PayoutChannel,
   ) {}
 
-  async execute(opts?: { year?: number; dryRun?: boolean }): Promise<SettleDividendResult> {
+  /** 멀티테넌시: 모든 활성 회사를 회사별로 배당 정산(스케줄러용). 회사별 결과 배열. */
+  async executeAll(opts?: { year?: number; dryRun?: boolean }): Promise<SettleDividendResult[]> {
+    const companies = await this.prisma.company.findMany({
+      where: { active: true },
+      select: { id: true },
+      orderBy: { id: "asc" },
+    });
+    const results: SettleDividendResult[] = [];
+    for (const c of companies) {
+      try {
+        results.push(await this.execute({ ...opts, companyId: c.id }));
+      } catch (err) {
+        // 이미 정산된 회사는 건너뛰고 나머지 회사 계속(멱등). 그 외 오류는 전파.
+        if (err instanceof ConflictException) continue;
+        throw err;
+      }
+    }
+    return results;
+  }
+
+  async execute(opts?: { year?: number; dryRun?: boolean; companyId?: bigint | null }): Promise<SettleDividendResult> {
     const year = opts?.year ?? new Date().getFullYear();
     const dryRun = opts?.dryRun ?? false;
+    // super "전체"(null)면 EZPASS(1) 기본 — 배당은 회사별로 분리 정산(NFR-2 per company).
+    const companyId = opts?.companyId ?? 1n;
+    const co = { companyId };
 
     const [{ escrowBalance }, stakeRows, dividendCount] = await Promise.all([
-      this.stats.execute(),
+      this.stats.execute(companyId),
       // 연도별 stake 행을 읽는다(ADR-017). stake 1위 결정 순서: days 내림차순,
-      // 동률 시 userId 오름차순(EC-7 결정적 타이브레이크).
+      // 동률 시 userId 오름차순(EC-7 결정적 타이브레이크). 회사 스코프.
       this.prisma.stake.findMany({
-        where: { year, days: { gt: 0 } },
+        where: { year, days: { gt: 0 }, ...co },
         orderBy: [{ days: "desc" }, { userId: "asc" }],
-        include: { user: { select: { name: true } } },
+        include: { user: { select: { name: true, team: true, jobRank: true, jobTitle: true } } },
       }),
-      this.prisma.ledgerEntry.count({ where: { actionType: "DIVIDEND" } }),
+      this.prisma.ledgerEntry.count({ where: { actionType: "DIVIDEND", ...co } }),
     ]);
     const contributors = stakeRows.map((s) => ({
       id: s.userId,
       name: s.user.name,
+      team: s.user.team ?? null,
+      jobRank: s.user.jobRank ?? null,
+      jobTitle: s.user.jobTitle ?? null,
       contributedDays: s.days,
     }));
 
@@ -104,6 +133,9 @@ export class SettleYearEndDividendUseCase {
       return {
         userId: c.id,
         name: c.name,
+        team: c.team,
+        jobRank: c.jobRank,
+        jobTitle: c.jobTitle,
         contributedDays: c.contributedDays,
         stakeRatio: c.contributedDays / totalDays,
         amount,
@@ -118,7 +150,7 @@ export class SettleYearEndDividendUseCase {
       await this.payoutChannel.payout(
         payable.map((l) => ({
           userId: UserId.of(l.userId),
-          amount: Point.of(l.amount),
+          amount: Cone.of(l.amount),
           refNote: `${year}년 연말 배당 (지분 ${(l.stakeRatio * 100).toFixed(1)}%)`,
         })),
       );

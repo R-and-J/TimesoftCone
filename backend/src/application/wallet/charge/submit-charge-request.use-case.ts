@@ -26,9 +26,10 @@ export class SubmitChargeRequestUseCase {
 
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, companyId: true },
     });
     if (!user) throw new BadRequestException("사용자를 찾을 수 없습니다.");
+    const co = user.companyId ?? 1n; // 멀티테넌시: 요청·원장을 요청자 회사로 태깅
 
     // 요청 등록 + 감사 ledger INSERT는 단일 트랜잭션 — 둘 중 하나만 남는 일 방지.
     const { req, currentBalance } = await this.prisma.$transaction(async (tx) => {
@@ -38,6 +39,7 @@ export class SubmitChargeRequestUseCase {
           amount,
           note: input.note ?? null,
           status: "PENDING",
+          companyId: co,
         },
       });
       // 현재 잔액 — entry에 balanceAfter로 박는다(이 entry는 잔액을 바꾸지 않음).
@@ -53,6 +55,7 @@ export class SubmitChargeRequestUseCase {
           amount,
           balanceAfter: balance,
           refNote: `충전요청 #${created.id} 등록` + (input.note ? ` — ${input.note}` : ""),
+          companyId: co,
         },
       });
       return { req: created, currentBalance: balance };

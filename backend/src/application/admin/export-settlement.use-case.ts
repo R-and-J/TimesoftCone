@@ -48,10 +48,12 @@ export class ExportSettlementUseCase {
     private readonly stats: GetAdminStatsUseCase,
   ) {}
 
-  /** 낙찰로 부여된 AUCTION 연차 내역 (HR가 휴가 반영 + 연차수당 제외 판단용). */
-  async leaveGrants(): Promise<LeaveGrantRow[]> {
+  /** 낙찰로 부여된 AUCTION 연차 내역 (HR가 휴가 반영 + 연차수당 제외 판단용).
+   *  companyId가 있으면 그 회사 경매만(멀티테넌시). null=전 회사(super ADMIN). */
+  async leaveGrants(companyId?: bigint | null): Promise<LeaveGrantRow[]> {
+    const co = companyId != null ? { companyId } : {};
     const auctions = await this.prisma.auction.findMany({
-      where: { status: "AWARDED", highestBidder: { not: null } },
+      where: { status: "AWARDED", highestBidder: { not: null }, ...co },
       orderBy: { settledAt: "asc" },
       include: { winner: { select: { empId: true, name: true, email: true } } },
     });
@@ -73,15 +75,17 @@ export class ExportSettlementUseCase {
       });
   }
 
-  /** 연말 배당 내역 (재무가 복지카드 적립용). dividend = floor(escrow × stake). */
-  async dividends(): Promise<DividendRow[]> {
+  /** 연말 배당 내역 (재무가 복지카드 적립용). dividend = floor(escrow × stake).
+   *  companyId가 있으면 그 회사 기여자 + 그 회사 escrow로 한정(per company 배당). */
+  async dividends(companyId?: bigint | null): Promise<DividendRow[]> {
+    const co = companyId != null ? { companyId } : {};
     const [contributors, { escrowBalance }] = await Promise.all([
       this.prisma.user.findMany({
-        where: { contributedDays: { gt: 0 } },
+        where: { contributedDays: { gt: 0 }, ...co },
         orderBy: { contributedDays: "desc" },
         select: { empId: true, name: true, contributedDays: true },
       }),
-      this.stats.execute(),
+      this.stats.execute(companyId),
     ]);
     const totalDays = contributors.reduce((s, c) => s + c.contributedDays, 0);
     const escrow = Number(escrowBalance);
@@ -97,10 +101,12 @@ export class ExportSettlementUseCase {
     });
   }
 
-  /** 누가 얼마나 썼나 — 낙찰자가 escrow에 넣은 포인트(=실제 지출)를 사람별로 합산. */
-  async spending(): Promise<SpendRow[]> {
+  /** 누가 얼마나 썼나 — 낙찰자가 escrow에 넣은 콘(=실제 지출)를 사람별로 합산.
+   *  companyId가 있으면 그 회사 경매만(낙찰자도 같은 회사). null=전 회사. */
+  async spending(companyId?: bigint | null): Promise<SpendRow[]> {
+    const co = companyId != null ? { companyId } : {};
     const auctions = await this.prisma.auction.findMany({
-      where: { status: "AWARDED", highestBidder: { not: null } },
+      where: { status: "AWARDED", highestBidder: { not: null }, ...co },
       select: { highestBidder: true, highest: true },
     });
     const agg = new Map<bigint, { spent: bigint; wins: number }>();

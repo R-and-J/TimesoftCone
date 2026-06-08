@@ -1,4 +1,4 @@
-// FR-3.1 + FR-4.2 ADMIN HTTP 엔드포인트.
+// FR-3.1 + FR-4.2 ADMIN HTTP 엔드콘.
 //   POST /api/admin/leave/use                휴가 사용(우선순위 차감) — FR-3.1
 //   POST /api/admin/auctions/:id/grant-event UNSOLD → EVENT 휴가 변환 — FR-4.2
 //   POST /api/admin/auctions/purge-unsold    UNSOLD 재고 영구 삭제 — FR-4.2

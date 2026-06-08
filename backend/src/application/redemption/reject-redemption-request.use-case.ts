@@ -1,4 +1,4 @@
-// RejectRedemptionRequest — 관리자 반려 + 포인트 환불 (ADR-023 v2).
+// RejectRedemptionRequest — 관리자 반려 + 콘 환불 (ADR-023 v2).
 // 단일 트랜잭션:
 //   redemption_request → REJECTED + decisionNote
 //   wallet 환불(+priceP) + REDEEM_REFUND ledger(보상 INSERT, DB-RULE-1)
@@ -52,7 +52,7 @@ export class RejectRedemptionRequestUseCase {
         },
       });
 
-      // 포인트 환불 + REDEEM_REFUND ledger.
+      // 콘 환불 + REDEEM_REFUND ledger.
       const wallet = await tx.wallet.findUnique({
         where: { uq_wallet_user_currency: { userId: req.userId, currency: "WELFARE_POINT" } },
       });
@@ -65,7 +65,7 @@ export class RejectRedemptionRequestUseCase {
         });
       } else {
         await tx.wallet.create({
-          data: { userId: req.userId, currency: "WELFARE_POINT", balance: newBalance },
+          data: { userId: req.userId, currency: "WELFARE_POINT", balance: newBalance, companyId: req.companyId },
         });
       }
       await tx.ledgerEntry.create({
@@ -76,6 +76,7 @@ export class RejectRedemptionRequestUseCase {
           amount: req.pricePAtRequest,
           balanceAfter: newBalance,
           refNote: `교환 신청 #${requestId} 반려 — ${note}`,
+          companyId: req.companyId, // 멀티테넌시: 신청자 회사로 태깅
         },
       });
 

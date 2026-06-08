@@ -35,12 +35,19 @@ export class SyncMembersUseCase {
     let updated = 0;
     const errors: string[] = [];
 
+    const ADMIN_FAMILY = ["ADMIN", "EXAM_ADMIN", "EZPASS_ADMIN"];
     for (const m of members) {
-      // ezpass org에서 온 회원은 회사 도메인 연동 사용자 → EZPASS(관리자 힌트면 EZPASS_ADMIN).
-      const role = m.isAdmin ? "EZPASS_ADMIN" : "EZPASS";
       const empId = m.empNo ?? `EZP-${m.externalUserNo}`;
       try {
         const existing = await this.prisma.user.findUnique({ where: { email: m.email } });
+        // 관리자 계열 role은 동기화로 덮어쓰지 않는다(전용 admin·지정 관리자 보존).
+        // 그 외에는 ezpass mngr_author면 EZPASS_ADMIN, 아니면 EZPASS.
+        const role =
+          existing && ADMIN_FAMILY.includes(existing.role)
+            ? existing.role
+            : m.isAdmin
+              ? "EZPASS_ADMIN"
+              : "EZPASS";
         const user = await this.prisma.user.upsert({
           where: { email: m.email },
           update: { name: m.name, team: m.team, role, jobRank: m.jobRank, jobTitle: m.jobTitle },

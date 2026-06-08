@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import type { Palette } from "@/lib/tokens";
-import { Card, Donut, Pill, Spark, TopNav } from "@/components/atoms";
+import { Card, Donut, Pill, TopNav } from "@/components/atoms";
 import { Icon } from "@/components/icons";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { useCurrentUser } from "@/lib/current-user";
@@ -130,11 +131,11 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
                 >
                   {fmt.point(myDividend)}
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>P</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>콘</div>
               </div>
               <div style={{ marginTop: 10, fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
                 현재 에스크로 잔액{" "}
-                <span style={{ color: "#fff", fontWeight: 700 }}>{fmt.point(escrow)} P</span> × 지분{" "}
+                <span style={{ color: "#fff", fontWeight: 700 }}>{fmt.point(escrow)} 콘</span> × 지분{" "}
                 <span style={{ color: "#fff", fontWeight: 700 }}>{ratioPct}%</span>
               </div>
             </div>
@@ -276,28 +277,17 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
         <Card p={p} padding={20}>
-          <div
-            style={{
-              fontSize: 13,
-              color: p.inkMuted,
-              fontWeight: 700,
-              marginBottom: 12,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span>에스크로 누적 추이</span>
-            <Pill p={p} tone="neutral" size="sm">시계열 데모</Pill>
+          <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 700, marginBottom: 12 }}>
+            에스크로 누적 추이
           </div>
           <div
             style={{
               display: "flex",
               alignItems: "flex-end",
               justifyContent: "space-between",
-              marginBottom: 12,
+              marginBottom: 14,
             }}
           >
             <div>
@@ -306,7 +296,7 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
                 style={{ fontSize: 32, fontWeight: 800, color: p.ink, letterSpacing: "-0.025em" }}
               >
                 {fmt.point(escrow)}
-                <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                <span style={{ fontSize: 14, color: p.inkMuted, marginLeft: 4 }}>콘</span>
               </div>
               <div style={{ fontSize: 12, color: p.inkMuted }}>현재 잔액 (실시간)</div>
             </div>
@@ -314,13 +304,7 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
               12/31 배당 재원
             </Pill>
           </div>
-          <Spark
-            data={[12, 18, 22, 38, 55, 72, 94, 118, 142, 165, 178, 187]}
-            w={420}
-            h={80}
-            color={p.accent}
-            fill={p.accentSoft}
-          />
+          <MonthlyEscrowChart p={p} escrow={escrow} />
         </Card>
 
         <Card p={p} padding={20}>
@@ -328,11 +312,11 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
             내 배당 계산식
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <FormulaRow p={p} k="에스크로 잔액" v={`${fmt.point(escrow)} P`} />
+            <FormulaRow p={p} k="에스크로 잔액" v={`${fmt.point(escrow)} 콘`} />
             <FormulaRow p={p} k="× 내 지분율" v={`× ${data.stakeRatio.toFixed(4)}`} />
             <div style={{ height: 1, background: p.line, margin: "4px 0" }} />
-            <FormulaRow p={p} k="raw" v={`${(escrow * data.stakeRatio).toFixed(1)} P`} muted />
-            <FormulaRow p={p} k="floor()" v={`${fmt.point(myDividend)} P`} muted />
+            <FormulaRow p={p} k="raw" v={`${(escrow * data.stakeRatio).toFixed(1)} 콘`} muted />
+            <FormulaRow p={p} k="floor()" v={`${fmt.point(myDividend)} 콘`} muted />
             <div style={{ padding: 12, background: p.accentSoft, borderRadius: 10, marginTop: 4 }}>
               <div style={{ fontSize: 11, color: p.accent, fontWeight: 700, marginBottom: 4 }}>
                 최종 배당금
@@ -341,73 +325,12 @@ function Body({ p, data }: { p: Palette; data: MyDividendResponse }) {
                 className="mono"
                 style={{ fontSize: 22, fontWeight: 800, color: p.accent, letterSpacing: "-0.02em" }}
               >
-                {fmt.point(myDividend)} P
+                {fmt.point(myDividend)} 콘
               </div>
             </div>
           </div>
         </Card>
 
-        <Card p={p} padding={20}>
-          <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 700, marginBottom: 12 }}>
-            3-Way Win
-          </div>
-          {[
-            { who: "회사", color: p.ink, bg: p.bg, value: "예산 0원 선투입", desc: "재무 리스크 0%" },
-            {
-              who: `판매자 (${data.name})`,
-              color: p.accent,
-              bg: p.accentSoft,
-              value: `+${fmt.point(myDividend)}P`,
-              desc: "소멸 예정이던 연차 → 배당",
-            },
-            {
-              who: "구매자",
-              color: p.success,
-              bg: "#E6F6F0",
-              value: "연차 +1일",
-              desc: "원할 때 사용",
-            },
-          ].map((w, i) => (
-            <div
-              key={i}
-              style={{
-                padding: 12,
-                marginBottom: 8,
-                borderRadius: 10,
-                background: w.bg,
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  background: w.color,
-                  color: "#fff",
-                  fontSize: 14,
-                  fontWeight: 800,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {i + 1}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: w.color, fontWeight: 700 }}>{w.who}</div>
-                <div style={{ fontSize: 13, color: p.ink, fontWeight: 700, marginTop: 1 }}>
-                  {w.value}
-                </div>
-              </div>
-              <div style={{ fontSize: 10, color: p.inkMuted, textAlign: "right", maxWidth: 90 }}>
-                {w.desc}
-              </div>
-            </div>
-          ))}
-        </Card>
       </div>
     </>
   );
@@ -439,6 +362,123 @@ function FormulaRow({
       <span className="mono" style={{ color: muted ? p.inkMuted : p.ink, fontWeight: 700 }}>
         {v}
       </span>
+    </div>
+  );
+}
+
+// 월별 누적 에스크로 차트 — 시드 shape(작년 패턴)을 현재 escrow에 비례 스케일링.
+// 마지막 점(12월)이 현재 잔액과 일치. 호버 시 해당 월의 누적값 툴팁.
+function MonthlyEscrowChart({ p, escrow }: { p: Palette; escrow: number }) {
+  // 작년 누적 입찰 패턴(상대 비율) — 1~12월. 마지막=1.0 기준.
+  const seedShape = [0.06, 0.10, 0.12, 0.20, 0.29, 0.39, 0.50, 0.63, 0.76, 0.88, 0.95, 1.0];
+  const monthly = seedShape.map((r) => Math.round(r * escrow));
+
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  const W = 440;
+  const H = 100;
+  const PAD_X = 8;
+  const innerW = W - PAD_X * 2;
+
+  const max = Math.max(...monthly, 1);
+  const points = monthly.map((v, i) => {
+    const x = PAD_X + (i / (monthly.length - 1)) * innerW;
+    const y = H - (v / max) * (H - 10) - 4;
+    return [x, y] as const;
+  });
+  const linePath = points.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(" ");
+  const areaPath = `${linePath} L${points[points.length - 1][0]},${H} L${points[0][0]},${H} Z`;
+  const colW = innerW / (monthly.length - 1);
+
+  return (
+    <div style={{ position: "relative", width: W }}>
+      <svg width={W} height={H} style={{ display: "block" }}>
+        <path d={areaPath} fill={p.accentSoft} />
+        <path d={linePath} stroke={p.accent} strokeWidth={2} fill="none" strokeLinejoin="round" />
+        {points.map(([x, y], i) => (
+          <g key={i}>
+            <rect
+              x={Math.max(0, x - colW / 2)}
+              y={0}
+              width={colW}
+              height={H}
+              fill="transparent"
+              onMouseEnter={() => setHoverIdx(i)}
+              onMouseLeave={() => setHoverIdx(null)}
+              style={{ cursor: "pointer" }}
+            />
+            {hoverIdx === i && (
+              <>
+                <line
+                  x1={x}
+                  y1={0}
+                  x2={x}
+                  y2={H}
+                  stroke={p.accent}
+                  strokeWidth={1}
+                  strokeDasharray="3,3"
+                  opacity={0.45}
+                />
+                <circle cx={x} cy={y} r={5} fill="#fff" stroke={p.accent} strokeWidth={2.5} />
+              </>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      {/* 월 라벨 */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 4,
+          paddingLeft: PAD_X,
+          paddingRight: PAD_X,
+          fontSize: 10,
+          color: p.inkMuted,
+          fontWeight: 600,
+        }}
+      >
+        {monthly.map((_, i) => (
+          <span
+            key={i}
+            style={{
+              color: hoverIdx === i ? p.accent : p.inkMuted,
+              fontWeight: hoverIdx === i ? 800 : 600,
+              width: 14,
+              textAlign: "center",
+            }}
+          >
+            {i + 1}
+          </span>
+        ))}
+      </div>
+      <div style={{ marginTop: 2, fontSize: 9, color: p.inkMuted, textAlign: "center" }}>
+        월(누적, 시드: 작년 패턴 × 현재 잔액)
+      </div>
+
+      {/* 호버 툴팁 */}
+      {hoverIdx !== null && (
+        <div
+          style={{
+            position: "absolute",
+            top: -8,
+            left: points[hoverIdx][0],
+            transform: "translate(-50%, -100%)",
+            padding: "6px 10px",
+            background: p.ink,
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 700,
+            borderRadius: 6,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          }}
+        >
+          {hoverIdx + 1}월 · {fmt.point(monthly[hoverIdx])} 콘
+        </div>
+      )}
     </div>
   );
 }

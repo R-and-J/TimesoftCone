@@ -1,4 +1,4 @@
-// RedeemItem — 포인트 교환(ADR-023). 단일 트랜잭션:
+// RedeemItem — 콘 교환(ADR-023). 단일 트랜잭션:
 //   1) 재고 원자적 감소(SQLite write 락 + 조건부 UPDATE, 오버셀 방지).
 //   2) 지갑 잔액 확인 + 차감.
 //   3) ledger REDEEM INSERT(음수 amount).
@@ -64,10 +64,11 @@ export class RedeemItemUseCase {
         where: { uq_wallet_user_currency: { userId, currency: "WELFARE_POINT" } },
       });
       if (!wallet) throw new BadRequestException("지갑이 없습니다.");
+      const co = wallet.companyId; // 멀티테넌시: 원장·주문을 지갑(사용자) 회사로 태깅
       const newBalance = wallet.balance - item.priceP;
       if (newBalance < 0n) {
         throw new ConflictException(
-          `잔액 부족 (현재 ${wallet.balance}P, 필요 ${item.priceP}P)`,
+          `잔액 부족 (현재 ${wallet.balance}콘, 필요 ${item.priceP}콘)`,
         );
       }
 
@@ -83,7 +84,8 @@ export class RedeemItemUseCase {
           actionType: "REDEEM",
           amount: -item.priceP,
           balanceAfter: newBalance,
-          refNote: `스토어 교환: ${item.name}`,
+          refNote: `스쿱 마켓 교환: ${item.name}`,
+          companyId: co,
         },
       });
 
@@ -94,6 +96,7 @@ export class RedeemItemUseCase {
           itemId: item.id,
           pricePAtRedeem: item.priceP,
           status: "PENDING",
+          companyId: co,
         },
       });
 

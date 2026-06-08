@@ -143,7 +143,7 @@ erDiagram
 **상태 모델**: 6개 상태는 [ADR-014](../04_decisions/ADR-014-auction-state-pattern.md) State 패턴으로 코드화. 상태 머신 상세는 [UML 상태 다이어그램](uml/04-state.md).
 
 ### 2.5 LEDGER_ENTRY ⚠️ Insert-Only (구 POINT_TRANSACTION_LOG)
-모든 포인트 변동의 불변 감사 대장.
+모든 콘 변동의 불변 감사 대장.
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
@@ -194,7 +194,7 @@ erDiagram
 |---|---|---|
 | USER → WALLET | 1 : N | 한 직원은 화폐별 다수 지갑 보유 (현재는 1개) |
 | USER → LEAVE_BALANCE | 1 : N | 한 직원은 연도/속성별 다수 잔액 보유 |
-| USER → LEDGER_ENTRY | 1 : N | 포인트 이력 |
+| USER → LEDGER_ENTRY | 1 : N | 콘 이력 |
 | USER → AUCTION (winner) | 1 : N (opt) | 한 사람이 여러 경매 낙찰 가능 |
 | USER → STAKE | 1 : N | 연도별 지분 |
 | AUCTION → LEDGER_ENTRY | 1 : N | 한 경매당 다수의 입찰 로그 |
@@ -207,7 +207,7 @@ erDiagram
 | DB-RULE-2 | year별 파티셔닝 + AUCTION/EVENT Soft Delete | 테이블 DDL + 배치 |
 | DB-RULE-3 | 낙찰 시 `WALLET.balance >= highest_bid` | CHECK / 애플리케이션 트랜잭션 (`BiddingCurrency.debit()`) |
 | DB-RULE-4 | 화폐 단위 분리 — 에스크로 등식은 currency별 검증 | `escrow_audit_view` GROUP BY currency |
-| 포인트 음수 금지 | `WALLET.balance >= 0` | CHECK |
+| 콘 음수 금지 | `WALLET.balance >= 0` | CHECK |
 | 에스크로 음수 금지 | `ESCROW.balance >= 0` | CHECK |
 | 관리자 적립 사유 필수 | `CREDIT_ADMIN` → `reason NOT NULL` | CHECK |
 
@@ -222,5 +222,5 @@ erDiagram
 - [ADR-002 휴가 속성 플래그](../04_decisions/ADR-002-leave-type-flag.md)
 - [ADR-004 Year 파티셔닝](../04_decisions/ADR-004-year-partitioning.md)
 - [ADR-010 통화 추상화](../04_decisions/ADR-010-currency-abstraction.md)
-- [ADR-011 복지 포인트 시스템 자체 보유](../04_decisions/ADR-011-welfare-point-ownership.md)
+- [ADR-011 복지 콘 시스템 자체 보유](../04_decisions/ADR-011-welfare-point-ownership.md)
 - [ADR-014 Auction State 패턴](../04_decisions/ADR-014-auction-state-pattern.md)

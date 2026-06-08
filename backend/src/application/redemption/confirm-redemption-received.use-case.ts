@@ -1,6 +1,6 @@
 // ConfirmRedemptionReceived — 사용자가 "수령 완료" 버튼으로 최종 컨펌 (ADR-023 v2).
 // APPROVED 상태에서만 가능. 본인만 가능(컨트롤러에서 SelfOrAdminGuard로 보장).
-// 단순 상태 전이 — 포인트 영향 없음(이미 신청 시 차감 완료).
+// 단순 상태 전이 — 콘 영향 없음(이미 신청 시 차감 완료).
 // 커밋 후 RedemptionReceivedEvent 발행(관리자들에게 처리 종결 알림).
 
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";

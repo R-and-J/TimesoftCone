@@ -40,7 +40,7 @@ https://auction.company.internal/api/v1
   "data": null,
   "error": {
     "code": "POINT_INSUFFICIENT",
-    "message": "잔여 포인트가 입찰액보다 부족합니다.",
+    "message": "잔여 콘이 입찰액보다 부족합니다.",
     "details": { "current": 500, "required": 1000 }
   },
   "timestamp": "..."
@@ -54,7 +54,7 @@ https://auction.company.internal/api/v1
 | `UNAUTHORIZED` | 401 | 토큰 없음/만료 |
 | `FORBIDDEN` | 403 | 권한 부족 (관리자 API 등) |
 | `NOT_FOUND` | 404 | 리소스 없음 |
-| `POINT_INSUFFICIENT` | 400 | 포인트 부족 (wallet 잔액 < 입찰액) |
+| `POINT_INSUFFICIENT` | 400 | 콘 부족 (wallet 잔액 < 입찰액) |
 | `BID_TOO_LOW` | 400 | 현재 최고가보다 낮거나 같음 |
 | `INVALID_STATE_TRANSITION` | 409 | 허용되지 않는 경매 상태 전이 (ADR-014) |
 | `AUCTION_CLOSED` | 409 | 마감된 경매에 입찰 시도 |
@@ -110,7 +110,7 @@ GET /users/me/wallet?currency=WELFARE_POINT
 }
 ```
 
-> 입찰 시 포인트는 **홀드 없이 즉시 차감**되므로([ADR-009](../04_decisions/ADR-009-point-reuse.md) §6), 별도의 `heldInBids` 개념은 없다. `balance`가 곧 입찰 가능 잔액.
+> 입찰 시 콘은 **홀드 없이 즉시 차감**되므로([ADR-009](../04_decisions/ADR-009-point-reuse.md) §6), 별도의 `heldInBids` 개념은 없다. `balance`가 곧 입찰 가능 잔액.
 
 ### 3.1a 내 거래 내역 조회 (FR-5.2)
 
@@ -235,7 +235,7 @@ Body:
 }
 ```
 
-**Response (실패 — 포인트 부족)**
+**Response (실패 — 콘 부족)**
 ```json
 {
   "success": false,
@@ -299,9 +299,9 @@ Body:
 }
 ```
 
-### 6.2 직원 포인트 적립 (FR-5.1) ✨ 신규
+### 6.2 직원 콘 적립 (FR-5.1) ✨ 신규
 
-분기·이벤트 복지 포인트를 직원 wallet에 적립. `LEDGER_ENTRY`에 `CREDIT_ADMIN`으로 기록.
+분기·이벤트 복지 콘을 직원 wallet에 적립. `LEDGER_ENTRY`에 `CREDIT_ADMIN`으로 기록.
 
 ```
 POST /admin/wallet/credit
@@ -310,7 +310,7 @@ Body:
   "userId": 42,
   "currency": "WELFARE_POINT",
   "amount": 50000,
-  "reason": "2026 Q2 분기 복지 포인트 지급"
+  "reason": "2026 Q2 분기 복지 콘 지급"
 }
 ```
 
@@ -439,7 +439,7 @@ POST /internal/batch/dividend-distribution
 - [UML 순차 다이어그램](UML.md#-순차-다이어그램-sequence-diagram)
 - [ADR-005 HR API 타이밍](../04_decisions/ADR-005-hr-api-timing.md)
 - [ADR-010 통화 추상화](../04_decisions/ADR-010-currency-abstraction.md)
-- [ADR-011 복지 포인트 시스템 자체 보유](../04_decisions/ADR-011-welfare-point-ownership.md)
+- [ADR-011 복지 콘 시스템 자체 보유](../04_decisions/ADR-011-welfare-point-ownership.md)
 - [ADR-012 Hexagonal Architecture](../04_decisions/ADR-012-hexagonal-architecture.md)
 - [ADR-014 Auction State 패턴](../04_decisions/ADR-014-auction-state-pattern.md)
 

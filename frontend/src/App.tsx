@@ -15,6 +15,7 @@ import AdminLedgerPage from "@/pages/AdminLedger";
 import AdminMembersPage from "@/pages/AdminMembers";
 import AdminRedemptionPage from "@/pages/AdminRedemption";
 import AdminAuctionsPage from "@/pages/AdminAuctions";
+import AdminStorePage from "@/pages/AdminStore";
 import { useAuth } from "@/lib/current-user";
 import { isAdmin } from "@/lib/roles";
 
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/admin/members" element={<RequireAdmin><AdminMembersPage /></RequireAdmin>} />
         <Route path="/admin/redemption" element={<RequireAdmin><AdminRedemptionPage /></RequireAdmin>} />
         <Route path="/admin/auctions" element={<RequireAdmin><AdminAuctionsPage /></RequireAdmin>} />
+        <Route path="/admin/store" element={<RequireAdmin><AdminStorePage /></RequireAdmin>} />
 
         {/* Developer escape hatch — full 12-screen catalog. */}
         <Route path="/_screens" element={<IndexPage />} />

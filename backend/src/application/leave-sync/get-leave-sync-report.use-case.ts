@@ -53,8 +53,13 @@ export class GetLeaveSyncReportUseCase {
 
   async execute(yearArg?: number): Promise<LeaveSyncReport> {
     const year = yearArg ?? new Date().getFullYear();
+    // ezpass 연동 대상 role만 점검 — EXAM/EXAM_ADMIN은 비연동(우리 DB 자체)이라 제외.
     const users = await this.prisma.user.findMany({
-      where: { active: true, email: { not: null } },
+      where: {
+        active: true,
+        email: { not: null },
+        role: { in: ["ADMIN", "EZPASS_ADMIN", "EZPASS"] },
+      },
       select: { id: true, empId: true, name: true, email: true },
       orderBy: { id: "asc" },
     });

@@ -30,7 +30,7 @@ export class ListAuctionsUseCase {
   ) {}
 
   async execute(
-    filter?: { status?: AuctionStatus | AuctionStatus[]; year?: number; limit?: number },
+    filter?: { status?: AuctionStatus | AuctionStatus[]; year?: number; limit?: number; companyId?: bigint | null },
   ): Promise<AuctionListItem[]> {
     const auctions = await this.auctions.list(filter);
     // 한 번의 batch 쿼리로 highestBidder id → name 매핑(N+1 회피).

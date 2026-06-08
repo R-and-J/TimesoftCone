@@ -19,6 +19,8 @@ export interface TxContext {
   auctions: AuctionRepository;
   /** Append a BidEvent row (audit log of accepted bids). */
   recordBid(input: { auctionId: AuctionId; userId: bigint; amount: bigint }): Promise<void>;
+  /** 멀티테넌시: 경매가 속한 회사 id(없으면 null). 입찰 전 타사 경매 차단 검증용. */
+  auctionCompanyId(auctionId: AuctionId): Promise<bigint | null>;
   /**
    * Serialize concurrent bids on this auction for the duration of the
    * transaction (SQLite write lock via a no-op UPDATE). Auto-released on

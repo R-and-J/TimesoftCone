@@ -35,7 +35,7 @@ flowchart TD
     halt --> stopEnd(["중단 (배당 미실행)"])
 
     verify -- 일치 --> raw["raw = 잔액 × stake_ratio"]
-    raw --> floor["floor 내림 → 정수 포인트"]
+    raw --> floor["floor 내림 → 정수 콘"]
     floor --> rem["나머지 = 잔액 − Σ floor"]
     rem --> top["Stake 1위에게 나머지 가산<br/>(동률 시 user_id 오름차순)"]
     top --> payout["PayoutChannel.payout()<br/>→ Outbox → 복지카드 한도 증액"]

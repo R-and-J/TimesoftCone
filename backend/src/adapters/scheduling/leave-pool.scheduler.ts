@@ -90,16 +90,19 @@ export class LeavePoolScheduler implements OnModuleInit, OnApplicationShutdown {
 
     this.running = true;
     try {
+      // 멀티테넌시: 모든 활성 회사를 회사별로 수집(이미 수집된 회사는 use case가 멱등 처리).
       // sourceYear는 use case가 기본값(=올해)으로 처리. targetYear = sourceYear+1.
-      const r = await this.useCase.execute();
-      this.logger.log(
-        `Year-end leave-pool collected: targetYear=${r.targetYear}, contributors=${r.contributorCount}, days=${r.daysCollected}, auctions=${r.auctionsCreated}`,
-      );
-      // 한 번 수집됐으면 더 돌 이유 없음 — 멱등 신호를 받기 전에 선제 정지.
+      const results = await this.useCase.executeAll();
+      for (const r of results) {
+        this.logger.log(
+          `Year-end leave-pool collected: targetYear=${r.targetYear}, contributors=${r.contributorCount}, days=${r.daysCollected} (점진 발행 — 매물은 ReleaseInventoryScheduler가 정책 주기에 생성)`,
+        );
+      }
+      // 모든 회사 수집 완료 — 더 돌 이유 없음.
       if (this.timer) {
         clearInterval(this.timer);
         this.timer = null;
-        this.logger.log("Leave-pool collected — stopping scheduler.");
+        this.logger.log("Leave-pool collected for all companies — stopping scheduler.");
       }
     } catch (err) {
       // 이미 수집됨(멱등) — 정상 경로이므로 타이머 정지하고 종료.

@@ -29,7 +29,7 @@
 각 결정의 상세 근거·리스크·트레이드오프는 [ADR 문서](../04_decisions/README.md)를 반드시 정독할 것.
 
 ### 3.1 [ADR-001] Escrow 후 배당 모델
-- ❌ "연차 반납자(판매자)에게 회사가 즉시 포인트 지급"
+- ❌ "연차 반납자(판매자)에게 회사가 즉시 콘 지급"
 - ✅ "판매자에게 지분만 기록 → 구매자의 낙찰 수익을 에스크로에 적립 → 연말 지분율대로 N빵"
 - 💣 회피: 회사 예산 손실 리스크
 
@@ -58,7 +58,7 @@
 - ADR-006: (Superseded) NFR-1 동시성은 CUT-1 SQLite write 락으로
 - ADR-007: 경매 단위 "1일권" 고정
 - ADR-008: 연말 일괄 배당 (즉시 분배 불가)
-- ADR-009: 기존 복지 포인트 재활용 (신규 화폐 미발행)
+- ADR-009: 기존 복지 콘 재활용 (신규 화폐 미발행)
 
 ---
 
@@ -83,7 +83,7 @@
 
 ### 4.4 감사 로그 기록
 
-- 모든 포인트 변동은 `LEDGER_ENTRY`에 `escrow_balance_snapshot` 포함 INSERT
+- 모든 콘 변동은 `LEDGER_ENTRY`에 `escrow_balance_snapshot` 포함 INSERT
 - 정합성 검증 공식 (currency별): `Σ(BID + WIN) − Σ(REFUND + DIVIDEND) = ESCROW.balance`
 - `CREDIT_ADMIN`(관리자 적립)은 외부 적립이므로 위 등식과 **분리** 집계
 
@@ -153,10 +153,10 @@
 
 - **[ADR-012] Hexagonal Architecture** — `domain/`은 외부 라이브러리 의존 0. `ports/` 인터페이스 → `adapters/` 구현.
 - **[ADR-010] 통화 추상화** — 화폐는 `BiddingCurrency`/`PayoutChannel` 인터페이스 뒤로. `WelfarePointProvider`가 현재 유일 구현체.
-- **[ADR-011] wallet 자체 보유** — 복지 포인트 잔액 마스터는 본 시스템. 입찰 결제 경로에서 외부 호출 0.
+- **[ADR-011] wallet 자체 보유** — 복지 콘 잔액 마스터는 본 시스템. 입찰 결제 경로에서 외부 호출 0.
 - **[ADR-013] Domain Event** — 횡단 관심사(알림·메트릭·감사)는 이벤트 핸들러로 분리. Use Case는 부수효과를 직접 알지 못함.
 - **[ADR-014] Auction State 패턴** — 6개 상태 객체. 도메인 메서드에 `if (status === ...)` 금지.
-- **[ADR-015] Value Object** — `UserId`/`Point`/`LeaveDays` 등은 원시 타입 대신 VO. 생성 시점 불변식 강제.
+- **[ADR-015] Value Object** — `UserId`/`Cone`/`LeaveDays` 등은 원시 타입 대신 VO. 생성 시점 불변식 강제.
 - **[ADR-016] 자체 휴가 관리 보유** — `leave_balance` 마스터도 본 시스템. `LeaveGrantPort` → `InternalLeaveAdapter`(기본). 휴가 기안/승인 워크플로는 스코프 외.
 - **[ADR-017] 휴가 풀 분리 컨텍스트** — 연말 풀 수집(FR-1.1)은 별도 Bounded Context `LeavePool`. 일상 휴가 관리와 분리.
 

@@ -105,8 +105,8 @@ export default function AuctionDetailPage() {
     try {
       const r = await placeBid(a.id, user.id, bidAmount);
       const base = r.refundedTo
-        ? `${fmt.point(bidAmount)} P 입찰 성공 · 이전 최고가 자동 환불됨`
-        : `${fmt.point(bidAmount)} P 입찰 성공`;
+        ? `${fmt.point(bidAmount)} 콘 입찰 성공 · 이전 최고가 자동 환불됨`
+        : `${fmt.point(bidAmount)} 콘 입찰 성공`;
       // anti-snipe(CUT-5): 마감 임박 입찰이면 마감이 연장됐음을 알린다.
       toast.push(
         "success",
@@ -339,7 +339,7 @@ export default function AuctionDetailPage() {
                       >
                         {fmt.point(highest)}
                       </div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: p.inkSoft }}>P</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: p.inkSoft }}>콘</div>
                     </div>
                     <div style={{ fontSize: 12, color: p.inkMuted, marginTop: 8 }}>
                       최고 입찰자{" "}
@@ -353,7 +353,7 @@ export default function AuctionDetailPage() {
                       시작가
                     </div>
                     <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: p.inkSoft }}>
-                      {fmt.point(startPrice)} P
+                      {fmt.point(startPrice)} 콘
                     </div>
                     {highest > startPrice && (
                       <div style={{ fontSize: 11, color: p.success, fontWeight: 600, marginTop: 4 }}>
@@ -422,7 +422,7 @@ export default function AuctionDetailPage() {
                   <div style={{ fontSize: 11, color: p.inkMuted }}>
                     최소 입찰{" "}
                     <span className="mono" style={{ color: p.inkSoft, fontWeight: 600 }}>
-                      +{fmt.point(minIncrement)} P
+                      +{fmt.point(minIncrement)} 콘
                     </span>
                   </div>
                 </div>
@@ -450,17 +450,33 @@ export default function AuctionDetailPage() {
                     }}
                   >
                     <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>내 입찰가</div>
-                    <div
-                      className="mono"
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: p.ink,
-                        letterSpacing: "-0.025em",
-                      }}
-                    >
-                      {fmt.point(bidAmount ?? 0)}
-                      <span style={{ fontSize: 13, color: p.inkMuted, marginLeft: 4 }}>P</span>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="mono"
+                        disabled={isClosed}
+                        value={bidAmount === null ? "" : fmt.point(bidAmount)}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^\d]/g, "");
+                          setBidAmount(raw === "" ? null : Number(raw));
+                        }}
+                        placeholder={fmt.point(highest + minIncrement)}
+                        style={{
+                          fontSize: 22,
+                          fontWeight: 800,
+                          color: p.ink,
+                          letterSpacing: "-0.025em",
+                          background: "transparent",
+                          border: "none",
+                          outline: "none",
+                          textAlign: "right",
+                          width: 150,
+                          padding: 0,
+                          fontFamily: "inherit",
+                        }}
+                      />
+                      <span style={{ fontSize: 13, color: p.inkMuted }}>콘</span>
                     </div>
                   </div>
                   <button
@@ -480,7 +496,7 @@ export default function AuctionDetailPage() {
                       disabled={isClosed}
                       onClick={() => setBidAmount((b) => (b ?? highest) + q)}
                     >
-                      +{q} P
+                      +{q} 콘
                     </button>
                   ))}
                 </div>
@@ -490,7 +506,7 @@ export default function AuctionDetailPage() {
                 <div style={{ flex: 1, fontSize: 12, color: p.inkMuted }}>
                   내 잔액{" "}
                   <span className="mono" style={{ color: p.ink, fontWeight: 700, marginLeft: 4 }}>
-                    {myBalance !== null ? `${fmt.point(myBalance)} P` : "—"}
+                    {myBalance !== null ? `${fmt.point(myBalance)} 콘` : "—"}
                   </span>
                   {afterBalance !== null && (
                     <span style={{ marginLeft: 8, color: insufficient ? p.danger : p.inkMuted }}>
@@ -502,7 +518,7 @@ export default function AuctionDetailPage() {
                           fontWeight: 600,
                         }}
                       >
-                        {fmt.point(afterBalance)} P
+                        {fmt.point(afterBalance)} 콘
                       </span>
                     </span>
                   )}
@@ -649,9 +665,7 @@ export default function AuctionDetailPage() {
                         }}
                       >
                         {fmt.point(Number(b.amount))}
-                        <span style={{ fontSize: 10, color: p.inkMuted, marginLeft: 2, fontWeight: 600 }}>
-                          P
-                        </span>
+                        <span style={{ fontSize: 10, color: p.inkMuted, marginLeft: 2, fontWeight: 600 }}>콘</span>
                       </div>
                       <div
                         className="mono"

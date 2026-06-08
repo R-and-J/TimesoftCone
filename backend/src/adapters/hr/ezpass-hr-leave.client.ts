@@ -1,7 +1,7 @@
 // EzpassHrLeaveClient — 정식 ezpass REST API로 낙찰 연차를 통지하는 어댑터.
 //
 // ADR-025 (개정: 2026-06-01) — 초안의 msaportal 직쓰기 어댑터를 본 어댑터로 교체.
-// 분석으로 정식 REST 엔드포인트 발견(ezpass 메뉴 "관리자 > 근태 관리 > 개인별
+// 분석으로 정식 REST 엔드콘 발견(ezpass 메뉴 "관리자 > 근태 관리 > 개인별
 // 휴가 관리"가 사용):
 //
 //   - POST {base}/v1/cmn/dlz/CmnDlz0020P/selectUserYrycInfo  → 현재 mdat 조회

@@ -10,7 +10,7 @@ import type {
 } from "@/ports/auction-repository";
 import { Auction } from "@/domain/auction/auction";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import type { AuctionStatus } from "@/domain/auction/auction-status";
 
@@ -20,12 +20,12 @@ function rowToAuction(row: NonNullable<AuctionRow>): Auction {
   return Auction.rehydrate({
     id: AuctionId.of(row.id),
     status: row.status as AuctionStatus,
-    startPrice: Point.of(row.startPrice),
-    highest: Point.of(row.highest),
+    startPrice: Cone.of(row.startPrice),
+    highest: Cone.of(row.highest),
     highestBidder:
       row.highestBidder !== null ? UserId.of(row.highestBidder) : null,
     bidCount: row.bidCount,
-    minIncrement: Point.of(row.minIncrement),
+    minIncrement: Cone.of(row.minIncrement),
     leaveDays: row.leaveDays,
     startedAt: row.startedAt,
     endsAt: row.endsAt,
@@ -61,6 +61,7 @@ export class PrismaAuctionRepository implements AuctionRepository {
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (idFilter) where.id = idFilter;
+    if (filter.companyId != null) where.companyId = filter.companyId;
 
     const rows = await this.prisma.auction.findMany({
       where: Object.keys(where).length > 0 ? where : undefined,
@@ -70,13 +71,14 @@ export class PrismaAuctionRepository implements AuctionRepository {
     return rows.map(rowToAuction);
   }
 
-  async save(auction: Auction): Promise<void> {
-    await this.saveWith(this.prisma, auction);
+  async save(auction: Auction, companyId?: bigint): Promise<void> {
+    await this.saveWith(this.prisma, auction, companyId);
   }
 
   async saveWith(
     tx: PrismaService | Prisma.TransactionClient,
     auction: Auction,
+    companyId?: bigint,
   ): Promise<void> {
     const s = auction.snapshot();
     await tx.auction.upsert({
@@ -107,6 +109,8 @@ export class PrismaAuctionRepository implements AuctionRepository {
         startedAt: s.startedAt,
         endsAt: s.endsAt,
         settledAt: s.settledAt,
+        // 멀티테넌시: 신규 경매만 회사 태깅(생략 시 EZPASS=1). update는 미변경.
+        companyId: companyId ?? 1n,
       },
     });
   }
@@ -154,9 +158,10 @@ export class PrismaAuctionRepository implements AuctionRepository {
     });
   }
 
-  async countsByStatus(): Promise<Record<AuctionStatus, number>> {
+  async countsByStatus(companyId?: bigint | null): Promise<Record<AuctionStatus, number>> {
     const rows = await this.prisma.auction.groupBy({
       by: ["status"],
+      where: companyId != null ? { companyId } : undefined,
       _count: { _all: true },
     });
     const init: Record<AuctionStatus, number> = {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PALETTES, FONT, fmt } from "@/lib/tokens";
 import type { Palette } from "@/lib/tokens";
 import { Card, Pill, TopNav } from "@/components/atoms";
@@ -16,13 +17,27 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const TYPE_LABEL: Record<string, { bg: string; fg: string; label: string }> = {
-  BID:          { bg: "#EEF2F7", fg: "#3b4a5e", label: "입찰" },
-  REFUND:       { bg: "#E6F6F0", fg: "#16A07A", label: "환불" },
-  WIN:          { bg: "#eef4ff", fg: "#1B64DA", label: "낙찰" },
-  DIVIDEND:     { bg: "#FFF4E0", fg: "#E08B19", label: "배당" },
-  CREDIT_ADMIN: { bg: "#F3F0FF", fg: "#7C3AED", label: "관리자 적립" },
-  EXPIRE:       { bg: "#FDECEE", fg: "#DC3F4A", label: "만료" },
+  BID:              { bg: "#EEF2F7", fg: "#3b4a5e", label: "입찰" },
+  REFUND:           { bg: "#E6F6F0", fg: "#16A07A", label: "환불" },
+  WIN:              { bg: "#eef4ff", fg: "#1B64DA", label: "낙찰" },
+  DIVIDEND:         { bg: "#FFF4E0", fg: "#E08B19", label: "배당" },
+  CREDIT_ADMIN:     { bg: "#F3F0FF", fg: "#7C3AED", label: "관리자 적립" },
+  EXPIRE:           { bg: "#FDECEE", fg: "#DC3F4A", label: "만료" },
+  REDEEM:           { bg: "#FFF1E6", fg: "#C2410C", label: "스쿱 마켓 결제" },
+  REDEEM_REFUND:    { bg: "#FFEFE6", fg: "#9A3412", label: "스쿱 마켓 환불" },
+  CHARGE_REQUESTED: { bg: "#F1F5F9", fg: "#475569", label: "충전 신청" },
+  CHARGE_REJECTED:  { bg: "#FDECEE", fg: "#9F1239", label: "충전 거절" },
 };
+
+// default(주요만) 뷰에서 숨길 액션 타입 — 중간 흐름·잔액 무영향 감사 entry.
+//   BID/REFUND     : 입찰·자동환불 (서로 상쇄, outcome=낙찰 한 줄로 충분)
+//   CHARGE_*       : 잔액 안 바꾸는 충전 신청 라이프사이클 audit
+const OUTCOME_HIDDEN = new Set([
+  "BID",
+  "REFUND",
+  "CHARGE_REQUESTED",
+  "CHARGE_REJECTED",
+]);
 
 export default function MyActivityPage() {
   const p = PALETTES.cobalt;
@@ -34,6 +49,13 @@ export default function MyActivityPage() {
   const myActiveBids = (openQ.data ?? []).filter(
     (a) => a.highestBidder !== null && Number(a.highestBidder) === user.id,
   );
+
+  const [showAll, setShowAll] = useState(false);
+  const allHistory = activityQ.data?.history ?? [];
+  const visibleHistory = showAll
+    ? allHistory
+    : allHistory.filter((h) => !OUTCOME_HIDDEN.has(h.actionType));
+  const hiddenCount = allHistory.length - visibleHistory.length;
 
   return (
     <ScreenFrame>
@@ -74,6 +96,12 @@ export default function MyActivityPage() {
                   거래 내역 · {user.name}
                 </div>
               </div>
+              <ScopeToggle
+                p={p}
+                showAll={showAll}
+                onChange={setShowAll}
+                hiddenCount={showAll ? 0 : hiddenCount}
+              />
             </div>
 
             <SummaryCards p={p} summary={activityQ.data?.summary} loading={activityQ.loading} />
@@ -81,11 +109,15 @@ export default function MyActivityPage() {
             <DataGrid
               p={p}
               fill
-              rows={activityQ.data?.history ?? []}
+              rows={visibleHistory}
               rowKey={(_, i) => i}
               loading={activityQ.loading}
               error={activityQ.error ? new Error(`백엔드 연결 실패: ${activityQ.error.message}`) : null}
-              emptyText="아직 거래 내역이 없습니다."
+              emptyText={
+                allHistory.length === 0
+                  ? "아직 거래 내역이 없습니다."
+                  : "주요 거래가 없습니다 — 우상단 '전체 보기'로 입찰/환불 등 중간 내역까지 확인하세요."
+              }
               zebra={false}
               rowBackground={(h) => (h.actionType === "WIN" ? p.accentSoft : undefined)}
               rowPadding="16px 24px"
@@ -141,18 +173,34 @@ export default function MyActivityPage() {
                   align: "right",
                   render: (h) => {
                     const amount = Number(h.amount);
+                    // WIN(낙찰) 행은 ledger amount=0이지만 사용자에겐 "−낙찰가"로 보여야 자연스럽다
+                    // (인식상 낙찰 확정 = 돈 빠진 거). 실제 차감은 입찰 시점이지만 회계 관습상
+                    // 음수 = 빨강으로 통일.
+                    if (h.actionType === "WIN" && h.winningAmount != null) {
+                      const win = Number(h.winningAmount);
+                      return (
+                        <span
+                          className="mono"
+                          style={{ fontWeight: 800, color: p.danger }}
+                          title="낙찰가 (실제 차감은 입찰 시점에 이미 발생, 이 시점은 확정)"
+                        >
+                          −{fmt.point(win)}
+                          <span style={{ color: p.inkMuted, marginLeft: 3, fontWeight: 500 }}>콘</span>
+                        </span>
+                      );
+                    }
                     return (
                       <span
                         className="mono"
                         style={{
                           fontWeight: 800,
-                          color: amount > 0 ? p.success : amount < 0 ? p.ink : p.inkMuted,
+                          color: amount > 0 ? p.success : amount < 0 ? p.danger : p.inkMuted,
                         }}
                       >
                         {amount > 0 ? "+" : ""}
                         {amount === 0 ? "—" : fmt.point(amount)}
                         {amount !== 0 && (
-                          <span style={{ color: p.inkMuted, marginLeft: 3, fontWeight: 500 }}>P</span>
+                          <span style={{ color: p.inkMuted, marginLeft: 3, fontWeight: 500 }}>콘</span>
                         )}
                       </span>
                     );
@@ -166,7 +214,7 @@ export default function MyActivityPage() {
                   render: (h) => (
                     <span className="mono" style={{ color: p.inkSoft, fontSize: 13 }}>
                       {fmt.point(Number(h.balanceAfter))}
-                      <span style={{ color: p.inkMuted, marginLeft: 3 }}>P</span>
+                      <span style={{ color: p.inkMuted, marginLeft: 3 }}>콘</span>
                     </span>
                   ),
                 },
@@ -258,7 +306,7 @@ function RightColumn({
           }}
         >
           {balance !== null ? fmt.point(balance) : "—"}
-          <span style={{ fontSize: 22, color: "rgba(255,255,255,0.6)", marginLeft: 6 }}>P</span>
+          <span style={{ fontSize: 22, color: "rgba(255,255,255,0.6)", marginLeft: 6 }}>콘</span>
         </div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>실시간 잔액</div>
       </Card>
@@ -328,7 +376,7 @@ function RightColumn({
                   }}
                 >
                   {fmt.point(highest)}
-                  <span style={{ fontSize: 12, color: p.inkMuted, marginLeft: 3 }}>P</span>
+                  <span style={{ fontSize: 12, color: p.inkMuted, marginLeft: 3 }}>콘</span>
                 </div>
                 <div style={{ fontSize: 11, color: p.inkSoft, marginTop: 4 }}>
                   마감까지 약{" "}
@@ -354,14 +402,28 @@ function LeaveCard({
   leave: LeaveResponse | null;
   loading: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   const total = leave ? leave.total : 0;
   const safe = (v: number | undefined) => (loading || v === undefined ? 0 : v);
-  const auctionPct = total > 0 ? (safe(leave?.auction) / total) * 100 : 0;
-  const eventPct = total > 0 ? (safe(leave?.event) / total) * 100 : 0;
-  const regularPct = total > 0 ? (safe(leave?.regular) / total) * 100 : 100;
+  const auction = safe(leave?.auction);
+  const event = safe(leave?.event);
+  const regular = safe(leave?.regular);
+  const auctionPct = total > 0 ? (auction / total) * 100 : 0;
+  const eventPct = total > 0 ? (event / total) * 100 : 0;
+  const regularPct = total > 0 ? (regular / total) * 100 : 100;
+
+  const breakdown = [
+    { label: "경매 연차", code: "AUCTION", value: auction, color: p.accent },
+    { label: "이벤트 연차", code: "EVENT", value: event, color: p.warn },
+    { label: "일반 연차", code: "REGULAR", value: regular, color: p.line },
+  ];
 
   return (
     <Card p={p} padding={20}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
       <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 700, marginBottom: 12 }}>
         내 연차 잔여
       </div>
@@ -378,6 +440,8 @@ function LeaveCard({
         {loading ? "—" : total}
         <span style={{ fontSize: 18, color: p.inkMuted, marginLeft: 4 }}>일</span>
       </div>
+      {/* segment 폭이 라벨보다 작으면(좁으면) 텍스트는 숨기고 hover 툴팁으로 정확한 일수 표시.
+          width 임계값은 라벨이 "31 일반" 정도 들어갈 ~14% 기준. */}
       <div
         style={{
           marginTop: 14,
@@ -390,6 +454,7 @@ function LeaveCard({
       >
         {auctionPct > 0 && (
           <div
+            title={`경매 연차 ${safe(leave?.auction)}일`}
             style={{
               width: `${auctionPct}%`,
               background: p.accent,
@@ -399,13 +464,17 @@ function LeaveCard({
               fontSize: 10,
               fontWeight: 700,
               color: "#fff",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {safe(leave?.auction)} AUC
+            {auctionPct >= 14 ? `${safe(leave?.auction)} 경매` : ""}
           </div>
         )}
         {eventPct > 0 && (
           <div
+            title={`이벤트 연차 ${safe(leave?.event)}일`}
             style={{
               width: `${eventPct}%`,
               background: p.warn,
@@ -415,13 +484,17 @@ function LeaveCard({
               fontSize: 10,
               fontWeight: 700,
               color: "#fff",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {safe(leave?.event)}
+            {eventPct >= 14 ? `${safe(leave?.event)} 이벤트` : ""}
           </div>
         )}
         {regularPct > 0 && (
           <div
+            title={`일반 연차 ${safe(leave?.regular)}일`}
             style={{
               width: `${regularPct}%`,
               display: "flex",
@@ -430,21 +503,58 @@ function LeaveCard({
               fontSize: 10,
               fontWeight: 700,
               color: p.inkSoft,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {safe(leave?.regular)} 일반
+            {regularPct >= 14 ? `${safe(leave?.regular)} 일반` : ""}
           </div>
         )}
       </div>
-      <div
-        style={{
-          fontSize: 10,
-          color: p.inkMuted,
-          marginTop: 6,
-          lineHeight: 1.4,
-        }}
-      >
-        차감 순위: 경매 연차 → 이벤트 연차 → 일반 연차
+      <div style={{ marginTop: 8, minHeight: 56 }}>
+        {hovered && !loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {breakdown.map((b) => (
+              <div
+                key={b.code}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  opacity: b.value === 0 ? 0.45 : 1,
+                }}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    background: b.color,
+                    borderRadius: 2,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ flex: 1, color: p.inkSoft, fontWeight: 600 }}>{b.label}</span>
+                <span
+                  className="mono"
+                  style={{ fontWeight: 800, color: p.ink, fontSize: 12 }}
+                >
+                  {b.value}
+                  <span style={{ color: p.inkMuted, marginLeft: 2, fontWeight: 600 }}>일</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, color: p.inkMuted, lineHeight: 1.4 }}>
+            차감 순위: 경매 연차 → 이벤트 연차 → 일반 연차
+            <div style={{ marginTop: 4, fontSize: 9, color: p.inkMuted, opacity: 0.7 }}>
+              ↑ 카드 위에 마우스 — 종류별 일수 자세히
+            </div>
+          </div>
+        )}
+      </div>
       </div>
     </Card>
   );
@@ -464,9 +574,62 @@ function defaultDesc(t: string): string {
       return "관리자 적립";
     case "EXPIRE":
       return "만료";
+    case "REDEEM":
+      return "스쿱 마켓 결제";
+    case "REDEEM_REFUND":
+      return "스쿱 마켓 환불";
+    case "CHARGE_REQUESTED":
+      return "충전 신청";
+    case "CHARGE_REJECTED":
+      return "충전 거절";
     default:
       return t;
   }
+}
+
+function ScopeToggle({
+  p,
+  showAll,
+  onChange,
+  hiddenCount,
+}: {
+  p: Palette;
+  showAll: boolean;
+  onChange: (v: boolean) => void;
+  hiddenCount: number;
+}) {
+  const btn = (active: boolean, label: string, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "5px 12px",
+        borderRadius: 999,
+        border: `1px solid ${active ? p.accent : p.line ?? "transparent"}`,
+        background: active ? p.accent : "transparent",
+        color: active ? "#fff" : p.inkSoft,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {btn(!showAll, "주요만", () => onChange(false))}
+        {btn(showAll, "전체 보기", () => onChange(true))}
+      </div>
+      {!showAll && hiddenCount > 0 && (
+        <div style={{ fontSize: 11, color: p.inkMuted }}>
+          입찰·환불 등 {hiddenCount}건 숨김
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatTime(d: Date): string {

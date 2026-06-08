@@ -61,7 +61,7 @@
 
 3. 백엔드 개발 (Hexagonal — ADR-012)
   3.0 도메인 코어 (외부 의존 0)
-    3.0.1 Value Objects (UserId, Point, LeaveDays 등 — ADR-015 Phase 1)
+    3.0.1 Value Objects (UserId, Cone, LeaveDays 등 — ADR-015 Phase 1)
     3.0.2 Domain Events 정의 (ADR-013)
     3.0.3 ESLint boundaries 규칙 설정
   3.1 인증 (SSO + JWT)
@@ -94,7 +94,7 @@
   4.1 SSO 로그인 플로우
   4.2 경매 목록 / 상세
   4.3 실시간 입찰 화면 (WebSocket)
-  4.4 내 포인트 / 배당 대시보드
+  4.4 내 콘 / 배당 대시보드
   4.5 관리자 페이지
 
 5. 테스트
@@ -141,7 +141,7 @@
 
 | 담당 | Task | 산출물 |
 |---|---|---|
-| 김기철 | Value Objects (UserId/Point/LeaveDays/...) | `domain/shared/value-objects/` + 단위 테스트 |
+| 김기철 | Value Objects (UserId/Cone/LeaveDays/...) | `domain/shared/value-objects/` + 단위 테스트 |
 | 오지석 | Auction State 객체 6종 + Domain Events | `domain/auction/` + 단위 테스트 |
 | 공동 | Wallet 도메인 + BiddingCurrency 인터페이스 | `domain/wallet/`, `ports/bidding-currency.ts` |
 

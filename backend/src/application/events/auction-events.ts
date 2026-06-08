@@ -35,5 +35,7 @@ export class AuctionInventoryCreatedEvent {
     public readonly targetYear: number,
     public readonly auctionsCreated: number,
     public readonly contributorCount: number,
+    /** 멀티테넌시: 수집이 일어난 회사(해당 회사 관리자에게만 알림). */
+    public readonly companyId: bigint | null = null,
   ) {}
 }

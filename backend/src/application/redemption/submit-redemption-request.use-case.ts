@@ -1,7 +1,7 @@
 // SubmitRedemptionRequest — 사용자 주도 교환 신청 (ADR-023 v2).
 // 단일 트랜잭션:
 //   item.stock -1 (재고 잠금) + wallet 차감 + REDEEM ledger(음수) + request INSERT(PENDING).
-// 신청 시점에 포인트를 잠그는 것이 ADR-001 escrow 모델과 정합 — 반려 시 환불.
+// 신청 시점에 콘을 잠그는 것이 ADR-001 escrow 모델과 정합 — 반려 시 환불.
 // 커밋 후 RedemptionRequestSubmittedEvent 발행(NotificationObserver가 관리자들에게 알림).
 
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
@@ -29,9 +29,10 @@ export class SubmitRedemptionRequestUseCase {
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: input.userId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, companyId: true },
       });
       if (!user) throw new NotFoundException("사용자를 찾을 수 없습니다.");
+      const co = user.companyId ?? 1n; // 멀티테넌시: 원장·신청을 신청자 회사로 태깅
 
       const item = await tx.redemptionItem.findUnique({ where: { id: input.itemId } });
       if (!item) throw new NotFoundException(`상품 #${input.itemId}을 찾을 수 없습니다.`);
@@ -49,7 +50,7 @@ export class SubmitRedemptionRequestUseCase {
         where: { uq_wallet_user_currency: { userId: user.id, currency: "WELFARE_POINT" } },
       });
       if (!wallet || wallet.balance < item.priceP) {
-        throw new BadRequestException("포인트가 부족합니다.");
+        throw new BadRequestException("콘이 부족합니다.");
       }
       const newBalance = wallet.balance - item.priceP;
       await tx.wallet.update({
@@ -66,6 +67,7 @@ export class SubmitRedemptionRequestUseCase {
           amount: -item.priceP,
           balanceAfter: newBalance,
           refNote: `교환 신청 — ${item.name}`,
+          companyId: co,
         },
       });
 
@@ -77,6 +79,7 @@ export class SubmitRedemptionRequestUseCase {
           pricePAtRequest: item.priceP,
           note: input.note ?? null,
           status: "PENDING",
+          companyId: co,
         },
       });
 

@@ -35,7 +35,7 @@
 |---|---|---|
 | **RBAC** (역할 검사) | 사용자의 `role` 컬럼 값 | "관리자(ADMIN)만 wallet 적립 가능" |
 | **ABAC** (소유자 검사 — 자기 vs 타인) | 리소스 소유자가 호출자와 동일한가 | "내 wallet은 조회 가능, 타인 것은 ADMIN만" |
-| **System Token** (내부 호출 검증) | 내부 시스템 토큰 (X-Internal-Token) 헤더 | 스케줄러·Outbox Worker가 호출하는 내부 엔드포인트 |
+| **System Token** (내부 호출 검증) | 내부 시스템 토큰 (X-Internal-Token) 헤더 | 스케줄러·Outbox Worker가 호출하는 내부 엔드콘 |
 
 ### 표기 규약 (이하 매트릭스에서)
 
@@ -149,7 +149,7 @@
 
 ### 4.3 시스템 인터널 (🔒) — X-Internal-Token
 
-- Cron 스케줄러, Outbox Worker 등 *내부 호출* 전용 엔드포인트
+- Cron 스케줄러, Outbox Worker 등 *내부 호출* 전용 엔드콘
 - 일반 JWT 토큰으로는 접근 불가 → 403
 - 별도 환경변수 `INTERNAL_API_TOKEN`을 X-Internal-Token 헤더로 검증
 - 외부 노출 금지 — 내부망 또는 사이드카에서만 호출
@@ -216,7 +216,7 @@ ResourceOwnerGuard → @Self() 데코레이터 시 path/query의 userId vs req.u
 - [SRS](SRS.md) — FR/NFR 원본 (특히 FR-5.x)
 - [business-rules.md](business-rules.md) GOV-1, KPI
 - [edge-cases.md](edge-cases.md) EC-1 퇴사자
-- [api-spec.md](../03_design/api-spec.md) — 엔드포인트와 1:1 매핑
+- [api-spec.md](../03_design/api-spec.md) — 엔드콘과 1:1 매핑
 - [wbs.md](../07_plan/wbs.md) BR-1 — 관리자 COI 리스크
 - [ADR-011](../04_decisions/ADR-011-welfare-point-ownership.md) — 관리자 적립 권한
 - [ADR-016](../04_decisions/ADR-016-internal-leave-system.md) — 휴가 차감 워크플로 스코프

@@ -17,7 +17,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force --skip-seed"
+    "db:reset": "prisma migrate reset --force --skip-seed",
+    "db:snapshot": "tsx scripts/db-snapshot.ts",
+    "db:restore": "tsx scripts/db-restore.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

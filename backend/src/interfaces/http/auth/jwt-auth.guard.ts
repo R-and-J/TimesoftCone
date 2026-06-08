@@ -12,7 +12,7 @@ import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { IS_PUBLIC_KEY, type AuthUser } from "./auth.decorators";
 
-type JwtPayload = { sub: string; role: AuthUser["role"]; empId: string };
+type JwtPayload = { sub: string; role: AuthUser["role"]; empId: string; companyId?: string | null };
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -30,19 +30,28 @@ export class JwtAuthGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest<{
       headers: Record<string, string | undefined>;
+      query?: Record<string, string | undefined>;
       user?: AuthUser;
     }>();
     const auth = req.headers["authorization"];
-    if (!auth || !auth.startsWith("Bearer ")) {
+    // Bearer 헤더 우선. 없으면 query.token (SSE/EventSource는 헤더 설정 불가라 fallback).
+    let token: string | null = null;
+    if (auth && auth.startsWith("Bearer ")) {
+      token = auth.slice(7);
+    } else if (req.query?.token) {
+      token = req.query.token;
+    }
+    if (!token) {
       throw new UnauthorizedException("인증 토큰이 필요합니다");
     }
 
     try {
-      const payload = this.jwt.verify<JwtPayload>(auth.slice(7));
+      const payload = this.jwt.verify<JwtPayload>(token);
       req.user = {
         userId: BigInt(payload.sub),
         role: payload.role,
         empId: payload.empId,
+        companyId: payload.companyId != null ? BigInt(payload.companyId) : null,
       };
       return true;
     } catch {

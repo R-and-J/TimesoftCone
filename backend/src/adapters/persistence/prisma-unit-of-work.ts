@@ -20,7 +20,7 @@ import type { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { Wallet } from "@/domain/wallet/wallet";
 import { UserId } from "@/domain/shared/value-objects/user-id";
 import { Currency } from "@/domain/shared/value-objects/currency";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { Auction } from "@/domain/auction/auction";
 import { AuctionId as AuctionIdVO } from "@/domain/shared/value-objects/auction-id";
 import type { LedgerEntry } from "@/domain/ledger/ledger-entry";
@@ -61,7 +61,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
           },
         });
         if (!row) return null;
-        return Wallet.rehydrate(userId, currency, Point.of(row.balance));
+        return Wallet.rehydrate(userId, currency, Cone.of(row.balance));
       },
       async save(wallet: Wallet) {
         await walletRepo.saveWith(tx, wallet);
@@ -93,12 +93,12 @@ export class PrismaUnitOfWork implements UnitOfWork {
           Auction.rehydrate({
             id: AuctionIdVO.of(row.id),
             status: row.status as AuctionStatus,
-            startPrice: Point.of(row.startPrice),
-            highest: Point.of(row.highest),
+            startPrice: Cone.of(row.startPrice),
+            highest: Cone.of(row.highest),
             highestBidder:
               row.highestBidder !== null ? UserId.of(row.highestBidder) : null,
             bidCount: row.bidCount,
-            minIncrement: Point.of(row.minIncrement),
+            minIncrement: Cone.of(row.minIncrement),
             leaveDays: row.leaveDays,
             startedAt: row.startedAt,
             endsAt: row.endsAt,
@@ -106,8 +106,8 @@ export class PrismaUnitOfWork implements UnitOfWork {
           }),
         );
       },
-      async save(auction) {
-        await auctionRepo.saveWith(tx, auction);
+      async save(auction, companyId) {
+        await auctionRepo.saveWith(tx, auction, companyId);
       },
       async countAuctionsBidByUser(userId) {
         const rows = await tx.bidEvent.findMany({
@@ -135,13 +135,23 @@ export class PrismaUnitOfWork implements UnitOfWork {
       ledger,
       auctions,
       recordBid: async ({ auctionId, userId, amount }) => {
+        // 멀티테넌시: 입찰 이벤트를 입찰자(=경매와 동일 회사) 회사로 태깅.
+        const u = await tx.user.findUnique({ where: { id: userId }, select: { companyId: true } });
         await tx.bidEvent.create({
           data: {
             auctionId: auctionId.toString(),
             userId,
             amount,
+            companyId: u?.companyId ?? 1n,
           },
         });
+      },
+      auctionCompanyId: async (auctionId: AuctionId) => {
+        const r = await tx.auction.findUnique({
+          where: { id: auctionId.toString() },
+          select: { companyId: true },
+        });
+        return r?.companyId ?? null;
       },
       lockAuction: async (auctionId: AuctionId) => {
         // SQLite has no row-level locks (no `SELECT … FOR UPDATE`). A no-op
@@ -153,10 +163,12 @@ export class PrismaUnitOfWork implements UnitOfWork {
       grantAuctionLeave: async ({ userId, year, days }) => {
         // 낙찰 연차는 AUCTION 타입으로 우리 DB에만 적립 (ADR-002/020). ezpass엔
         // 안 보냄 — 이중보상 방지. 같은 정산 트랜잭션 안에서 원자적으로 처리.
+        // 멀티테넌시: 신규 행은 수령자(낙찰자) 회사로 태깅.
+        const u = await tx.user.findUnique({ where: { id: userId }, select: { companyId: true } });
         await tx.leaveBalance.upsert({
           where: { uq_leave_user_year_type: { userId, year, leaveType: "AUCTION" } },
           update: { adjustedDays: { increment: days } },
-          create: { userId, year, leaveType: "AUCTION", grantedDays: 0, adjustedDays: days, usedDays: 0 },
+          create: { userId, year, leaveType: "AUCTION", grantedDays: 0, adjustedDays: days, usedDays: 0, companyId: u?.companyId ?? 1n },
         });
       },
       enqueueOutbox: async ({ topic, payload }) => {

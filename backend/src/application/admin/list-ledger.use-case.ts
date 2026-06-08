@@ -16,6 +16,8 @@ export type ListLedgerInput = {
   to?: Date;
   limit?: number;
   cursor?: bigint;
+  /** 회사 스코프(멀티테넌시). null=전 회사(super ADMIN). */
+  companyId?: bigint | null;
 };
 
 export type LedgerRow = {
@@ -48,6 +50,7 @@ export class ListLedgerUseCase {
     const limit = Math.min(input.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
 
     const where: Prisma.LedgerEntryWhereInput = {};
+    if (input.companyId != null) where.companyId = input.companyId;
     if (input.actionTypes && input.actionTypes.length > 0) {
       where.actionType = { in: input.actionTypes };
     }

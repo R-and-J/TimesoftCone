@@ -64,7 +64,7 @@ export class BidPlacedEvent {
   constructor(
     public readonly auctionId: AuctionId,
     public readonly bidderId: UserId,
-    public readonly amount: Point,
+    public readonly amount: Cone,
     public readonly previousHighestBidderId: UserId | null,
     public readonly occurredAt: Date,
   ) {}

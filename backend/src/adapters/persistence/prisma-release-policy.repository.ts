@@ -31,37 +31,39 @@ type Row = {
   dayOfMonth: number | null;
   timeOfDay: string | null;
   quantity: number | null;
+  startPrice: bigint | null;
 };
 
 function rowToPolicy(r: Row): ReleasePolicy {
-  if (r.cadence === "none") return { cadence: "none" };
-  // none이 아니면 timeOfDay/quantity 보장돼야 함.
+  const sp = r.startPrice ?? null;
+  if (r.cadence === "none") return { cadence: "none", startPrice: sp };
   if (r.timeOfDay === null || r.quantity === null) {
     throw new Error(`release_policy: cadence=${r.cadence}는 timeOfDay/quantity 필수`);
   }
   if (r.cadence === "daily") {
-    return { cadence: "daily", timeOfDay: r.timeOfDay, quantity: r.quantity };
+    return { cadence: "daily", timeOfDay: r.timeOfDay, quantity: r.quantity, startPrice: sp };
   }
   if (r.cadence === "weekly") {
     if (r.dayOfWeek === null) throw new Error("release_policy: weekly missing dayOfWeek");
-    return { cadence: "weekly", dayOfWeek: r.dayOfWeek, timeOfDay: r.timeOfDay, quantity: r.quantity };
+    return { cadence: "weekly", dayOfWeek: r.dayOfWeek, timeOfDay: r.timeOfDay, quantity: r.quantity, startPrice: sp };
   }
   if (r.cadence === "monthly") {
     if (r.dayOfMonth === null) throw new Error("release_policy: monthly missing dayOfMonth");
-    return { cadence: "monthly", dayOfMonth: r.dayOfMonth, timeOfDay: r.timeOfDay, quantity: r.quantity };
+    return { cadence: "monthly", dayOfMonth: r.dayOfMonth, timeOfDay: r.timeOfDay, quantity: r.quantity, startPrice: sp };
   }
   throw new Error(`release_policy: cadence invalid: ${r.cadence}`);
 }
 
 function policyToRow(p: ReleasePolicy) {
+  const startPrice = p.startPrice ?? null;
   if (p.cadence === "none") {
-    return { cadence: "none", dayOfWeek: null, dayOfMonth: null, timeOfDay: null, quantity: null };
+    return { cadence: "none", dayOfWeek: null, dayOfMonth: null, timeOfDay: null, quantity: null, startPrice };
   }
   if (p.cadence === "daily") {
-    return { cadence: "daily", dayOfWeek: null, dayOfMonth: null, timeOfDay: p.timeOfDay, quantity: p.quantity };
+    return { cadence: "daily", dayOfWeek: null, dayOfMonth: null, timeOfDay: p.timeOfDay, quantity: p.quantity, startPrice };
   }
   if (p.cadence === "weekly") {
-    return { cadence: "weekly", dayOfWeek: p.dayOfWeek, dayOfMonth: null, timeOfDay: p.timeOfDay, quantity: p.quantity };
+    return { cadence: "weekly", dayOfWeek: p.dayOfWeek, dayOfMonth: null, timeOfDay: p.timeOfDay, quantity: p.quantity, startPrice };
   }
-  return { cadence: "monthly", dayOfWeek: null, dayOfMonth: p.dayOfMonth, timeOfDay: p.timeOfDay, quantity: p.quantity };
+  return { cadence: "monthly", dayOfWeek: null, dayOfMonth: p.dayOfMonth, timeOfDay: p.timeOfDay, quantity: p.quantity, startPrice };
 }

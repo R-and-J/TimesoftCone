@@ -11,7 +11,7 @@
 //        - credit their wallet (+amount)
 //        - append a REFUND ledger entry
 //   5. Debit the new bidder:
-//        - debit their wallet (-amount)         ← may throw InsufficientPointError
+//        - debit their wallet (-amount)         ← may throw InsufficientConeError
 //        - append a BID ledger entry
 //   6. Save the updated auction
 //   7. Append a BidEvent (audit log of accepted bids — feeds the detail screen)
@@ -26,7 +26,7 @@ import { UNIT_OF_WORK, type UnitOfWork } from "@/ports/unit-of-work";
 import { AUCTION_EVENTS, BidPlacedEvent } from "@/application/events/auction-events";
 import { AuctionId } from "@/domain/shared/value-objects/auction-id";
 import { UserId } from "@/domain/shared/value-objects/user-id";
-import { Point } from "@/domain/shared/value-objects/point";
+import { Cone } from "@/domain/shared/value-objects/cone";
 import { Currency } from "@/domain/shared/value-objects/currency";
 import { Wallet } from "@/domain/wallet/wallet";
 import { LedgerEntry } from "@/domain/ledger/ledger-entry";
@@ -36,6 +36,9 @@ export type PlaceBidInput = {
   auctionId: string;
   userId: bigint | number | string;
   amount: bigint | number | string;
+  /** 멀티테넌시: 입찰자 회사. 경매 회사와 다르면 거부(타사 경매 입찰 차단).
+   *  super ADMIN(null)은 검증 면제. */
+  bidderCompanyId?: bigint | null;
 };
 
 export type PlaceBidResult = {
@@ -75,7 +78,7 @@ export class PlaceBidUseCase {
   async execute(input: PlaceBidInput): Promise<PlaceBidResult> {
     const auctionId = AuctionId.of(input.auctionId);
     const bidder = UserId.of(input.userId);
-    const amount = Point.of(input.amount);
+    const amount = Cone.of(input.amount);
 
     const result = await this.uow.run(async (tx) => {
       await tx.lockAuction(auctionId);
@@ -85,6 +88,14 @@ export class PlaceBidUseCase {
         // Throw a domain error rather than NotFoundException — the controller
         // converts both into appropriate HTTP statuses.
         throw new (class extends DomainError {})(`Auction ${input.auctionId} not found`);
+      }
+
+      // 멀티테넌시: 타사 경매 입찰 차단(에스크로 회사 경계 보호). super(null)는 면제.
+      if (input.bidderCompanyId != null) {
+        const auctionCompany = await tx.auctionCompanyId(auctionId);
+        if (auctionCompany != null && auctionCompany !== input.bidderCompanyId) {
+          throw new (class extends DomainError {})("다른 회사의 경매에는 입찰할 수 없습니다");
+        }
       }
 
       // 입찰 검증과 anti-snipe 판정에 동일한 시각을 써야 일관적.
@@ -109,12 +120,12 @@ export class PlaceBidUseCase {
             amount: previous.amount.toBigInt(),
             balanceAfter: prevWallet.balance,
             auctionId: auctionId.toString(),
-            refNote: "Outbid — auto refund",
+            refNote: "더 높은 입찰로 자동 환불",
           }),
         );
       }
 
-      // 2) Debit the new bidder. Throws InsufficientPointError if balance < amount.
+      // 2) Debit the new bidder. Throws InsufficientConeError if balance < amount.
       const myWallet =
         (await tx.wallets.find(bidder, this.currency)) ??
         Wallet.openEmpty(bidder, this.currency);
