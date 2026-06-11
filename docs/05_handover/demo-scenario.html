@@ -84,7 +84,11 @@
   .ph .fname{font-size:11.5px; color:#b3b2ad; font-family:ui-monospace,Menlo,Consolas,monospace;}
   figure.shot-card img.shot{width:100%; border:1px solid var(--line); border-radius:8px; display:block;}
   figure.shot-card figcaption{margin-top:7px; font-size:12.5px; color:var(--muted); text-align:center;}
-  @media(max-width:680px){ .gallery{grid-template-columns:1fr;} }
+  /* §3-1 — 전체 캡처 한눈에 보는 작은 썸네일 그리드 (캡션 없음, 호버 시 확대) */
+  .thumb-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:10px 0 20px;}
+  .thumb-grid img{width:100%; height:auto; border:1px solid var(--line); border-radius:4px; display:block; cursor:zoom-in; transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;}
+  .thumb-grid img:hover{transform:scale(1.06); border-color:var(--blue); box-shadow:0 4px 12px rgba(0,0,0,.08); position:relative; z-index:1;}
+  @media(max-width:680px){ .gallery{grid-template-columns:1fr;} .thumb-grid{grid-template-columns:repeat(4,1fr);} }
   footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
   @media print{ .page{padding:0 8px;} tbody tr:hover{background:transparent;} }
   @media (max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
@@ -274,6 +278,33 @@
 
   <h3 class="sub">3-1. 캡처 카탈로그 (코드 ↔ 실물 파일 매핑)</h3>
   <p>각 캡처는 §2의 해당 단계 갤러리에 끼워 표시되어 있으며, 본 표는 코드와 파일명의 1:1 대응을 정리한다. 모든 실물 파일은 <code>docs/05_handover/img/</code>에 보관한다.</p>
+
+  <p class="gal-label">전체 캡처 한눈에 보기</p>
+  <p class="gal-note">시연 직전 빠르게 훑기용 · 마우스를 올리면 살짝 확대됩니다.</p>
+  <div class="thumb-grid">
+    <img src="img/act1-1-dashboard.png" alt="C-01 대시보드" title="C-01 · 1-1 대시보드">
+    <img src="img/act1-2-auction-list.png" alt="C-02a 경매 목록" title="C-02a · 1-2 경매 목록">
+    <img src="img/act1-2-bid-win.png" alt="C-02b 입찰+낙찰" title="C-02b · 1-2/1-4 입찰+낙찰">
+    <img src="img/act1-3-activity.png" alt="C-03 내 활동" title="C-03 · 1-3 내 활동">
+    <img src="img/act1-5-ezpass-leave.png" alt="C-04 ezpass 휴가" title="C-04 · 1-5 ezpass 휴가">
+    <img src="img/act2-store.png" alt="C-05a 스쿱 마켓" title="C-05a · 2-1 스쿱 마켓">
+    <img src="img/act2-redeem-approve.png" alt="C-05b 교환 승인" title="C-05b · 2-2 교환 승인">
+    <img src="img/act3-1-ops.png" alt="C-06a 운영 KPI" title="C-06a · 3-1 운영 KPI">
+    <img src="img/act3-1-export.png" alt="C-06b 내보내기 모달" title="C-06b · 3-1 내보내기 모달">
+    <img src="img/act3-1-export-xlsx.png" alt="C-06c 내보낸 XLSX" title="C-06c · 3-1 내보낸 XLSX">
+    <img src="img/act3-2-auction-mgmt.png" alt="C-07 경매관리" title="C-07 · 3-2 경매관리">
+    <img src="img/act3-3-store-admin.png" alt="C-08 스토어 상품 관리" title="C-08 · 3-3 스토어 상품 관리">
+    <img src="img/act3-4-members.png" alt="C-09 회원관리" title="C-09 · 3-4 회원관리">
+    <img src="img/act3-5-charge.png" alt="C-15 콘 충전" title="C-15 · 3-5 콘 충전">
+    <img src="img/act4-3-dividend.png" alt="C-10 사용자 배당 미리보기" title="C-10 · 4-3보조 사용자 배당">
+    <img src="img/act4-3-dividend-settle.png" alt="C-11a 배당 정산 dryRun" title="C-11a · 4-3 배당 정산 dryRun">
+    <img src="img/act4-3-dividend-result.png" alt="C-11b 실지급 완료" title="C-11b · 4-3 실지급 완료 + 에스크로 0">
+    <img src="img/act4-4-idempotent-409.png" alt="C-12 멱등 차단" title="C-12 · 4-4 멱등 차단">
+    <img src="img/act5-1-switch-ezpass.png" alt="C-13a 스위처 EZPASS" title="C-13a · 5-1 스위처 EZPASS">
+    <img src="img/act5-1-switch-exam.png" alt="C-13b 스위처 EXAM" title="C-13b · 5-1 스위처 EXAM">
+    <img src="img/act5-ledger.png" alt="C-14 거래 원장" title="C-14 · 마무리 거래 원장">
+  </div>
+
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:9%">코드</th><th>화면 / 의미</th><th style="width:30%">실물 파일</th><th style="width:14%">시연 구간</th></tr></thead>
     <tbody>
