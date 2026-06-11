@@ -106,6 +106,7 @@
 | C-08 | 스토어 상품 관리 — CRUD + 감사 로그 | `act3-3-store-admin.png` | 액트 3-3 |
 | C-09 | 회원관리 — EZPASS/EXAM 탭 | `act3-4-members.png` | 액트 3-4 |
 | C-15 | 충전 처리 — 사유 입력 + 잔액 반영 | `act3-5-charge.png` | 액트 3-5 |
+| C-16 | 연말 풀 수집 dryRun — 기여자 39명·623일·2027 매물 623개 | `act4-2-pool-collect.png` | 액트 4-2 |
 | C-10 | 사용자 시점 본인 배당 미리보기 (참고) | `act4-3-dividend.png` | 액트 4-3 보조 |
 | C-11a | 관리자 배당 정산 모달 dryRun (지분율 표) | `act4-3-dividend-settle.png` | 액트 4-3 |
 | C-11b | 실지급 완료 — 토스트 "에스크로 전액 지급" + KPI 에스크로 0 | `act4-3-dividend-result.png` | 액트 4-3 |
