@@ -29,6 +29,8 @@ export type CollectLeavePoolResult = {
   alreadyCollected: boolean;
   contributorCount: number;
   daysCollected: number;
+  /** 익년도 1일권 경매 매물 수. 1:1 매핑이므로 daysCollected와 같다(프론트 표시 편의용). */
+  auctionsCreated: number;
   /** 미리보기용 상위 기여자(최대 10명, 기여일 내림차순). */
   topContributors: { userId: string; name: string; days: number }[];
 };
@@ -82,6 +84,7 @@ export class CollectLeavePoolUseCase {
       alreadyCollected,
       contributorCount: plan.summary.contributorCount,
       daysCollected: plan.summary.daysCollected,
+      auctionsCreated: plan.summary.daysCollected,
       topContributors: top,
     };
 
