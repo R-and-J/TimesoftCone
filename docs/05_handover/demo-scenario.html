@@ -236,14 +236,14 @@
     <tbody>
       <tr><td class="c">4-1</td><td>사전 설명</td><td>(구두 설명) 시드에 전년도(2025) 경매 39건 + stake 10명 존재</td><td class="c">—</td></tr>
       <tr><td class="c">4-2</td><td>연말 풀 수집</td><td>/admin/ops → "풀 수집" → dryRun → "수집 실행"</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>기여자별 일수 미리보기, /admin/auctions에 익년도 매물 노출</span>
-        <span class="l"><span class="pill db">로직/DB</span>REGULAR 미사용분 → 익년도 매물 N개 생성(LP-2026-*), 연도당 1회 DB UNIQUE 보장</span></div></td></tr>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>기여자별 일수 미리보기(예: 기여자 39명 · 수집 일수 623일 · 2027 매물 623개), /admin/auctions에 익년도 매물 노출</span>
+        <span class="l"><span class="pill db">로직/DB</span>REGULAR 미사용분 → 익년도 1일권 매물 N개 생성(LP-2027-*), leave_pool_run.targetYear UNIQUE로 연도당 1회 보장</span></div></td></tr>
       <tr><td class="c">4-3</td><td>연말 배당 정산</td><td>"연말 배당" → dryRun 미리보기 → 실지급</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>시뮬레이션(dryRun) 화면에 기여도별 지분율 명시(user001 30.8%/12일, user002~010 각 7.7%/3일), 배당 완료 토스트 알림</span>
-        <span class="l"><span class="pill db">로직/DB</span>누적 에스크로 풀 잔액 전액 배당 처리 완료(에스크로 잔액 0원), 원장에 DIVIDEND 데이터 10건 INSERT</span></div></td></tr>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>시뮬레이션(dryRun) 화면에 기여도별 지분율 명시(예: 김민준 1위 23.4%/25일 · 동률 7.5%/8일 다수 · 3.7%/4일 등 25명), 실지급 시 "에스크로 전액 N콘을 N명에게 배당" 토스트</span>
+        <span class="l"><span class="pill db">로직/DB</span>누적 에스크로 풀 잔액 전액 배당 처리 완료(에스크로 잔액 0원), 원장에 DIVIDEND 25건 INSERT</span></div></td></tr>
       <tr><td class="c">4-4</td><td>멱등성 확인</td><td>"연말 배당" 한 번 더 실행</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>재실행 시 정산 거부 안내</span>
-        <span class="l"><span class="pill db">로직/DB</span>HTTP 409("이미 정산됨") 반환 — dividend_run.year UNIQUE로 연 1회 중복 정산 원천 차단</span></div></td></tr>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>재실행 시 "이미 배당이 정산되었습니다" 안내, 실지급 버튼 비활성</span>
+        <span class="l"><span class="pill db">로직/DB</span>HTTP 409 반환 — 회사 스코프의 LedgerEntry(actionType=DIVIDEND) 존재 여부로 멱등 체크(이중 지급 원천 차단)</span></div></td></tr>
     </tbody>
   </table></div>
   <div class="gallery">
