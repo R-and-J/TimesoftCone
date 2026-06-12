@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>구현 결과 보고서 — 타임소프트콘</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<!-- Paged.js polyfill: CSS @page margin box(@top-right, @bottom-center)를 Chrome에서도 지원해
+     PDF 출력 시 우상단/하단 중앙에 머리글/페이지 번호 자동 삽입. -->
+<script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
 <style>
   :root{
     --ink:#37352f; --muted:#787774; --faint:#9b9a97;
@@ -55,12 +58,36 @@
   footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
   @media(max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
   @media print{
-    @page{
-      margin:15mm 12mm;
-      @top-right{ content: "구현 결과 보고서 - 타임소프트콘"; font-size:9pt; color:#9b9a97; }
-      @bottom-center{ content: counter(page) " / " counter(pages); font-size:9pt; color:#9b9a97; }
+    /* 페이지 마진 + 머리글(우상단)·꼬리글(하단 중앙) — Paged.js polyfill 로 Chrome 지원 */
+    @page {
+      margin: 20mm 15mm 18mm 15mm;
+      @top-right {
+        content: "구현 결과 보고서 - 타임소프트콘";
+        font-size: 9pt;
+        color: #787774;
+        font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+      }
+      @bottom-center {
+        content: counter(page) " / " counter(pages);
+        font-size: 9pt;
+        color: #787774;
+        font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+      }
     }
-    tbody tr:hover{background:transparent;} pre.code{white-space:pre-wrap;}
+
+    .page { padding: 0 8px; }
+    tbody tr:hover { background: transparent; }
+    pre.code { white-space: pre-wrap; }
+
+    /* 액트/소절 제목(h3.sub) 직후 페이지 끝나서 본문이 혼자 다음 페이지로 가지 않게 */
+    h3.sub { page-break-after: avoid; }
+
+    /* 큰 섹션(2장 주요 기능 + 3장 검증) 은 새 페이지에서 시작.
+       1장은 자연스럽게 표지/콜아웃 뒤에 이어 흐르고, 이후 큰 섹션만 break. */
+    h2.sec ~ h2.sec { page-break-before: always; }
+
+    /* 코드 블록은 페이지 경계에서 끊지 않음 */
+    pre.code { page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -460,8 +487,6 @@ END;</code></pre>
       <tr><td><code class="inl">admin-and-activity.e2e-spec.ts</code></td><td>관리자 통계·원장·활동 조회·권한</td></tr>
     </tbody>
   </table></div>
-
-  <footer>타임소프트콘 · 구현 결과 보고서</footer>
 
 </div>
 </body>
