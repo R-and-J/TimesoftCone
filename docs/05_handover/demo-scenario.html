@@ -223,7 +223,8 @@
     <figure class="shot-card"><img class="shot" src="img/act3-1-ops.png" alt="운영 KPI"><figcaption>3-1 · C-06a 운영 KPI 대시보드</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-1-export.png" alt="정산 데이터 내보내기"><figcaption>3-1 · C-06b 정산 데이터 내보내기 모달</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-1-export-xlsx.png" alt="내보낸 XLSX"><figcaption>3-1 · C-06c 내보낸 정산 XLSX</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act3-2-auction-mgmt.png" alt="경매관리"><figcaption>3-2 · C-07 경매관리 (유찰 EVENT/REOPEN 진입)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-2-auction-mgmt.png" alt="경매관리"><figcaption>3-2 · C-07a 경매관리 — 매물 수동 추가 다이얼로그</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-2-event-grant.png" alt="유찰 매물 EVENT 휴가 지급"><figcaption>3-2① · C-07b 유찰 매물 수동 처리 — EVENT 휴가 지급</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-3-store-admin.png" alt="스토어 상품 관리"><figcaption>3-3 · C-08 스토어 상품 관리 (CRUD + 감사)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-4-members.png" alt="회원관리"><figcaption>3-4 · C-09 회원관리 (EZPASS/EXAM 탭)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-5-charge.png" alt="콘 충전"><figcaption>3-5 · C-15 콘 관리 — 사유 입력 + 충전</figcaption></figure>
@@ -271,6 +272,7 @@
   <div class="gallery">
     <figure class="shot-card"><img class="shot" src="img/act5-1-switch-ezpass.png" alt="회사 스위처 EZPASS"><figcaption>5-1 · C-13a 회사 스위처 → EZPASS (회원 39명)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act5-1-switch-exam.png" alt="회사 스위처 EXAM"><figcaption>5-1 · C-13b 회사 스위처 → EXAM (회원 38명 · 데이터 통째 교체)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act5-2-tenant-isolated.png" alt="exam 관리자 격리"><figcaption>5-2 · C-13c exam 관리자 로그인 — 회사 스위처 미노출 (격리)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act5-ledger.png" alt="거래 원장 한글 환불"><figcaption>마무리 · C-14 거래 원장 (INSERT-only · 한글 환불 메모)</figcaption></figure>
   </div>
 
@@ -297,7 +299,8 @@
     <img src="img/act3-1-ops.png" alt="C-06a 운영 KPI" title="C-06a · 3-1 운영 KPI">
     <img src="img/act3-1-export.png" alt="C-06b 내보내기 모달" title="C-06b · 3-1 내보내기 모달">
     <img src="img/act3-1-export-xlsx.png" alt="C-06c 내보낸 XLSX" title="C-06c · 3-1 내보낸 XLSX">
-    <img src="img/act3-2-auction-mgmt.png" alt="C-07 경매관리" title="C-07 · 3-2 경매관리">
+    <img src="img/act3-2-auction-mgmt.png" alt="C-07a 경매관리" title="C-07a · 3-2 경매관리 매물 추가">
+    <img src="img/act3-2-event-grant.png" alt="C-07b 유찰 EVENT 지급" title="C-07b · 3-2① 유찰 EVENT 지급">
     <img src="img/act3-3-store-admin.png" alt="C-08 스토어 상품 관리" title="C-08 · 3-3 스토어 상품 관리">
     <img src="img/act3-4-members.png" alt="C-09 회원관리" title="C-09 · 3-4 회원관리">
     <img src="img/act3-5-charge.png" alt="C-15 콘 충전" title="C-15 · 3-5 콘 충전">
@@ -308,6 +311,7 @@
     <img src="img/act4-4-idempotent-409.png" alt="C-12 멱등 차단" title="C-12 · 4-4 멱등 차단">
     <img src="img/act5-1-switch-ezpass.png" alt="C-13a 스위처 EZPASS" title="C-13a · 5-1 스위처 EZPASS">
     <img src="img/act5-1-switch-exam.png" alt="C-13b 스위처 EXAM" title="C-13b · 5-1 스위처 EXAM">
+    <img src="img/act5-2-tenant-isolated.png" alt="C-13c exam admin 격리" title="C-13c · 5-2 exam 관리자 — 스위처 미노출">
     <img src="img/act5-ledger.png" alt="C-14 거래 원장" title="C-14 · 마무리 거래 원장">
   </div>
 
@@ -326,7 +330,8 @@
       <tr><td class="c">C-06a</td><td>관리자 운영 KPI 대시보드</td><td><code>act3-1-ops.png</code></td><td class="c">3-1</td></tr>
       <tr><td class="c">C-06b</td><td>정산 데이터 내보내기 — 모달</td><td><code>act3-1-export.png</code></td><td class="c">3-1</td></tr>
       <tr><td class="c">C-06c</td><td>내보낸 정산 XLSX</td><td><code>act3-1-export-xlsx.png</code></td><td class="c">3-1</td></tr>
-      <tr><td class="c">C-07</td><td>경매관리 (유찰 EVENT/REOPEN 진입)</td><td><code>act3-2-auction-mgmt.png</code></td><td class="c">3-2</td></tr>
+      <tr><td class="c">C-07a</td><td>경매관리 — 매물 수동 추가 다이얼로그</td><td><code>act3-2-auction-mgmt.png</code></td><td class="c">3-2</td></tr>
+      <tr><td class="c">C-07b</td><td>유찰 매물 수동 처리 — EVENT 휴가 지급</td><td><code>act3-2-event-grant.png</code></td><td class="c">3-2①</td></tr>
       <tr><td class="c">C-08</td><td>스토어 상품 관리 — CRUD + 감사</td><td><code>act3-3-store-admin.png</code></td><td class="c">3-3</td></tr>
       <tr><td class="c">C-09</td><td>회원관리 — EZPASS/EXAM 탭</td><td><code>act3-4-members.png</code></td><td class="c">3-4</td></tr>
       <tr><td class="c">C-15</td><td>콘 관리 — 사유 입력 + 충전</td><td><code>act3-5-charge.png</code></td><td class="c">3-5</td></tr>
@@ -337,6 +342,7 @@
       <tr><td class="c">C-12</td><td>멱등 차단 — "이미 정산되었습니다"</td><td><code>act4-4-idempotent-409.png</code></td><td class="c">4-4</td></tr>
       <tr><td class="c">C-13a</td><td>회사 스위처 → EZPASS (회원 39명)</td><td><code>act5-1-switch-ezpass.png</code></td><td class="c">5-1</td></tr>
       <tr><td class="c">C-13b</td><td>회사 스위처 → EXAM (회원 38명)</td><td><code>act5-1-switch-exam.png</code></td><td class="c">5-1</td></tr>
+      <tr><td class="c">C-13c</td><td>exam 관리자 로그인 — 회사 스위처 미노출(격리)</td><td><code>act5-2-tenant-isolated.png</code></td><td class="c">5-2</td></tr>
       <tr><td class="c">C-14</td><td>거래 원장 — 한글 환불 메모</td><td><code>act5-ledger.png</code></td><td class="c">마무리</td></tr>
       <tr><td class="c">P-01</td><td>발표 PPT PDF 백업본</td><td><code>presentation/TimesoftCone.pdf</code></td><td class="c">전체 폴백</td></tr>
     </tbody>

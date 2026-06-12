@@ -104,7 +104,8 @@
 | C-06a | 관리자 운영 대시보드 (KPI 5칸) | `act3-1-ops.png` | 액트 3-1 |
 | C-06b | 정산 데이터 내보내기 — 모달 | `act3-1-export.png` | 액트 3-1 |
 | C-06c | 내보내기 결과 — XLSX | `act3-1-export-xlsx.png` | 액트 3-1 |
-| C-07 | 경매관리 (유찰 EVENT/REOPEN 진입점) | `act3-2-auction-mgmt.png` | 액트 3-2 |
+| C-07a | 경매관리 — 매물 수동 추가 다이얼로그 | `act3-2-auction-mgmt.png` | 액트 3-2 |
+| C-07b | 유찰 매물 수동 처리 — EVENT 휴가 지급 | `act3-2-event-grant.png` | 액트 3-2① |
 | C-08 | 스토어 상품 관리 — CRUD + 감사 로그 | `act3-3-store-admin.png` | 액트 3-3 |
 | C-09 | 회원관리 — EZPASS/EXAM 탭 | `act3-4-members.png` | 액트 3-4 |
 | C-15 | 충전 처리 — 사유 입력 + 잔액 반영 | `act3-5-charge.png` | 액트 3-5 |
@@ -115,6 +116,7 @@
 | C-12 | 멱등성 — 재실행 시 차단 메시지 ("이미 정산되었습니다") | `act4-4-idempotent-409.png` | 액트 4-4 |
 | C-13a | 회사 스위처 → EZPASS (회원 39명) | `act5-1-switch-ezpass.png` | 액트 5-1 |
 | C-13b | 회사 스위처 → EXAM (회원 38명, 데이터 통째 교체) | `act5-1-switch-exam.png` | 액트 5-1 |
+| C-13c | exam 관리자 로그인 — 회사 스위처 미노출(격리) | `act5-2-tenant-isolated.png` | 액트 5-2 |
 | C-14 | 원장 — 한글 환불 메모 ("더 높은 입찰로 자동 환불") | `act5-ledger.png` | 액트 4-3 / 마무리 |
 | P-01 | 발표 PPT PDF 백업본 | `presentation/TimesoftCone.pdf` | 전체 폴백 |
 
