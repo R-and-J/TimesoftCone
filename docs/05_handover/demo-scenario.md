@@ -65,33 +65,32 @@
 
 | 캡처 | 자료 | 실물 파일 | 대체하는 시연 구간 |
 |---|---|---|---|
-| 캡처-1 | 대시보드 - 잔액 + REGULAR 연차 위젯 | `act1-1-dashboard.png` | 액트 1-1 |
-| 캡처-2a | 경매 목록 (Grid 뷰) | `act1-2-auction-list.png` | 액트 1-2 |
-| 캡처-2b | 입찰 성공 + 낙찰 화면 | `act1-2-bid-win.png` | 액트 1-2 / 1-4 |
-| 캡처-3 | 내 활동 - 환불/낙찰 흔적 | `act1-3-activity.png` | 액트 1-3 |
-| 캡처-4 | EZPASS 사용자 연차 사용 신청 진입점 | `act1-5-ezpass-leave.png` | 액트 1 보조 |
-| 캡처-5a | 스쿱 마켓 - 카탈로그 + 직접 제안 fallback | `act2-store.png` | 액트 2-1 |
-| 캡처-5b | 관리자 교환 승인 + 쿠폰 발급 | `act2-redeem-approve.png` | 액트 2-2 |
-| 캡처-5c | 우상단 수령 대기 - 쿠폰코드 + 수령 완료 버튼 | `act2-3-pending-claim.png` | 액트 2-3 |
-| 캡처-5d | 「📦 내 보관함」 모달 - 신청·승인·수령 내역 | `act2-3-vault.png` | 액트 2-3 |
-| 캡처-6a | 관리자 운영 대시보드 (KPI 5칸) | `act3-1-ops.png` | 액트 3-1 |
-| 캡처-6b | 정산 데이터 내보내기 - 모달 | `act3-1-export.png` | 액트 3-1 |
-| 캡처-6c | 내보내기 결과 - XLSX | `act3-1-export-xlsx.png` | 액트 3-1 |
-| 캡처-7a | 경매관리 - 매물 수동 추가 다이얼로그 | `act3-2-auction-mgmt.png` | 액트 3-2 |
-| 캡처-7b | 유찰 매물 수동 처리 - EVENT 휴가 지급 | `act3-2-event-grant.png` | 액트 3-2① |
-| 캡처-8 | 스토어 상품 관리 - CRUD + 감사 로그 | `act3-3-store-admin.png` | 액트 3-3 |
-| 캡처-9 | 회원관리 - EZPASS/EXAM 탭 | `act3-4-members.png` | 액트 3-4 |
-| 캡처-15 | 충전 처리 - 사유 입력 + 잔액 반영 | `act3-5-charge.png` | 액트 3-5 |
-| 캡처-16 | 연말 풀 수집 dryRun - 기여자 39명·623일·2027 매물 623개 | `act4-2-pool-collect.png` | 액트 4-2 |
-| 캡처-10 | 사용자 시점 본인 배당 미리보기 (참고) | `act4-3-dividend.png` | 액트 4-3 보조 |
-| 캡처-11a | 관리자 배당 정산 모달 dryRun (지분율 표) | `act4-3-dividend-settle.png` | 액트 4-3 |
-| 캡처-11b | 실지급 완료 - 토스트 "에스크로 전액 지급" + KPI 에스크로 0 | `act4-3-dividend-result.png` | 액트 4-3 |
-| 캡처-12 | 멱등성 - 재실행 시 차단 메시지 ("이미 정산되었습니다") | `act4-4-idempotent-409.png` | 액트 4-4 |
-| 캡처-13a | 회사 스위처 → EZPASS (회원 39명) | `act5-1-switch-ezpass.png` | 액트 5-1 |
-| 캡처-13b | 회사 스위처 → EXAM (회원 38명, 데이터 통째 교체) | `act5-1-switch-exam.png` | 액트 5-1 |
-| 캡처-13c | exam 관리자 로그인 - 회사 스위처 미노출(격리) | `act5-2-tenant-isolated.png` | 액트 5-2 |
-| 캡처-14 | 원장 - 한글 환불 메모 ("더 높은 입찰로 자동 환불") | `act5-ledger.png` | 액트 4-3 / 마무리 |
-| P-01 | 발표 PPT PDF 백업본 | `presentation/TimesoftCone.pdf` | 전체 폴백 |
+| 캡처-1 | 대시보드 - 잔액 + REGULAR 연차 위젯 | act1-1-dashboard.png | 액트 1-1 |
+| 캡처-2a | 경매 목록 (Grid 뷰) | act1-2-auction-list.png | 액트 1-2 |
+| 캡처-2b | 입찰 성공 + 낙찰 화면 | act1-2-bid-win.png | 액트 1-2 / 1-4 |
+| 캡처-3 | 내 활동 - 환불·낙찰 내역 | act1-3-activity.png | 액트 1-3 |
+| 캡처-4 | EZPASS 사용자 연차 사용 신청 화면 | act1-5-ezpass-leave.png | 액트 1 보조 |
+| 캡처-5a | 스쿱 마켓 - 카탈로그 + 직접 제안 | act2-store.png | 액트 2-1 |
+| 캡처-5b | 관리자 교환 승인 + 쿠폰 발급 | act2-redeem-approve.png | 액트 2-2 |
+| 캡처-5c | 우상단 수령 대기 - 쿠폰코드 + 수령 완료 버튼 | act2-3-pending-claim.png | 액트 2-3 |
+| 캡처-5d | 「📦 내 보관함」 모달 - 신청·승인·수령 내역 | act2-3-vault.png | 액트 2-3 |
+| 캡처-6a | 관리자 운영 대시보드 (KPI 5종) | act3-1-ops.png | 액트 3-1 |
+| 캡처-6b | 정산 데이터 내보내기 - 모달 | act3-1-export.png | 액트 3-1 |
+| 캡처-6c | 내보내기 결과 - XLSX | act3-1-export-xlsx.png | 액트 3-1 |
+| 캡처-7a | 경매관리 - 매물 수동 추가 모달 | act3-2-auction-mgmt.png | 액트 3-2 |
+| 캡처-7b | 유찰 매물 수동 처리 - EVENT 휴가 지급 | act3-2-event-grant.png | 액트 3-2① |
+| 캡처-8 | 스토어 상품 관리 - CRUD + 감사 로그 | act3-3-store-admin.png | 액트 3-3 |
+| 캡처-9 | 회원관리 - EZPASS/EXAM 탭 | act3-4-members.png | 액트 3-4 |
+| 캡처-15 | 충전 처리 - 사유 입력 + 잔액 반영 | act3-5-charge.png | 액트 3-5 |
+| 캡처-16 | 연말 풀 수집 dryRun - 기여자 39명·623일·2027 매물 623개 | act4-2-pool-collect.png | 액트 4-2 |
+| 캡처-10 | 사용자 시점 본인 배당 미리보기 (참고) | act4-3-dividend.png | 액트 4-3 보조 |
+| 캡처-11a | 관리자 배당 정산 모달 dryRun (지분율 표) | act4-3-dividend-settle.png | 액트 4-3 |
+| 캡처-11b | 실지급 완료 - 토스트 "에스크로 전액 지급" + KPI 에스크로 0 | act4-3-dividend-result.png | 액트 4-3 |
+| 캡처-12 | 멱등성 - 재실행 시 차단 메시지 ("이미 정산되었습니다") | act4-4-idempotent-409.png | 액트 4-4 |
+| 캡처-13a | 회사 스위처 → EZPASS (회원 39명) | act5-1-switch-ezpass.png | 액트 5-1 |
+| 캡처-13b | 회사 스위처 → EXAM (회원 38명, 데이터 통째 교체) | act5-1-switch-exam.png | 액트 5-1 |
+| 캡처-13c | exam 관리자 로그인 - 회사 스위처 미노출 (격리) | act5-2-tenant-isolated.png | 액트 5-2 |
+| 캡처-14 | 거래 원장 - 자동 환불 내역 (INSERT-only) | act5-ledger.png | 액트 4-3 / 마무리 |
 
 > **파일명 규칙**: `act{막}-{단계}-{설명}.png` 형식(예: `act4-4-idempotent-409.png`) - 캡처 번호와 시연 단계가 파일명만으로도 즉시 매칭된다.
 
@@ -99,9 +98,9 @@
 
 | 실패 상황 | 대체 자료 / 대응 |
 |---|---|
-| 백엔드 다운 | PPT(P-01) 재오픈 → 백업 캡처(캡처-1~캡처-14)로 흐름 설명 |
-| 즉시 마감 동작 안 함 | 낙찰 캡처(캡처-2b)로 결과만 제시 |
-| 배당 dryRun 빈 화면 | 캡처-12(409 "이미 정산됨")로 전환 → **멱등성 시연으로 활용** |
-| 멀티테넌트 화면 안 뜸 | 캡처-13 또는 헥사고날/ER 다이어그램(`presentation/img/`) |
-| 토스트/알림 미표시 | 해당 단계 캡처(캡처-3·캡처-11)로 결과만 제시 |
+| 백엔드 다운 | 백업 캡처-1 ~ 캡처-14로 흐름만 설명 |
+| 즉시 마감 미동작 | 캡처-2b(낙찰 결과)로 화면 대체 |
+| 배당 dryRun 결과 없음 | 캡처-12(409 "이미 정산됨")로 전환 → **멱등성 시연으로 활용** |
+| 멀티테넌트 화면 미표시 | 캡처-13 또는 헥사고날/ER 다이어그램(`presentation/img/`) |
+| 토스트·알림 미표시 | 캡처-3·캡처-11로 결과만 제시 |
 | 시간 초과 | 액트 3-5(충전)·5-3(새 회사 멘트)부터 컷. **액트 4(연말 배당)는 절대 컷하지 않는다** |
