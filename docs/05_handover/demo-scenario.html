@@ -184,8 +184,8 @@
       <tr><td class="c">3-4</td><td>회원관리 두 탭</td><td>/admin/members → EZPASS 탭 ↔ EXAM 탭 전환</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>EZPASS 탭: 회원추가·작업 컬럼 없음(「지금 동기화」만). EXAM 탭: 회원 추가·행별 수정/비활성 있음</span>
         <span class="l"><span class="pill db">로직/DB</span>위임형(EZPASS)·독립형(EXAM) 회사를 동일 코드의 어댑터 분기로 처리</span></div></td></tr>
-      <tr><td class="c">3-5</td><td>충전 처리 (옵션)</td><td>EXAM 회원 행 "콘 관리" → +50,000 콘 / 사유 "데모 보너스" → 적용</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>잔액 즉시 반영</span>
+      <tr><td class="c">3-5</td><td>충전 처리 (옵션)</td><td>EZPASS 회원 이서연(T002) 행 "콘 관리" → +150,000 콘 / 사유 "우수 사원" → 적용</td>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>"이서연 충전 - +150,000 콘 (잔액 153,600 콘)" 토스트, 잔액 즉시 반영</span>
         <span class="l"><span class="pill db">로직/DB</span>원장 CREDIT_ADMIN INSERT(사유 필수 - 감사 추적성 보장)</span></div></td></tr>
     </tbody>
   </table></div>
