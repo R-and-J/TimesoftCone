@@ -99,6 +99,8 @@
 | C-04 | EZPASS 사용자 연차 사용 신청 진입점 | `act1-5-ezpass-leave.png` | 액트 1 보조 |
 | C-05a | 스쿱 마켓 — 카탈로그 + 직접 제안 fallback | `act2-store.png` | 액트 2-1 |
 | C-05b | 관리자 교환 승인 + 쿠폰 발급 | `act2-redeem-approve.png` | 액트 2-2 |
+| C-05c | 우상단 수령 대기 — 쿠폰코드 + 수령 완료 버튼 | `act2-3-pending-claim.png` | 액트 2-3 |
+| C-05d | 「📦 내 보관함」 모달 — 신청·승인·수령 내역 | `act2-3-vault.png` | 액트 2-3 |
 | C-06a | 관리자 운영 대시보드 (KPI 5칸) | `act3-1-ops.png` | 액트 3-1 |
 | C-06b | 정산 데이터 내보내기 — 모달 | `act3-1-export.png` | 액트 3-1 |
 | C-06c | 내보내기 결과 — XLSX | `act3-1-export-xlsx.png` | 액트 3-1 |
