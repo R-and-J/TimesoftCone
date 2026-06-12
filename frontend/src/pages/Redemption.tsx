@@ -150,8 +150,10 @@ export default function RedemptionPage() {
           {(() => {
             const approved = (requestsQ.data ?? []).filter((r) => r.status === "APPROVED");
             return (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+              // 헤더 영역: 좌측 타이틀은 일반 flow, 우측(잔액+수령대기)은 absolute로 띄움.
+              // 우측 카드 묶음이 길어져도 좌측·아래 카탈로그 위치는 영향 없음(카드는 본문 위에 떠보이는 느낌).
+              <div style={{ position: "relative", marginBottom: 20, minHeight: 100 }}>
+                <div style={{ paddingRight: 344 /* 우측 카드 320 + 24 gap */ }}>
                   <div style={{ fontSize: 13, color: p.inkMuted, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                     🍦 스쿱 마켓
                   </div>
@@ -162,8 +164,19 @@ export default function RedemptionPage() {
                     담으면 콘이 잠기고, 관리자가 승인하면 쿠폰을 발급합니다. 반려 시 자동 환불.
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 320, flexShrink: 0 }}>
-                  <Card p={p} padding={16}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 0,
+                    width: 320,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    zIndex: 2,
+                  }}
+                >
+                  <Card p={p} padding={16} style={{ boxShadow: "0 10px 28px rgba(11,25,41,0.10)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, color: p.inkMuted, fontWeight: 600 }}>현재 잔액</div>
@@ -177,7 +190,7 @@ export default function RedemptionPage() {
                     </div>
                   </Card>
                   {approved.length > 0 && (
-                    <Card p={p} padding={16} style={{ border: `2px solid ${p.accent}` }}>
+                    <Card p={p} padding={16} style={{ border: `2px solid ${p.accent}`, boxShadow: "0 10px 28px rgba(11,25,41,0.12)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: p.ink, marginBottom: 10 }}>
                         <span style={{ fontSize: 14 }}>📦</span>
                         수령 대기 {approved.length}건

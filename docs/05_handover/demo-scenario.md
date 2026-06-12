@@ -97,7 +97,7 @@
 | C-02b | 입찰 성공 + 낙찰 화면 | `act1-2-bid-win.png` | 액트 1-2 / 1-4 |
 | C-03 | 내 활동 — 환불/낙찰 흔적 | `act1-3-activity.png` | 액트 1-3 |
 | C-04 | EZPASS 사용자 연차 사용 신청 진입점 | `act1-5-ezpass-leave.png` | 액트 1 보조 |
-| C-05a | 스토어 카탈로그 | `act2-store.png` | 액트 2-1 |
+| C-05a | 스쿱 마켓 — 카탈로그 + 직접 제안 fallback | `act2-store.png` | 액트 2-1 |
 | C-05b | 관리자 교환 승인 + 쿠폰 발급 | `act2-redeem-approve.png` | 액트 2-2 |
 | C-06a | 관리자 운영 대시보드 (KPI 5칸) | `act3-1-ops.png` | 액트 3-1 |
 | C-06b | 정산 데이터 내보내기 — 모달 | `act3-1-export.png` | 액트 3-1 |
