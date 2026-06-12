@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>시연 시나리오 보고서 — 타임소프트콘</title>
+<title>시연 시나리오 보고서 - 타임소프트콘</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <style>
   :root{
@@ -84,7 +84,7 @@
   .ph .fname{font-size:11.5px; color:#b3b2ad; font-family:ui-monospace,Menlo,Consolas,monospace;}
   figure.shot-card img.shot{width:100%; border:1px solid var(--line); border-radius:8px; display:block;}
   figure.shot-card figcaption{margin-top:7px; font-size:12.5px; color:var(--muted); text-align:center;}
-  /* 2장 1절 — 전체 캡처 한눈에 보는 작은 썸네일 그리드 (캡션 없음, 호버 시 확대) */
+  /* 2장 1절 - 전체 캡처 한눈에 보는 작은 썸네일 그리드 (캡션 없음, 호버 시 확대) */
   .thumb-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:10px 0 20px;}
   .thumb-grid img{width:100%; height:auto; border:1px solid var(--line); border-radius:4px; display:block; cursor:zoom-in; transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;}
   .thumb-grid img:hover{transform:scale(1.06); border-color:var(--blue); box-shadow:0 4px 12px rgba(0,0,0,.08); position:relative; z-index:1;}
@@ -97,7 +97,7 @@
 <body>
 <div class="page">
   <h1 class="title">시연 시나리오 보고서</h1>
-  <p class="subtitle">타임소프트콘 — 사내 연차 경매 시스템(B2E 연차 경매·에스크로 배당 플랫폼)</p>
+  <p class="subtitle">타임소프트콘 - 사내 연차 경매 시스템(B2E 연차 경매·에스크로 배당 플랫폼)</p>
 
   <div class="callout"><span class="bd"><b>목적</b> · 라이브 시연의 순서, 단계별 예상 입력값, 기대 결과(UI·로직/DB)를 사전 정의하고, 시연을 뒷받침하는 검증 증빙 및 백업 자료를 규정한다.</span></div>
  
@@ -114,12 +114,12 @@
   <h2 class="sec">1. 시연 순서 · 예상 입력값 · 기대 결과</h2>
   <p>전체 5막. 기대 결과는 <span class="pill ui">UI</span> 화면 변화와 <span class="pill db">로직/DB</span> 백엔드·데이터 안전장치로 분리해 기술한다.</p>
 
-  <h3 class="sub">액트 1 — 사용자 1일권 구매 (입찰 → 자동 환불 → 낙찰 → 연차 부여)</h3>
+  <h3 class="sub">액트 1 - 사용자 1일권 구매 (입찰 → 자동 환불 → 낙찰 → 연차 부여)</h3>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
     <tbody>
       <tr><td class="c">1-1</td><td>로그인 + 대시보드</td><td>창 A: user001@timesoftcone.com (ezpass 계정)</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>우상단 콘 잔액, 내 연차 위젯 REGULAR 연차(파란 막대) 노출 — 모두 ezpass 동기화 값</span>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>우상단 콘 잔액, 내 연차 위젯 REGULAR 연차(파란 막대) 노출 - 모두 ezpass 동기화 값</span>
         <span class="l"><span class="pill db">로직/DB</span>@timesoftcone.com 도메인 → ezpass 위임 인증으로 자동 라우팅, 로그인 시 회원·연차 동기화</span></div></td></tr>
       <tr><td class="c">1-2</td><td>경매 목록 → 상세 → 입찰</td><td>경매 목록 → Grid 뷰 → 1일권 매물 클릭 → 30,100 콘 입찰</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>경매 상세 내 시작가(30,000 콘) 노출, 입찰 후 콘 잔액 즉시 −30,100 차감 반영</span>
@@ -131,7 +131,7 @@
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>창 B "낙찰! AUCTION 1일 부여됨" 토스트, 대시보드에 AUCTION 1일(노란 막대) 추가. 잔액 변동 없음</span>
         <span class="l"><span class="pill db">로직/DB</span>낙찰 확정 + AUCTION 연차 로컬 부여를 단일 DB 트랜잭션으로 처리(외부 그룹웨어 호출 없음)</span></div></td></tr>
       <tr><td class="c">1-5</td><td>낙찰 연차 사용 (ezpass 연동)</td><td>user002 → ezpass(그룹웨어) 휴가 화면에서 낙찰받은 AUCTION 1일로 휴가 신청</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>ezpass 휴가 화면에서 연차 사용 신청·승인 진행 — 기안/승인 워크플로는 ezpass가 소유</span>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>ezpass 휴가 화면에서 연차 사용 신청·승인 진행 - 기안/승인 워크플로는 ezpass가 소유</span>
         <span class="l"><span class="pill db">로직/DB</span>사용 결과가 본 시스템 연차 잔고에 반영되며, 차감 우선순위 AUCTION → EVENT → REGULAR를 내부에서 보장</span></div></td></tr>
     </tbody>
   </table></div>
@@ -143,7 +143,7 @@
     <figure class="shot-card"><img class="shot" src="img/act1-5-ezpass-leave.png" alt="ezpass 휴가 화면"><figcaption>1-5 · C-04 ezpass 휴가 신청 진입점</figcaption></figure>
   </div>
 
-  <h3 class="sub">액트 2 — 스토어 → 수령 대기 → 보관함</h3>
+  <h3 class="sub">액트 2 - 스토어 → 수령 대기 → 보관함</h3>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
     <tbody>
@@ -159,23 +159,23 @@
     </tbody>
   </table></div>
   <div class="gallery">
-    <figure class="shot-card"><img class="shot" src="img/act2-store.png" alt="스쿱 마켓"><figcaption>2-1 · C-05a 스쿱 마켓 — 카탈로그 + 직접 제안 fallback</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act2-store.png" alt="스쿱 마켓"><figcaption>2-1 · C-05a 스쿱 마켓 - 카탈로그 + 직접 제안 fallback</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act2-redeem-approve.png" alt="교환 승인"><figcaption>2-2 · C-05b 관리자 교환 승인 + 쿠폰 발급</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act2-3-pending-claim.png" alt="수령 대기 카드"><figcaption>2-3 · C-05c 우상단 수령 대기 — 쿠폰코드 + 「수령 완료」</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act2-3-vault.png" alt="보관함 모달"><figcaption>2-3 · C-05d 「📦 내 보관함」 — 신청·승인·수령 내역</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act2-3-pending-claim.png" alt="수령 대기 카드"><figcaption>2-3 · C-05c 우상단 수령 대기 - 쿠폰코드 + 「수령 완료」</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act2-3-vault.png" alt="보관함 모달"><figcaption>2-3 · C-05d 「📦 내 보관함」 - 신청·승인·수령 내역</figcaption></figure>
   </div>
 
-  <h3 class="sub">액트 3 — 관리자 운영 기능 점검</h3>
+  <h3 class="sub">액트 3 - 관리자 운영 기능 점검</h3>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
     <tbody>
       <tr><td class="c">3-1</td><td>운영 KPI + 내보내기</td><td>super@admin.local → /admin/ops → "정산 데이터 내보내기"</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>KPI 5칸(에스크로·진행·예정·유찰·오늘 낙찰) 표시</span>
         <span class="l"><span class="pill db">로직/DB</span>Excel/MD/JSON 정산 데이터 파일 생성·다운로드</span></div></td></tr>
-      <tr><td class="c">3-2①</td><td>유찰 매물 처리 — EVENT</td><td>"유찰 재고" 카드 → 검색 user003 → 클릭 → EVENT 휴가 지급</td>
+      <tr><td class="c">3-2①</td><td>유찰 매물 처리 - EVENT</td><td>"유찰 재고" 카드 → 검색 user003 → 클릭 → EVENT 휴가 지급</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>"user003에게 EVENT 1일 지급" 토스트, KPI 유찰 −1</span>
         <span class="l"><span class="pill db">로직/DB</span>유찰 매물 → EVENT 연차 전환 부여(REGULAR/AUCTION과 분리)</span></div></td></tr>
-      <tr><td class="c">3-2②</td><td>유찰 매물 처리 — REOPEN</td><td>다른 유찰 매물 → REOPEN 토글 → 마감 시각 입력 → 재경매</td>
+      <tr><td class="c">3-2②</td><td>유찰 매물 처리 - REOPEN</td><td>다른 유찰 매물 → REOPEN 토글 → 마감 시각 입력 → 재경매</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>"기존 매물 → 새 매물 ID 재오픈" 토스트, /admin/auctions에 새 매물 노출</span>
         <span class="l"><span class="pill db">로직/DB</span>기존 유찰 매물을 신규 경매 인벤토리로 재생성</span></div></td></tr>
       <tr><td class="c">3-3</td><td>스토어 상품 관리</td><td>「스토어」 탭 → 「상품 추가」 → SKU DEMO-001, "데모 상품", 5,000 콘 → 저장 → 비활성화 토글</td>
@@ -186,25 +186,25 @@
         <span class="l"><span class="pill db">로직/DB</span>위임형(EZPASS)·독립형(EXAM) 회사를 동일 코드의 어댑터 분기로 처리</span></div></td></tr>
       <tr><td class="c">3-5</td><td>충전 처리 (옵션)</td><td>EXAM 회원 행 "콘 관리" → +50,000 콘 / 사유 "데모 보너스" → 적용</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>잔액 즉시 반영</span>
-        <span class="l"><span class="pill db">로직/DB</span>원장 CREDIT_ADMIN INSERT(사유 필수 — 감사 추적성 보장)</span></div></td></tr>
+        <span class="l"><span class="pill db">로직/DB</span>원장 CREDIT_ADMIN INSERT(사유 필수 - 감사 추적성 보장)</span></div></td></tr>
     </tbody>
   </table></div>
   <div class="gallery">
     <figure class="shot-card"><img class="shot" src="img/act3-1-ops.png" alt="운영 KPI"><figcaption>3-1 · C-06a 운영 KPI 대시보드</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-1-export.png" alt="정산 데이터 내보내기"><figcaption>3-1 · C-06b 정산 데이터 내보내기 모달</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-1-export-xlsx.png" alt="내보낸 XLSX"><figcaption>3-1 · C-06c 내보낸 정산 XLSX</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act3-2-auction-mgmt.png" alt="경매관리"><figcaption>3-2 · C-07a 경매관리 — 매물 수동 추가 다이얼로그</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act3-2-event-grant.png" alt="유찰 매물 EVENT 휴가 지급"><figcaption>3-2① · C-07b 유찰 매물 수동 처리 — EVENT 휴가 지급</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-2-auction-mgmt.png" alt="경매관리"><figcaption>3-2 · C-07a 경매관리 - 매물 수동 추가 다이얼로그</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-2-event-grant.png" alt="유찰 매물 EVENT 휴가 지급"><figcaption>3-2① · C-07b 유찰 매물 수동 처리 - EVENT 휴가 지급</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-3-store-admin.png" alt="스토어 상품 관리"><figcaption>3-3 · C-08 스토어 상품 관리 (CRUD + 감사)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act3-4-members.png" alt="회원관리"><figcaption>3-4 · C-09 회원관리 (EZPASS/EXAM 탭)</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act3-5-charge.png" alt="콘 충전"><figcaption>3-5 · C-15 콘 관리 — 사유 입력 + 충전</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act3-5-charge.png" alt="콘 충전"><figcaption>3-5 · C-15 콘 관리 - 사유 입력 + 충전</figcaption></figure>
   </div>
 
-  <h3 class="sub">액트 4 — 연말 일괄 정산 (핵심: 풀 수집 + 배당 → 에스크로 0)</h3>
+  <h3 class="sub">액트 4 - 연말 일괄 정산 (핵심: 풀 수집 + 배당 → 에스크로 0)</h3>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
     <tbody>
-      <tr><td class="c">4-1</td><td>사전 설명</td><td>(구두 설명) 시드에 전년도(2025) 경매 39건 + stake 10명 존재</td><td class="c">—</td></tr>
+      <tr><td class="c">4-1</td><td>사전 설명</td><td>(구두 설명) 시드에 전년도(2025) 경매 39건 + stake 10명 존재</td><td class="c">-</td></tr>
       <tr><td class="c">4-2</td><td>연말 풀 수집</td><td>/admin/ops → "풀 수집" → dryRun → "수집 실행"</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>기여자별 일수 미리보기(예: 기여자 39명 · 수집 일수 623일 · 2027 매물 623개), /admin/auctions에 익년도 매물 노출</span>
         <span class="l"><span class="pill db">로직/DB</span>REGULAR 미사용분 → 익년도 1일권 매물 N개 생성(LP-2027-*), leave_pool_run.targetYear UNIQUE로 연도당 1회 보장</span></div></td></tr>
@@ -213,18 +213,18 @@
         <span class="l"><span class="pill db">로직/DB</span>누적 에스크로 풀 잔액 전액 배당 처리 완료(에스크로 잔액 0원), 원장에 DIVIDEND 25건 INSERT</span></div></td></tr>
       <tr><td class="c">4-4</td><td>멱등성 확인</td><td>"연말 배당" 한 번 더 실행</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>재실행 시 "이미 배당이 정산되었습니다" 안내, 실지급 버튼 비활성</span>
-        <span class="l"><span class="pill db">로직/DB</span>HTTP 409 반환 — 회사 스코프의 LedgerEntry(actionType=DIVIDEND) 존재 여부로 멱등 체크(이중 지급 원천 차단)</span></div></td></tr>
+        <span class="l"><span class="pill db">로직/DB</span>HTTP 409 반환 - 회사 스코프의 LedgerEntry(actionType=DIVIDEND) 존재 여부로 멱등 체크(이중 지급 원천 차단)</span></div></td></tr>
     </tbody>
   </table></div>
   <div class="gallery">
     <figure class="shot-card"><img class="shot" src="img/act4-2-pool-collect.png" alt="연말 풀 수집 dryRun"><figcaption>4-2 · C-16 연말 풀 수집 dryRun (기여자 39명 · 623일 → 2027 매물 623개)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act4-3-dividend.png" alt="사용자 본인 배당 미리보기"><figcaption>4-3 보조 · C-10 사용자 시점 본인 배당 미리보기</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act4-3-dividend-settle.png" alt="관리자 배당 정산 dryRun"><figcaption>4-3 · C-11a 관리자 배당 정산 dryRun (지분율 표)</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act4-3-dividend-result.png" alt="실지급 완료 + 에스크로 0"><figcaption>4-3 · C-11b 실지급 완료 — 에스크로 0 (1,641,200콘 25명)</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act4-4-idempotent-409.png" alt="멱등 차단"><figcaption>4-4 · C-12 멱등 차단 — "이미 정산되었습니다"</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act4-3-dividend-result.png" alt="실지급 완료 + 에스크로 0"><figcaption>4-3 · C-11b 실지급 완료 - 에스크로 0 (1,641,200콘 25명)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act4-4-idempotent-409.png" alt="멱등 차단"><figcaption>4-4 · C-12 멱등 차단 - "이미 정산되었습니다"</figcaption></figure>
   </div>
 
-  <h3 class="sub">액트 5 — 회사별 데이터 격리 (멀티테넌트)</h3>
+  <h3 class="sub">액트 5 - 회사별 데이터 격리 (멀티테넌트)</h3>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:7%">#</th><th style="width:21%">단계</th><th style="width:31%">예상 입력값 (조작)</th><th>기대 결과</th></tr></thead>
     <tbody>
@@ -233,16 +233,16 @@
         <span class="l"><span class="pill db">로직/DB</span>컨텍스트 전환에 따라 데이터 스코프 전체가 회사 단위로 분리</span></div></td></tr>
       <tr><td class="c">5-2</td><td>다른 회사로 직접 로그인</td><td>새 시크릿창 → examadmin@exam.com → /admin/members</td>
         <td><div class="res"><span class="l"><span class="pill ui">UI</span>EXAM 직원만 표시, EZPASS 데이터 없음, 회사 스위처 미노출</span>
-        <span class="l"><span class="pill db">로직/DB</span>JWT companyId가 모든 쿼리에 자동 스코프 — 타 회사 데이터는 조회조차 불가</span></div></td></tr>
+        <span class="l"><span class="pill db">로직/DB</span>JWT companyId가 모든 쿼리에 자동 스코프 - 타 회사 데이터는 조회조차 불가</span></div></td></tr>
       <tr><td class="c">5-3</td><td>신규 회사 추가 (구두 설명)</td><td>(구두 설명) company 행 + 사용자 companyId 추가</td>
-        <td><div class="res"><span class="l"><span class="pill ui">UI</span>—</span>
+        <td><div class="res"><span class="l"><span class="pill ui">UI</span>-</span>
         <span class="l"><span class="pill db">로직/DB</span>코드 변경 0으로 신규 회사 온보딩, 도메인 추가 시 인증 라우팅 자동 적용</span></div></td></tr>
     </tbody>
   </table></div>
   <div class="gallery">
     <figure class="shot-card"><img class="shot" src="img/act5-1-switch-ezpass.png" alt="회사 스위처 EZPASS"><figcaption>5-1 · C-13a 회사 스위처 → EZPASS (회원 39명)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act5-1-switch-exam.png" alt="회사 스위처 EXAM"><figcaption>5-1 · C-13b 회사 스위처 → EXAM (회원 38명 · 데이터 통째 교체)</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act5-2-tenant-isolated.png" alt="exam 관리자 격리"><figcaption>5-2 · C-13c exam 관리자 로그인 — 회사 스위처 미노출 (격리)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act5-2-tenant-isolated.png" alt="exam 관리자 격리"><figcaption>5-2 · C-13c exam 관리자 로그인 - 회사 스위처 미노출 (격리)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act5-ledger.png" alt="거래 원장 한글 환불"><figcaption>마무리 · C-14 거래 원장 (INSERT-only · 한글 환불 메모)</figcaption></figure>
   </div>
 
@@ -281,43 +281,43 @@
     <img src="img/act4-4-idempotent-409.png" alt="C-12 멱등 차단" title="C-12 · 4-4 멱등 차단">
     <img src="img/act5-1-switch-ezpass.png" alt="C-13a 스위처 EZPASS" title="C-13a · 5-1 스위처 EZPASS">
     <img src="img/act5-1-switch-exam.png" alt="C-13b 스위처 EXAM" title="C-13b · 5-1 스위처 EXAM">
-    <img src="img/act5-2-tenant-isolated.png" alt="C-13c exam admin 격리" title="C-13c · 5-2 exam 관리자 — 스위처 미노출">
+    <img src="img/act5-2-tenant-isolated.png" alt="C-13c exam admin 격리" title="C-13c · 5-2 exam 관리자 - 스위처 미노출">
     <img src="img/act5-ledger.png" alt="C-14 거래 원장" title="C-14 · 마무리 거래 원장">
   </div>
 
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:9%">코드</th><th>화면 / 의미</th><th style="width:30%">실물 파일</th><th style="width:14%">시연 구간</th></tr></thead>
     <tbody>
-      <tr><td class="c">C-01</td><td>대시보드 — 잔액 + REGULAR 연차 위젯</td><td><code>act1-1-dashboard.png</code></td><td class="c">1-1</td></tr>
+      <tr><td class="c">C-01</td><td>대시보드 - 잔액 + REGULAR 연차 위젯</td><td><code>act1-1-dashboard.png</code></td><td class="c">1-1</td></tr>
       <tr><td class="c">C-02a</td><td>경매 목록 (Grid 뷰)</td><td><code>act1-2-auction-list.png</code></td><td class="c">1-2</td></tr>
       <tr><td class="c">C-02b</td><td>입찰 상세 + 낙찰 화면</td><td><code>act1-2-bid-win.png</code></td><td class="c">1-2 / 1-4</td></tr>
-      <tr><td class="c">C-03</td><td>내 활동 — 환불·낙찰 흔적</td><td><code>act1-3-activity.png</code></td><td class="c">1-3</td></tr>
+      <tr><td class="c">C-03</td><td>내 활동 - 환불·낙찰 흔적</td><td><code>act1-3-activity.png</code></td><td class="c">1-3</td></tr>
       <tr><td class="c">C-04</td><td>EZPASS 사용자 연차 사용 진입점</td><td><code>act1-5-ezpass-leave.png</code></td><td class="c">1-5</td></tr>
-      <tr><td class="c">C-05a</td><td>스쿱 마켓 — 카탈로그 + 직접 제안 fallback</td><td><code>act2-store.png</code></td><td class="c">2-1</td></tr>
+      <tr><td class="c">C-05a</td><td>스쿱 마켓 - 카탈로그 + 직접 제안 fallback</td><td><code>act2-store.png</code></td><td class="c">2-1</td></tr>
       <tr><td class="c">C-05b</td><td>관리자 교환 승인 + 쿠폰 발급</td><td><code>act2-redeem-approve.png</code></td><td class="c">2-2</td></tr>
-      <tr><td class="c">C-05c</td><td>우상단 수령 대기 — 쿠폰코드 + 수령 완료 버튼</td><td><code>act2-3-pending-claim.png</code></td><td class="c">2-3</td></tr>
-      <tr><td class="c">C-05d</td><td>「📦 내 보관함」 모달 — 신청·승인·수령 내역</td><td><code>act2-3-vault.png</code></td><td class="c">2-3</td></tr>
+      <tr><td class="c">C-05c</td><td>우상단 수령 대기 - 쿠폰코드 + 수령 완료 버튼</td><td><code>act2-3-pending-claim.png</code></td><td class="c">2-3</td></tr>
+      <tr><td class="c">C-05d</td><td>「📦 내 보관함」 모달 - 신청·승인·수령 내역</td><td><code>act2-3-vault.png</code></td><td class="c">2-3</td></tr>
       <tr><td class="c">C-06a</td><td>관리자 운영 KPI 대시보드</td><td><code>act3-1-ops.png</code></td><td class="c">3-1</td></tr>
-      <tr><td class="c">C-06b</td><td>정산 데이터 내보내기 — 모달</td><td><code>act3-1-export.png</code></td><td class="c">3-1</td></tr>
+      <tr><td class="c">C-06b</td><td>정산 데이터 내보내기 - 모달</td><td><code>act3-1-export.png</code></td><td class="c">3-1</td></tr>
       <tr><td class="c">C-06c</td><td>내보낸 정산 XLSX</td><td><code>act3-1-export-xlsx.png</code></td><td class="c">3-1</td></tr>
-      <tr><td class="c">C-07a</td><td>경매관리 — 매물 수동 추가 다이얼로그</td><td><code>act3-2-auction-mgmt.png</code></td><td class="c">3-2</td></tr>
-      <tr><td class="c">C-07b</td><td>유찰 매물 수동 처리 — EVENT 휴가 지급</td><td><code>act3-2-event-grant.png</code></td><td class="c">3-2①</td></tr>
-      <tr><td class="c">C-08</td><td>스토어 상품 관리 — CRUD + 감사</td><td><code>act3-3-store-admin.png</code></td><td class="c">3-3</td></tr>
-      <tr><td class="c">C-09</td><td>회원관리 — EZPASS/EXAM 탭</td><td><code>act3-4-members.png</code></td><td class="c">3-4</td></tr>
-      <tr><td class="c">C-15</td><td>콘 관리 — 사유 입력 + 충전</td><td><code>act3-5-charge.png</code></td><td class="c">3-5</td></tr>
-      <tr><td class="c">C-16</td><td>연말 풀 수집 dryRun — 기여자·일수·매물 수</td><td><code>act4-2-pool-collect.png</code></td><td class="c">4-2</td></tr>
+      <tr><td class="c">C-07a</td><td>경매관리 - 매물 수동 추가 다이얼로그</td><td><code>act3-2-auction-mgmt.png</code></td><td class="c">3-2</td></tr>
+      <tr><td class="c">C-07b</td><td>유찰 매물 수동 처리 - EVENT 휴가 지급</td><td><code>act3-2-event-grant.png</code></td><td class="c">3-2①</td></tr>
+      <tr><td class="c">C-08</td><td>스토어 상품 관리 - CRUD + 감사</td><td><code>act3-3-store-admin.png</code></td><td class="c">3-3</td></tr>
+      <tr><td class="c">C-09</td><td>회원관리 - EZPASS/EXAM 탭</td><td><code>act3-4-members.png</code></td><td class="c">3-4</td></tr>
+      <tr><td class="c">C-15</td><td>콘 관리 - 사유 입력 + 충전</td><td><code>act3-5-charge.png</code></td><td class="c">3-5</td></tr>
+      <tr><td class="c">C-16</td><td>연말 풀 수집 dryRun - 기여자·일수·매물 수</td><td><code>act4-2-pool-collect.png</code></td><td class="c">4-2</td></tr>
       <tr><td class="c">C-10</td><td>사용자 시점 본인 배당 미리보기 (참고)</td><td><code>act4-3-dividend.png</code></td><td class="c">4-3 보조</td></tr>
       <tr><td class="c">C-11a</td><td>관리자 배당 정산 dryRun (지분율 표)</td><td><code>act4-3-dividend-settle.png</code></td><td class="c">4-3</td></tr>
-      <tr><td class="c">C-11b</td><td>실지급 완료 — 에스크로 0</td><td><code>act4-3-dividend-result.png</code></td><td class="c">4-3</td></tr>
-      <tr><td class="c">C-12</td><td>멱등 차단 — "이미 정산되었습니다"</td><td><code>act4-4-idempotent-409.png</code></td><td class="c">4-4</td></tr>
+      <tr><td class="c">C-11b</td><td>실지급 완료 - 에스크로 0</td><td><code>act4-3-dividend-result.png</code></td><td class="c">4-3</td></tr>
+      <tr><td class="c">C-12</td><td>멱등 차단 - "이미 정산되었습니다"</td><td><code>act4-4-idempotent-409.png</code></td><td class="c">4-4</td></tr>
       <tr><td class="c">C-13a</td><td>회사 스위처 → EZPASS (회원 39명)</td><td><code>act5-1-switch-ezpass.png</code></td><td class="c">5-1</td></tr>
       <tr><td class="c">C-13b</td><td>회사 스위처 → EXAM (회원 38명)</td><td><code>act5-1-switch-exam.png</code></td><td class="c">5-1</td></tr>
-      <tr><td class="c">C-13c</td><td>exam 관리자 로그인 — 회사 스위처 미노출(격리)</td><td><code>act5-2-tenant-isolated.png</code></td><td class="c">5-2</td></tr>
-      <tr><td class="c">C-14</td><td>거래 원장 — 한글 환불 메모</td><td><code>act5-ledger.png</code></td><td class="c">마무리</td></tr>
+      <tr><td class="c">C-13c</td><td>exam 관리자 로그인 - 회사 스위처 미노출(격리)</td><td><code>act5-2-tenant-isolated.png</code></td><td class="c">5-2</td></tr>
+      <tr><td class="c">C-14</td><td>거래 원장 - 한글 환불 메모</td><td><code>act5-ledger.png</code></td><td class="c">마무리</td></tr>
       <tr><td class="c">P-01</td><td>발표 PPT PDF 백업본</td><td><code>presentation/TimesoftCone.pdf</code></td><td class="c">전체 폴백</td></tr>
     </tbody>
   </table></div>
-  <div class="callout"><span class="ic">🗂️</span><span class="bd"><b>파일명 규칙</b> · <code>act{막}-{단계}-{설명}.png</code> 형식 (예: <code>act4-4-idempotent-409.png</code>) — 코드와 시연 단계가 파일명만으로도 즉시 매칭된다.</span></div>
+  <div class="callout"><span class="ic">🗂️</span><span class="bd"><b>파일명 규칙</b> · <code>act{막}-{단계}-{설명}.png</code> 형식 (예: <code>act4-4-idempotent-409.png</code>) - 코드와 시연 단계가 파일명만으로도 즉시 매칭된다.</span></div>
 
   <h3 class="sub">2-2. 실패 유형별 우회 전략</h3>
   <div class="tbl-wrap"><table>
