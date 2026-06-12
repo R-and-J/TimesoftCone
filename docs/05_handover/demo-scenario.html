@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>시연 시나리오 보고서 - 타임소프트콘</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<!-- Paged.js polyfill: CSS @page margin box(@top-right, @bottom-center)를 Chrome에서도 지원해
+     PDF 출력 시 우상단/하단 중앙에 머리글/페이지 번호 자동 삽입. -->
+<script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
 <style>
   :root{
     --ink:#37352f; --muted:#787774; --faint:#9b9a97;
@@ -90,7 +93,39 @@
   .thumb-grid img:hover{transform:scale(1.06); border-color:var(--blue); box-shadow:0 4px 12px rgba(0,0,0,.08); position:relative; z-index:1;}
   @media(max-width:680px){ .gallery{grid-template-columns:1fr;} .thumb-grid{grid-template-columns:repeat(4,1fr);} }
   footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
-  @media print{ .page{padding:0 8px;} tbody tr:hover{background:transparent;} }
+  @media print{
+    /* 페이지 마진 + 머리글(우상단)·꼬리글(하단 중앙) — Paged.js polyfill 로 Chrome 지원 */
+    @page {
+      margin: 20mm 15mm 18mm 15mm;
+      @top-right {
+        content: "시연 시나리오 보고서 - 타임소프트콘";
+        font-size: 9pt;
+        color: #787774;
+        font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+      }
+      @bottom-center {
+        content: counter(page) " / " counter(pages);
+        font-size: 9pt;
+        color: #787774;
+        font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+      }
+    }
+
+    .page { padding: 0 8px; }
+    tbody tr:hover { background: transparent; }
+    .thumb-grid img:hover { transform: none; box-shadow: none; border-color: var(--line); }
+
+    /* 액트 제목(h3.sub) 직후 페이지 끝나서 표가 혼자 다음 페이지로 가지 않게 -
+       제목과 표 첫 행은 같이 흐름. 표 자체는 행 단위로 계속 분할 OK. */
+    h3.sub { page-break-after: avoid; }
+
+    /* 캡처 이미지와 캡션은 한 묶음 - 페이지 경계에서 떨어지지 않게. */
+    figure.shot-card { page-break-inside: avoid; }
+
+    /* 2장(시연 실패 시 대체 자료)는 새 페이지에서 시작.
+       1장은 자연스럽게 표지 뒤에 이어 흐르고, 2장만 break. */
+    h2.sec ~ h2.sec { page-break-before: always; }
+  }
   @media (max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
 </style>
 </head>
@@ -217,10 +252,10 @@
     </tbody>
   </table></div>
   <div class="gallery">
-    <figure class="shot-card"><img class="shot" src="img/act4-2-pool-collect.png" alt="연말 풀 수집 dryRun"><figcaption>[캡처-16] 4-2 연말 풀 수집 dryRun (기여자 39명 · 623일 → 2027 매물 623개)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act4-2-pool-collect.png" alt="연말 풀 수집 dryRun"><figcaption>[캡처-16] 4-2 연말 풀 수집 dryRun<br>(기여자 39명 · 623일 → 2027 매물 623개)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act4-3-dividend.png" alt="사용자 본인 배당 미리보기"><figcaption>[캡처-10] 4-3 보조 사용자 시점 본인 배당 미리보기</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act4-3-dividend-settle.png" alt="관리자 배당 정산 dryRun"><figcaption>[캡처-11a] 4-3 관리자 배당 정산 dryRun (지분율 표)</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act4-3-dividend-result.png" alt="실지급 완료 + 에스크로 0"><figcaption>[캡처-11b] 4-3 실지급 완료 - 에스크로 0 (1,641,200콘 25명)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act4-3-dividend-result.png" alt="실지급 완료 + 에스크로 0"><figcaption>[캡처-11b] 4-3 실지급 완료 - 에스크로 0<br>(1,641,200콘 25명)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act4-4-idempotent-409.png" alt="멱등 차단"><figcaption>[캡처-12] 4-4 멱등 차단 - "이미 정산되었습니다"</figcaption></figure>
   </div>
 
@@ -241,7 +276,7 @@
   </table></div>
   <div class="gallery">
     <figure class="shot-card"><img class="shot" src="img/act5-1-switch-ezpass.png" alt="회사 스위처 EZPASS"><figcaption>[캡처-13a] 5-1 회사 스위처 → EZPASS (회원 39명)</figcaption></figure>
-    <figure class="shot-card"><img class="shot" src="img/act5-1-switch-exam.png" alt="회사 스위처 EXAM"><figcaption>[캡처-13b] 5-1 회사 스위처 → EXAM (회원 38명 · 데이터 통째 교체)</figcaption></figure>
+    <figure class="shot-card"><img class="shot" src="img/act5-1-switch-exam.png" alt="회사 스위처 EXAM"><figcaption>[캡처-13b] 5-1 회사 스위처 → EXAM<br>(회원 38명 · 데이터 통째 교체)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act5-2-tenant-isolated.png" alt="exam 관리자 격리"><figcaption>[캡처-13c] 5-2 exam 관리자 로그인 - 회사 스위처 미노출 (격리)</figcaption></figure>
     <figure class="shot-card"><img class="shot" src="img/act5-ledger.png" alt="거래 원장 자동 환불 내역"><figcaption>[캡처-14] 마무리 거래 원장 - 자동 환불 내역 (INSERT-only)</figcaption></figure>
   </div>
@@ -330,7 +365,6 @@
     </tbody>
   </table></div>
 
-  <footer>타임소프트콘 · 시연 시나리오 보고서</footer>
 
 </div>
 </body>
