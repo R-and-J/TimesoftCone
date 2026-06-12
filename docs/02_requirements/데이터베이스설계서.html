@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>데이터베이스 설계서 - 타임소프트콘</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  :root{
+    --ink:#37352f; --muted:#787774; --faint:#9b9a97;
+    --line:#e9e9e7; --line2:#ededec; --bg-gray:#f7f7f5;
+    --ok-bg:#dbeddb; --ok-tx:#1c3829; --part-bg:#fbecca; --part-tx:#5b4711;
+    --alt-bg:#ddebf1; --alt-tx:#183347; --no-bg:#eceae6; --no-tx:#6b6a66;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    font-weight:500; color:var(--ink); line-height:1.65; margin:0; background:#fff; font-size:16px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  .page{max-width:880px; margin:0 auto; padding:60px 48px 120px;}
+  h1.title{font-size:38px; font-weight:800; letter-spacing:-.5px; margin:0 0 4px;}
+  .subtitle{color:var(--muted); font-size:15px; font-weight:500; margin:0 0 28px;}
+  h2.sec{font-size:25px; font-weight:600; letter-spacing:-.3px; margin:46px 0 6px; padding-top:8px;}
+  h3.sub{font-size:18.5px; font-weight:600; margin:30px 0 8px;}
+  h4.subsub{font-size:15.5px; font-weight:600; margin:24px 0 4px; color:#2a2a28;}
+  p{margin:8px 0;}
+  .ref{color:var(--faint); font-size:13.5px; margin:4px 0;}
+  .callout{background:var(--bg-gray); border-radius:6px; padding:14px 18px; margin:16px 0; font-size:14.5px; line-height:1.62;}
+  .callout.warn{background:#fbf3e7;}
+  .hr{border:none; border-top:1px solid var(--line); margin:36px 0;}
+  .tbl-wrap{margin:14px 0; overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:13px; border:1px solid var(--line);}
+  th,td{border:1px solid var(--line); padding:7px 10px; vertical-align:top; text-align:left;}
+  th{background:var(--bg-gray); color:var(--muted); font-weight:600; font-size:12px;}
+  td.c{text-align:center; white-space:nowrap;}
+  tbody tr:hover{background:#fbfbfa;}
+  code.inl{background:var(--bg-gray); border-radius:4px; padding:1px 5px; font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#9a4b2f;}
+  .pill{display:inline-block; border-radius:4px; padding:1px 8px; font-size:12px; font-weight:600; white-space:nowrap;}
+  .st-ok{background:var(--ok-bg); color:var(--ok-tx);}
+  .st-part{background:var(--part-bg); color:var(--part-tx);}
+  .st-alt{background:var(--alt-bg); color:var(--alt-tx);}
+  .st-no{background:var(--no-bg); color:var(--no-tx);}
+  .code-cap{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    color:var(--muted); background:var(--bg-gray); border:1px solid var(--line); border-bottom:none;
+    border-radius:6px 6px 0 0; padding:6px 12px; margin-top:16px;}
+  pre.code{margin:0 0 4px; background:#fbfbfa; border:1px solid var(--line); border-radius:0 0 6px 6px;
+    padding:14px 16px; overflow-x:auto; font-size:12px; line-height:1.55;}
+  pre.code code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#2f3338; white-space:pre;}
+  .toc{background:var(--bg-gray); border-radius:6px; padding:18px 22px; margin:18px 0 8px; font-size:14px;}
+  .toc ol{margin:6px 0; padding-left:22px;} .toc li{margin:3px 0;}
+  .toc a{color:var(--ink); text-decoration:none;} .toc a:hover{text-decoration:underline;}
+  footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
+  @media(max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
+  @media print{
+    @page{
+      margin:15mm 12mm;
+      @top-right{ content: "데이터베이스 설계서 - 타임소프트콘"; font-size:9pt; color:#9b9a97; }
+      @bottom-center{ content: counter(page) " / " counter(pages); font-size:9pt; color:#9b9a97; }
+    }
+    html,body{ font-size:10pt; background:#fff; }
+    .page{ max-width:none; margin:0; padding:0; }
+    a{ color:var(--ink); text-decoration:none; }
+    tbody tr:hover{ background:transparent; }
+    pre.code{ white-space:pre-wrap; }
+    .tbl-wrap{ overflow:visible; }
+    .tbl-wrap, table, .callout, .toc, pre.code, .code-cap{ break-inside:avoid; page-break-inside:avoid; }
+    tr, img{ break-inside:avoid; page-break-inside:avoid; }
+    thead{ display:table-header-group; }
+    h2.sec{ break-before:page; page-break-before:always; }
+    h1.title, h2.sec, h3.sub, h4.subsub{ break-after:avoid; page-break-after:avoid; }
+    h2.sec + p, h3.sub + p, h4.subsub + p,
+    p:has(+ .tbl-wrap), p:has(+ .callout), p:has(+ .code-cap), p:has(+ pre.code){ break-after:avoid; page-break-after:avoid; }
+    th, .pill, .callout, code.inl, .toc, .code-cap{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .hr{ margin:20px 0; }
+    footer{ break-inside:avoid; page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">데이터베이스 설계서</h1>
+  <p class="subtitle">타임소프트콘 - 연차 경매 시스템 (B2E 연차 경매·에스크로 배당 플랫폼) · 김기철, 오지석</p>
+
+  <div class="callout"><b>목적</b> · 본 시스템의 물리 데이터 모델을 정의한다. 엔티티 19개, 관계, 무결성 제약(DB-RULE), 그리고 SQLite 기반 as-built 특이사항을 다룬다. 본 문서는 실제 <code class="inl">backend/prisma/schema.prisma</code> + 마이그레이션과 1:1 동기화된 <a href="../03_design/erd.md">ERD 문서</a>를 설계서 형식으로 정리한 것이며, 코드가 source of truth다.</div>
+
+  <div class="callout warn"><b>DB 엔진 · SQLite</b> · 파일 기반(외부 서버·컨테이너 불요). Prisma SQLite 커넥터가 <code class="inl">enum</code> 블록을 지원하지 않으므로, 논리적 enum(<code class="inl">role</code>/<code class="inl">currency</code>/<code class="inl">action_type</code>/<code class="inl">status</code>/<code class="inl">leave_type</code>)은 <b><code class="inl">String</code> 컬럼 + DB-level <code class="inl">CHECK(… IN (…))</code></b> 로 표현된다. 아래 표의 enum 표기는 모두 "String + CHECK"로 읽는다.</div>
+
+  <p class="ref">기준 schema.prisma</p>
+
+  <div class="toc">
+    <b>목차</b>
+    <ol>
+      <li><a href="#s1">설계 원칙</a></li>
+      <li><a href="#s2">엔티티 목록 (19)</a></li>
+      <li><a href="#s3">핵심 엔티티 상세</a></li>
+      <li><a href="#s4">관계 (ERD 요약)</a></li>
+      <li><a href="#s5">무결성 제약 (DB-RULE)</a></li>
+      <li><a href="#s6">as-built 특이사항</a></li>
+    </ol>
+  </div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="s1">1. 설계 원칙</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">원칙</th><th>내용</th><th style="width:16%">근거</th></tr></thead>
+    <tbody>
+      <tr><td>자원 자체 소유</td><td>콘 잔액(<code class="inl">wallet</code>)·연차 잔액(<code class="inl">leave_balance</code>)을 본 시스템이 마스터로 소유 → 입찰·낙찰 경로 외부 호출 0</td><td>ADR-011, ADR-016</td></tr>
+      <tr><td>Insert-Only 원장</td><td>모든 콘 변동은 <code class="inl">ledger_entry</code>에 INSERT만. UPDATE/DELETE는 DB 트리거 차단, 보정은 보상 INSERT</td><td>DB-RULE-1</td></tr>
+      <tr><td>에스크로 파생</td><td>별도 ESCROW 테이블 없음 — 잔액은 원장 합계로 통화별 파생 <code class="inl">Σ(BID+WIN)−Σ(REFUND+DIVIDEND)</code></td><td>DB-RULE-4</td></tr>
+      <tr><td>연도 파티셔닝</td><td><code class="inl">leave_balance</code>·<code class="inl">stake</code>는 <code class="inl">year</code> 스코프. Soft Delete 컬럼 없이 UNIQUE로 연도 분리 → 감사 이력 보존</td><td>ADR-004, DB-RULE-2</td></tr>
+      <tr><td>멀티테넌시</td><td>거의 모든 테넌트 테이블에 <code class="inl">company_id</code>(FK→<code class="inl">company</code>). <code class="inl">user.company_id=null</code> 은 super ADMIN(전 회사 통합)</td><td>ADR-019~022</td></tr>
+      <tr><td>화폐/연차 추상화</td><td>코어 도메인은 통화·연차의 구현을 모름. <code class="inl">WelfarePointProvider</code>만 <code class="inl">wallet</code> 조작</td><td>ADR-010</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="s2">2. 엔티티 목록 (19)</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th class="c" style="width:5%">#</th><th style="width:22%">테이블 (<code class="inl">@@map</code>)</th><th style="width:18%">Prisma 모델</th><th class="c" style="width:10%">PK</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td class="c">1</td><td><code class="inl">company</code></td><td>Company</td><td class="c">bigint</td><td>멀티테넌시 루트 (EZPASS/EXAM)</td></tr>
+      <tr><td class="c">2</td><td><code class="inl">users</code></td><td>User</td><td class="c">bigint</td><td>직원/관리자. 신원은 ezpass 기준 (ADR-020)</td></tr>
+      <tr><td class="c">3</td><td><code class="inl">wallet</code></td><td>Wallet</td><td class="c">bigint</td><td>화폐별 잔액 마스터 (ADR-011)</td></tr>
+      <tr><td class="c">4</td><td><code class="inl">ledger_entry</code></td><td>LedgerEntry</td><td class="c">bigint</td><td>Insert-Only 거래 대장 (DB-RULE-1)</td></tr>
+      <tr><td class="c">5</td><td><code class="inl">auction</code></td><td>Auction</td><td class="c"><b>string</b></td><td>경매 매물 (예 <code class="inl">A-2026-106</code>)</td></tr>
+      <tr><td class="c">6</td><td><code class="inl">bid_event</code></td><td>BidEvent</td><td class="c">bigint</td><td>수락된 입찰 append-only 로그</td></tr>
+      <tr><td class="c">7</td><td><code class="inl">leave_balance</code></td><td>LeaveBalance</td><td class="c">bigint</td><td>연차 잔액 마스터 (ADR-016)</td></tr>
+      <tr><td class="c">8</td><td><code class="inl">stake</code></td><td>Stake</td><td class="c">int</td><td>연도별 배당 지분 스냅샷 (ADR-017)</td></tr>
+      <tr><td class="c">9</td><td><code class="inl">notification</code></td><td>Notification</td><td class="c">bigint</td><td>도메인 이벤트 알림 (ADR-013)</td></tr>
+      <tr><td class="c">10</td><td><code class="inl">leave_pool_run</code></td><td>LeavePoolRun</td><td class="c">int</td><td>연말 풀 수집 멱등 마커</td></tr>
+      <tr><td class="c">11</td><td><code class="inl">leave_pool_supply</code></td><td>LeavePoolSupply</td><td class="c">int</td><td>풀 재고(기여자별 잔여 일수)</td></tr>
+      <tr><td class="c">12</td><td><code class="inl">leave_pool_release_run</code></td><td>LeavePoolReleaseRun</td><td class="c">int</td><td>발행 회차 멱등 마커</td></tr>
+      <tr><td class="c">13</td><td><code class="inl">release_policy</code></td><td>ReleasePolicy</td><td class="c">int</td><td>매물 발행 분산 정책(싱글톤 id=1)</td></tr>
+      <tr><td class="c">14</td><td><code class="inl">outbox</code></td><td>OutboxMessage</td><td class="c">int</td><td>트랜잭션 아웃박스(외부 HR 호출)</td></tr>
+      <tr><td class="c">15</td><td><code class="inl">redemption_item</code></td><td>RedemptionItem</td><td class="c">int</td><td>포인트 교환 상품 카탈로그 (ADR-023)</td></tr>
+      <tr><td class="c">16</td><td><code class="inl">redemption_item_audit</code></td><td>RedemptionItemAudit</td><td class="c">int</td><td>카탈로그 변경 이력</td></tr>
+      <tr><td class="c">17</td><td><code class="inl">redemption_order</code></td><td>RedemptionOrder</td><td class="c">int</td><td>즉시 교환 1건(초기 흐름)</td></tr>
+      <tr><td class="c">18</td><td><code class="inl">redemption_request</code></td><td>RedemptionRequest</td><td class="c">int</td><td>교환 신청→승인→수령 워크플로</td></tr>
+      <tr><td class="c">19</td><td><code class="inl">charge_request</code></td><td>ChargeRequest</td><td class="c">int</td><td>충전 요청→승인 워크플로 (ADR-024)</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="s3">3. 핵심 엔티티 상세</h2>
+
+  <h3 class="sub">3.1 USER (<code class="inl">users</code>)</h3>
+  <p>사내 직원/관리자. 신원·조직(이름/부서/직급/직책/role)은 ezpass에서 동기화. <b>잔액·연차 컬럼은 보유하지 않음</b>(각각 <code class="inl">wallet</code>/<code class="inl">leave_balance</code>로 분리).</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">컬럼</th><th style="width:24%">타입/제약</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">id</code></td><td>bigint, PK</td><td>내부 키 (INTEGER autoinc)</td></tr>
+      <tr><td><code class="inl">emp_id</code></td><td>text, UK, NOT NULL</td><td>사번</td></tr>
+      <tr><td><code class="inl">name</code></td><td>text, NOT NULL</td><td>이름</td></tr>
+      <tr><td><code class="inl">team / job_rank / job_title</code></td><td>text, nullable</td><td>ezpass 동기화 표시용</td></tr>
+      <tr><td><code class="inl">email</code></td><td>text, UK, nullable</td><td>ezpass 로그인 키</td></tr>
+      <tr><td><code class="inl">role</code></td><td>text(enum), CHECK</td><td>IN (<code class="inl">ADMIN</code>,<code class="inl">EZPASS_ADMIN</code>,<code class="inl">EXAM_ADMIN</code>,<code class="inl">EZPASS</code>,<code class="inl">EXAM</code>)</td></tr>
+      <tr><td><code class="inl">company_id</code></td><td>bigint, FK, nullable</td><td>null = super ADMIN</td></tr>
+      <tr><td><code class="inl">password_hash</code></td><td>text, nullable</td><td>local 인증(bcrypt, ADR-022)</td></tr>
+      <tr><td><code class="inl">active</code></td><td>boolean, DEFAULT true</td><td>비활성 시 로그인 거부</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">3.2 WALLET (<code class="inl">wallet</code>) — 콘 잔액 마스터</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">컬럼</th><th style="width:24%">타입/제약</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">id</code></td><td>bigint, PK</td><td>surrogate PK (복합 PK 아님)</td></tr>
+      <tr><td><code class="inl">user_id</code></td><td>bigint, FK→users</td><td></td></tr>
+      <tr><td><code class="inl">currency</code></td><td>text, CHECK IN (<code class="inl">WELFARE_POINT</code>)</td><td>화폐 코드</td></tr>
+      <tr><td><code class="inl">balance</code></td><td>bigint, CHECK ≥ 0, DEFAULT 0</td><td>잔액</td></tr>
+    </tbody>
+  </table></div>
+  <p class="ref">UNIQUE <code class="inl">(user_id, currency)</code>. <code class="inl">WelfarePointProvider</code>(ADR-010 <code class="inl">BiddingCurrency</code> 구현체)만 조작 — 코어 도메인 직접 접근 금지.</p>
+
+  <h3 class="sub">3.3 LEAVE_BALANCE (<code class="inl">leave_balance</code>) — 연차 잔액 마스터</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">컬럼</th><th style="width:24%">타입/제약</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">user_id</code></td><td>bigint, FK</td><td></td></tr>
+      <tr><td><code class="inl">year</code></td><td>int, NOT NULL</td><td>귀속 연도</td></tr>
+      <tr><td><code class="inl">leave_type</code></td><td>text(enum), CHECK</td><td>IN (<code class="inl">REGULAR</code>,<code class="inl">AUCTION</code>,<code class="inl">EVENT</code>) — ADR-002 3-flag</td></tr>
+      <tr><td><code class="inl">granted_days</code></td><td>int, CHECK ≥ 0</td><td>자동 부여분</td></tr>
+      <tr><td><code class="inl">adjusted_days</code></td><td>int, CHECK ≥ 0</td><td>조정분 — 경매 낙찰 적립분</td></tr>
+      <tr><td><code class="inl">used_days</code></td><td>int, CHECK ≥ 0</td><td>사용분</td></tr>
+    </tbody>
+  </table></div>
+  <p class="ref">잔여 = <code class="inl">granted_days + adjusted_days − used_days</code> (앱 레이어 계산). UNIQUE <code class="inl">(user_id, year, leave_type)</code> → 연도 파티셔닝(Soft Delete 컬럼 없음).</p>
+
+  <h3 class="sub">3.4 AUCTION (<code class="inl">auction</code>) — 매물</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">컬럼</th><th style="width:26%">타입/제약</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">id</code></td><td><b>text</b>, PK</td><td>사람이 읽는 ID (예 <code class="inl">A-2026-106</code>)</td></tr>
+      <tr><td><code class="inl">status</code></td><td>text(enum), CHECK, DEFAULT <code class="inl">CREATED</code></td><td>IN (<code class="inl">DRAFT</code>,<code class="inl">CREATED</code>,<code class="inl">OPEN</code>,<code class="inl">AWARDED</code>,<code class="inl">UNSOLD</code>) — CUT-3 status+guard</td></tr>
+      <tr><td><code class="inl">start_price / highest</code></td><td>bigint, CHECK ≥ 0</td><td>시작가 / 현재 최고가</td></tr>
+      <tr><td><code class="inl">highest_bidder_id</code></td><td>bigint, FK→users, nullable</td><td>현재 최고 입찰자(=정산 시 낙찰자)</td></tr>
+      <tr><td><code class="inl">min_increment</code></td><td>bigint, CHECK &gt; 0, DEFAULT 100</td><td>최소 입찰 단위</td></tr>
+      <tr><td><code class="inl">leave_days</code></td><td>int, DEFAULT 1</td><td>낙찰 시 부여 AUCTION 연차 일수</td></tr>
+      <tr><td><code class="inl">started_at / ends_at</code></td><td>datetime, CHECK <code class="inl">ends_at &gt; started_at</code></td><td>오픈/마감 시각</td></tr>
+    </tbody>
+  </table></div>
+  <p class="ref"><code class="inl">year</code> 컬럼 없음(연도는 id/started_at에서 파생). 인덱스 <code class="inl">(status, ends_at)</code>, <code class="inl">(company_id, status)</code>.</p>
+
+  <h3 class="sub">3.5 LEDGER_ENTRY (<code class="inl">ledger_entry</code>) — Insert-Only 원장</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">컬럼</th><th style="width:26%">타입/제약</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">occurred_at</code></td><td>datetime, DEFAULT now()</td><td>발생 시각</td></tr>
+      <tr><td><code class="inl">user_id</code></td><td>bigint, FK</td><td></td></tr>
+      <tr><td><code class="inl">currency</code></td><td>text, CHECK IN (<code class="inl">WELFARE_POINT</code>)</td><td></td></tr>
+      <tr><td><code class="inl">action_type</code></td><td>text(enum), CHECK(10종)</td><td><code class="inl">BID</code>,<code class="inl">REFUND</code>,<code class="inl">WIN</code>,<code class="inl">DIVIDEND</code>,<code class="inl">CREDIT_ADMIN</code>,<code class="inl">EXPIRE</code>,<code class="inl">REDEEM</code>,<code class="inl">REDEEM_REFUND</code>,<code class="inl">CHARGE_REQUESTED</code>,<code class="inl">CHARGE_REJECTED</code></td></tr>
+      <tr><td><code class="inl">amount</code></td><td>bigint, NOT NULL</td><td>(+) 입금 / (−) 출금</td></tr>
+      <tr><td><code class="inl">balance_after</code></td><td>bigint, CHECK ≥ 0</td><td>기록 시점 개인 지갑 잔액</td></tr>
+      <tr><td><code class="inl">ref_note</code></td><td>text, <code class="inl">CREDIT_ADMIN</code>일 때 NOT NULL+len&gt;0</td><td>사유(감사)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="ref">트리거 <code class="inl">ledger_entry_no_update</code> / <code class="inl">ledger_entry_no_delete</code> 가 UPDATE/DELETE를 ABORT(DB-RULE-1). 에스크로 잔액은 이 테이블 합계로 파생(DB-RULE-4).</p>
+
+  <h3 class="sub">3.6 STAKE (<code class="inl">stake</code>) — 연도별 배당 지분</h3>
+  <p>LeavePool 수집이 <code class="inl">(user_id, year)</code>당 1행 적재 → 배당이 해당 연도 stake를 읽어 분배. <code class="inl">days</code>(기여 REGULAR 일수)만 저장하고 <b><code class="inl">stake_ratio</code>는 앱 레이어에서 해당 연도 합 대비 동적 계산</b>. UNIQUE <code class="inl">(user_id, year)</code>.</p>
+
+  <h3 class="sub">3.7 풀·교환·충전 워크플로 테이블</h3>
+  <p>연말 자산화(LeavePool)와 자립형 배포(교환·충전)를 지원하는 보조 테이블. 멱등 마커는 UNIQUE로 중복 실행을 차단한다.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:24%">테이블</th><th>핵심 컬럼 · 제약</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">leave_pool_run</code></td><td>연말 수집 멱등/감사 마커. <code class="inl">source_year</code>/<code class="inl">target_year</code>(=source+1)/집계. UNIQUE <code class="inl">(company_id, target_year)</code></td></tr>
+      <tr><td><code class="inl">leave_pool_supply</code></td><td>풀 재고. <code class="inl">contributed_days</code>(불변)/<code class="inl">remaining_days</code>(미발행). UNIQUE <code class="inl">(company_id, target_year, user_id)</code></td></tr>
+      <tr><td><code class="inl">release_policy</code></td><td>발행 분산 정책(싱글톤 id=1, CHECK). <code class="inl">cadence</code> IN (none,daily,weekly,monthly)</td></tr>
+      <tr><td><code class="inl">outbox</code></td><td>트랜잭션 아웃박스. <code class="inl">topic</code>(예 HR_LEAVE_GRANT)/<code class="inl">status</code>(PENDING/SENT/DEAD)/지수 백오프 재시도</td></tr>
+      <tr><td><code class="inl">redemption_request</code></td><td>교환 신청→승인→수령. status IN (PENDING,APPROVED,RECEIVED,REJECTED), 가격 스냅샷, <code class="inl">coupon_code</code></td></tr>
+      <tr><td><code class="inl">charge_request</code></td><td>충전 요청→승인. <code class="inl">amount</code>(CHECK&gt;0)/status IN (PENDING,APPROVED,REJECTED). 승인 시 같은 tx에서 <code class="inl">CREDIT_ADMIN</code> 적립</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="s4">4. 관계 (ERD 요약)</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:40%">관계</th><th class="c" style="width:12%">다중도</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td>COMPANY → USER</td><td class="c">1 : N</td><td>회사별 사용자 스코프. super ADMIN은 company_id null</td></tr>
+      <tr><td>USER → WALLET</td><td class="c">1 : N</td><td>화폐별 지갑(현재 1개)</td></tr>
+      <tr><td>USER → LEAVE_BALANCE</td><td class="c">1 : N</td><td>연도/속성별 잔액</td></tr>
+      <tr><td>USER → LEDGER_ENTRY</td><td class="c">1 : N</td><td>콘 이력</td></tr>
+      <tr><td>USER → BID_EVENT</td><td class="c">1 : N</td><td>입찰 로그</td></tr>
+      <tr><td>USER → AUCTION (highest_bidder)</td><td class="c">0..N</td><td>다수 경매 낙찰 가능</td></tr>
+      <tr><td>USER → STAKE</td><td class="c">1 : N</td><td>연도별 지분</td></tr>
+      <tr><td>AUCTION → BID_EVENT</td><td class="c">1 : N</td><td>경매당 다수 입찰</td></tr>
+      <tr><td>REDEMPTION_ITEM → ORDER/REQUEST/AUDIT</td><td class="c">1 : N</td><td>상품별 교환·이력</td></tr>
+    </tbody>
+  </table></div>
+  <p class="ref">Mermaid ERD 다이어그램 원본은 <a href="../03_design/erd.md">erd.md §1</a> 참조(거래·경매 코어 / 풀·교환·운영 2분할).</p>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="s5">5. 무결성 제약 (DB-RULE)</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th class="c" style="width:14%">ID</th><th>제약</th><th style="width:30%">구현 위치</th></tr></thead>
+    <tbody>
+      <tr><td class="c"><b>DB-RULE-1</b></td><td><code class="inl">ledger_entry</code> Insert-Only (UPDATE/DELETE 금지)</td><td><b>DB 트리거</b>(init 마이그레이션)</td></tr>
+      <tr><td class="c"><b>DB-RULE-2</b></td><td><code class="inl">(user_id, year, leave_type)</code> UNIQUE로 연도 파티셔닝 (Soft Delete 컬럼 없음)</td><td>leave_balance UNIQUE</td></tr>
+      <tr><td class="c"><b>DB-RULE-3</b></td><td>낙찰 시 <code class="inl">wallet.balance ≥ 입찰가</code></td><td><code class="inl">wallet_balance_nonnegative</code> CHECK + <code class="inl">BiddingCurrency.debit()</code> 트랜잭션</td></tr>
+      <tr><td class="c"><b>DB-RULE-4</b></td><td>화폐 단위 분리 — 에스크로 등식 통화별 검증(ledger 파생)</td><td>앱 레이어 집계(<code class="inl">Σ(BID+WIN)−Σ(REFUND+DIVIDEND)</code>, CREDIT_ADMIN 제외)</td></tr>
+      <tr><td class="c">콘 음수 금지</td><td><code class="inl">wallet.balance ≥ 0</code>, <code class="inl">ledger.balance_after ≥ 0</code></td><td>CHECK</td></tr>
+      <tr><td class="c">적립 사유 필수</td><td><code class="inl">CREDIT_ADMIN</code> → <code class="inl">ref_note</code> NOT NULL+len&gt;0</td><td><code class="inl">ledger_credit_admin_needs_note</code> CHECK</td></tr>
+      <tr><td class="c">입찰 시간 정합</td><td><code class="inl">auction.ends_at &gt; started_at</code></td><td><code class="inl">auction_time_ordering</code> CHECK</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="s6">6. as-built 특이사항</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:26%">항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>enum → String + CHECK</td><td>SQLite/Prisma가 enum 블록 미지원 → 모든 논리 enum은 <code class="inl">String</code> + <code class="inl">CHECK(… IN (…))</code></td></tr>
+      <tr><td>PK 타입</td><td>Prisma상 <code class="inl">BigInt autoincrement</code>지만 SQLite는 <code class="inl">INTEGER PK AUTOINCREMENT</code>로 채번. 일부 후발 테이블(stake/leave_pool_*/outbox/redemption_*/charge_request/release_policy)은 <code class="inl">Int</code> PK로 강등</td></tr>
+      <tr><td>ESCROW 테이블 없음</td><td>에스크로 잔액은 <code class="inl">ledger_entry</code> 합계 파생 → v2 설계의 ESCROW 엔티티/CHECK 제거</td></tr>
+      <tr><td>AUCTION_BATCH 없음</td><td>그 역할은 <code class="inl">leave_pool_run</code>(연말 풀 수집 멱등 마커)이 수행</td></tr>
+      <tr><td>AUCTION PK = String</td><td>디자인 목업 ID(<code class="inl">A-2026-106</code>)와 1:1 매칭 위해 문자열 PK 채택</td></tr>
+      <tr><td>FK 부여 위치</td><td>FK는 마이그레이션 레벨에서 부여(스키마는 스칼라만 — 백릴레이션 클러터 회피)</td></tr>
+    </tbody>
+  </table></div>
+
+  <footer>타임소프트콘 · 데이터베이스 설계서 v1.0</footer>
+
+</div>
+</body>
+</html>

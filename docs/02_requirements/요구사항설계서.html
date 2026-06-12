@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>요구사항 설계서 — 타임소프트콘</title>
+<title>요구사항 설계서 - 타임소프트콘</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <style>
   :root{
@@ -58,46 +58,42 @@
   .legend .pill{margin-right:6px;}
   footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
   @media(max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
+  /* ===== 페이지 분할 · 페이지 번호 (paged.js 폴리필이 해석) ===== */
+  @page{
+    size: A4;
+    margin: 15mm 12mm;
+    @top-right{ content: "요구사항 설계서 - 타임소프트콘"; font-size:9pt; color:#9b9a97; }
+    @bottom-center{ content: counter(page) " / " counter(pages); font-size:9pt; color:#9b9a97; }
+  }
+  /* paged.js가 본문을 페이지로 흘릴 때: 화면용 래퍼 제약 해제 + 본문 축소 */
+  .pagedjs_page{ font-size:10.5pt; }
+  .pagedjs_page .page{ max-width:none; margin:0; padding:0; }
+  .pagedjs_page .tbl-wrap{ overflow:visible; }
+  /* 분할 규칙 */
+  h2.sec{ break-before:page; }                                  /* 섹션마다 새 페이지 - 한 페이지에 한 번호 */
+  h1.title, h2.sec, h3.sub, h4.subsub{ break-after:avoid; }     /* 제목이 홀로 남지 않게 */
+  h2.sec + p, h3.sub + p,
+  p:has(+ .tbl-wrap), p:has(+ .callout), p:has(+ .code-cap), p:has(+ pre.code){ break-after:avoid; }
+  .tbl-wrap, table, tr, .callout, .toc, ul.keys li, pre.code, .code-cap, img, footer{ break-inside:avoid; }
+  thead{ display:table-header-group; }
+
   @media print{
-    @page{ margin:15mm 12mm; }
-    html,body{ font-size:10.5pt; background:#fff; }
-    .page{ max-width:none; margin:0; padding:0; }
+    html,body{ background:#fff; }
     a{ color:var(--ink); text-decoration:none; }
     tbody tr:hover{ background:transparent; }
     pre.code{ white-space:pre-wrap; }
-    .tbl-wrap{ overflow:visible; }
-    /* 표·콜아웃·블록이 페이지 경계에서 잘리지 않도록 */
-    .tbl-wrap, table, .callout, .toc, ul.keys li, pre.code, .code-cap{ break-inside:avoid; page-break-inside:avoid; }
-    tr, img{ break-inside:avoid; page-break-inside:avoid; }
-    thead{ display:table-header-group; }
-    tfoot{ display:table-footer-group; }
-    /* 최상위 섹션(번호)마다 새 페이지에서 시작 — 한 페이지에 한 번호만 */
-    h2.sec{ break-before:page; page-break-before:always; }
-    /* 제목이 본문과 떨어져 홀로 남지 않도록 */
-    h1.title, h2.sec, h3.sub, h4.subsub{ break-after:avoid; page-break-after:avoid; }
-    /* 제목→설명 문단→표가 한 덩어리로 같은 페이지에 가도록:
-       표(.tbl-wrap)·콜아웃·코드 바로 앞 문단을 뒤 블록에 붙인다 */
-    h2.sec + p, h3.sub + p,
-    p:has(+ .tbl-wrap), p:has(+ .callout), p:has(+ .code-cap), p:has(+ pre.code){
-      break-after:avoid; page-break-after:avoid;
-    }
-    /* 음영 배경(표 헤더·pill·콜아웃·코드)을 인쇄에 그대로 */
-    th, .pill, .callout, code.inl, .toc, .code-cap{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .hr{ margin:20px 0; }
-    footer{ break-inside:avoid; page-break-inside:avoid; }
   }
 </style>
 </head>
 <body>
 <div class="page">
   <h1 class="title">요구사항 설계서</h1>
-  <p class="subtitle">타임소프트콘 — 연차 경매 시스템 (B2E 연차 경매·에스크로 배당 플랫폼) · 김기철, 오지석</p>
+  <p class="subtitle">타임소프트콘 - 연차 경매 시스템 (B2E 연차 경매·에스크로 배당 플랫폼) · 김기철, 오지석</p>
 
-  <div class="callout"><span class="ic">🎯</span><span><b>목적</b> · 요구사항을 <b>설계 관점</b>으로 정리한다. SRS가 “무엇을(What)”을 선언적으로 명세한다면, 본 문서는 그 요구사항을 <b>설계 단위(도메인)로 분류·구조화하고 추적성(Traceability)을 부여</b>하여 “어떻게 설계로 연결되는가”를 보인다. 개별 기능의 상세 동작은 <a href="기능명세서.html">기능 명세서</a>에서 다룬다.</span></div>
+  <div class="callout"><span><b>목적</b> · 요구사항을 <b>설계 관점</b>으로 정리한다. SRS가 “무엇을(What)”을 선언적으로 명세한다면, 본 문서는 그 요구사항을 <b>설계 단위(도메인)로 분류·구조화하고 추적성(Traceability)을 부여</b>하여 “어떻게 설계로 연결되는가”를 보인다. 개별 기능의 상세 동작은 <a href="기능명세서.html">기능 명세서</a>에서 다룬다.</span></div>
 
-  <div class="callout warn"><span class="ic">⚠️</span><span><b>레거시 대비 주의</b> · 최초 SRS(레거시 HWP, 2026-04-10)는 PostgreSQL·Redis 분산 락·WebSocket·MSA를 전제했으나, 구현 과정에서 학교 프로젝트 범위에 맞춰 <b>SQLite·SQLite write 락·SSE·단일 배포 헥사고날</b>로 확정됐다. 본 문서는 “구현이 source of truth”라는 원칙에 따라 <b>as-built 결정값</b>을 기준으로 하며, 레거시 ↔ as-built 차이는 <a href="#sec9">§9</a>에 표로 정리한다.</span></div>
+  <div class="callout warn"><span><b>버전 안내</b> · 초기 SRS(v1.0)는 PostgreSQL·Redis 분산 락·WebSocket·MSA를 전제했고, 개발을 진행하며 학교 프로젝트 범위에 맞춰 <b>SQLite·SQLite write 락·SSE·단일 배포 헥사고날</b>로 고도화·확정했다. 본 문서는 “구현이 source of truth”라는 원칙에 따라 <b>현행(as-built) 결정값</b>을 기준으로 하며, 초기안 ↔ 현행 차이는 <a href="#sec9">§9</a>에 정리한다.</span></div>
 
-  <p class="ref">문서 버전 1.1</p>
 
   <div class="toc">
     <b>목차</b>
@@ -110,7 +106,7 @@
       <li><a href="#sec6">데이터 요구사항</a></li>
       <li><a href="#sec7">인터페이스 요구사항</a></li>
       <li><a href="#sec8">요구사항 추적성 매트릭스</a></li>
-      <li><a href="#sec9">레거시 SRS 대비 변경점</a></li>
+      <li><a href="#sec9">초기 SRS 대비 설계 고도화 내역</a></li>
     </ol>
   </div>
 
@@ -133,7 +129,7 @@
       <tr><td>수익 배당 시스템</td><td>연말 에스크로 수익을 Stake 비례로 복지카드 한도 정산</td><td><b>Dividend</b></td></tr>
     </tbody>
   </table></div>
-  <div class="callout"><span class="ic">🚫</span><span><b>[제외 범위]</b> 직원 간 직접 거래(P2P)와 실제 현금(KRW) 결제는 법적 규제로 <b>영구 배제</b>한다 — API·UI·관리도구 어디에도 P2P 경로를 두지 않는다.</span></div>
+  <div class="callout"><span><b>[제외 범위]</b> 직원 간 직접 거래(P2P)와 실제 현금(KRW) 결제는 법적 규제로 <b>영구 배제</b>한다 - API·UI·관리도구 어디에도 P2P 경로를 두지 않는다.</span></div>
 
   <h3 class="sub">1.3. 용어</h3>
   <p>핵심 용어는 <a href="glossary.md">용어집</a>을 정본으로 하며, 본 문서에서 반복되는 최소 집합만 재기술한다.</p>
@@ -152,7 +148,7 @@
 
   <h2 class="sec" id="sec2">2. 시스템 개요 및 제품 관점</h2>
 
-  <h3 class="sub">2.1. 제품 관점 — 자원 소유 모델</h3>
+  <h3 class="sub">2.1. 제품 관점 - 자원 소유 모델</h3>
   <p>본 시스템은 사내 그룹웨어와 <b>독립적으로 동작</b>하되, <b>핵심 자원(콘 잔액·휴가 잔액)을 자체 소유</b>한다. 이 소유 구조가 “입찰·낙찰 경로에서 외부 호출 0”을 가능하게 하는 핵심 설계 결정이다.</p>
   <div class="tbl-wrap"><table>
     <thead><tr><th>자원</th><th class="c">마스터</th><th>외부 결합</th><th class="c">근거 ADR</th></tr></thead>
@@ -163,9 +159,9 @@
       <tr><td>복지카드 한도 증액(배당 출금)</td><td class="c">외부 HR</td><td><code class="inl">PayoutChannel</code>(Outbox 경유)</td><td class="c">ADR-005·010</td></tr>
     </tbody>
   </table></div>
-  <div class="callout"><span class="ic">🔌</span><span>모든 외부 자원은 <b>포트 인터페이스 뒤로 추상화</b>되어, 실 그룹웨어 연동은 코어 도메인 무수정 상태에서 어댑터 교체만으로 가능하다(<code class="inl">InternalLeaveAdapter</code> → <code class="inl">GroupwareLeaveAdapter</code>). 학교 프로젝트 범위는 내부 어댑터까지.</span></div>
+  <div class="callout"><span>모든 외부 자원은 <b>포트 인터페이스 뒤로 추상화</b>되어, 실 그룹웨어 연동은 코어 도메인 무수정 상태에서 어댑터 교체만으로 가능하다(<code class="inl">InternalLeaveAdapter</code> → <code class="inl">GroupwareLeaveAdapter</code>). 학교 프로젝트 범위는 내부 어댑터까지.</span></div>
 
-  <h3 class="sub">2.2. 핵심 비즈니스 로직 — The 3-Way Win Model</h3>
+  <h3 class="sub">2.2. 핵심 비즈니스 로직 - The 3-Way Win Model</h3>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:20%">행위자</th><th>이득 구조</th></tr></thead>
     <tbody>
@@ -181,20 +177,20 @@
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:8%">#</th><th>불변식</th><th class="c" style="width:16%">근거</th></tr></thead>
     <tbody>
-      <tr><td class="c">INV-1</td><td><b>Insert-Only 원장</b> — <code class="inl">LEDGER_ENTRY</code>는 INSERT만, UPDATE/DELETE는 DB 트리거 차단. 환불은 보상 INSERT</td><td class="c">DB-RULE-1</td></tr>
-      <tr><td class="c">INV-2</td><td><b>3-플래그 분리</b> — <code class="inl">REGULAR</code>만 수당 대상·풀 전환. 세 속성 절대 병합 금지</td><td class="c">ADR-002</td></tr>
-      <tr><td class="c">INV-3</td><td><b>강제 차감 우선순위</b> — <code class="inl">AUCTION → EVENT → REGULAR</code>, 사용자 선택 불가</td><td class="c">ADR-003</td></tr>
-      <tr><td class="c">INV-4</td><td><b>에스크로 천장</b> — 연간 배당 합 = 에스크로 잔액(통화별), 초과 불가</td><td class="c">NFR-2 / DB-RULE-4</td></tr>
-      <tr><td class="c">INV-5</td><td><b>P2P 경로 부재</b> — 직원 간 직접 이전 경로 일절 없음</td><td class="c">법적 제약</td></tr>
-      <tr><td class="c">INV-6</td><td><b>낙찰 단일 트랜잭션</b> — 지갑 차감 + 에스크로 적립 + 원장 INSERT + 휴가 부여 = all-or-nothing</td><td class="c">ADR-005</td></tr>
-      <tr><td class="c">INV-7</td><td><b>헥사고날 계층</b> — <code class="inl">domain/</code>은 외부 라이브러리 import 0, 의존은 <code class="inl">ports/</code> 경유</td><td class="c">ADR-012</td></tr>
+      <tr><td class="c">INV-1</td><td><b>Insert-Only 원장</b> - <code class="inl">LEDGER_ENTRY</code>는 INSERT만, UPDATE/DELETE는 DB 트리거 차단. 환불은 보상 INSERT</td><td class="c">DB-RULE-1</td></tr>
+      <tr><td class="c">INV-2</td><td><b>3-플래그 분리</b> - <code class="inl">REGULAR</code>만 수당 대상·풀 전환. 세 속성 절대 병합 금지</td><td class="c">ADR-002</td></tr>
+      <tr><td class="c">INV-3</td><td><b>강제 차감 우선순위</b> - <code class="inl">AUCTION → EVENT → REGULAR</code>, 사용자 선택 불가</td><td class="c">ADR-003</td></tr>
+      <tr><td class="c">INV-4</td><td><b>에스크로 천장</b> - 연간 배당 합 = 에스크로 잔액(통화별), 초과 불가</td><td class="c">NFR-2 / DB-RULE-4</td></tr>
+      <tr><td class="c">INV-5</td><td><b>P2P 경로 부재</b> - 직원 간 직접 이전 경로 일절 없음</td><td class="c">법적 제약</td></tr>
+      <tr><td class="c">INV-6</td><td><b>낙찰 단일 트랜잭션</b> - 지갑 차감 + 에스크로 적립 + 원장 INSERT + 휴가 부여 = all-or-nothing</td><td class="c">ADR-005</td></tr>
+      <tr><td class="c">INV-7</td><td><b>헥사고날 계층</b> - <code class="inl">domain/</code>은 외부 라이브러리 import 0, 의존은 <code class="inl">ports/</code> 경유</td><td class="c">ADR-012</td></tr>
     </tbody>
   </table></div>
 
   <hr class="hr">
 
   <h2 class="sec" id="sec3">3. 요구사항 분류 체계</h2>
-  <p>요구사항은 <b>출처(레거시 SRS) → 설계 단위(도메인)</b>로 재분류한다. 식별자 체계는 다음과 같다.</p>
+  <p>요구사항은 <b>출처(초기 SRS) → 설계 단위(도메인)</b>로 재분류한다. 식별자 체계는 다음과 같다.</p>
   <div class="tbl-wrap"><table>
     <thead><tr><th style="width:14%">접두</th><th>의미</th><th style="width:28%">예</th></tr></thead>
     <tbody>
@@ -226,7 +222,7 @@
       <tr><td class="c"><b>FR-5.2</b></td><td>잔액·내역 조회</td><td>Wallet/Ledger</td><td><code class="inl">/users/me/*</code>, <code class="inl">/admin/ledger</code></td><td class="c">必</td></tr>
     </tbody>
   </table></div>
-  <div class="callout"><span class="ic">➕</span><span><b>확장 기능(as-built 추가)</b> · 레거시 SRS 이후 코드에서 <b>복지 교환몰</b>(ADR-023)과 <b>사용자 충전 요청</b>(ADR-024)이 추가됐다. 기능 상세는 <a href="기능명세서.html">기능 명세서 §9~10</a>에 포함한다.</span></div>
+  <div class="callout"><span><b>확장 기능(개발 중 고도화)</b> · 초기 SRS 이후 개발을 진행하며 <b>복지 교환몰</b>(ADR-023)과 <b>사용자 충전 요청</b>(ADR-024)이 추가됐다. 기능 상세는 <a href="기능명세서.html">기능 명세서 §9~10</a>에 포함한다.</span></div>
 
   <hr class="hr">
 
@@ -236,8 +232,8 @@
     <tbody>
       <tr><td><b>NFR-1 동시성</b></td><td>마감 직전 동시 입찰의 경쟁 상태 제어, 입찰가 정합성 100%</td><td><b>SQLite write 락</b>(<code class="inl">lockAuction</code> no-op UPDATE)으로 트랜잭션 직렬화 (CUT-1; Redis 분산 락은 ADR-006 Superseded)</td><td class="c">AC-N1.1</td></tr>
       <tr><td><b>NFR-2 재무 정합성·감사</b></td><td><code class="inl">Σ배당 = Σ에스크로</code>(통화별), 모든 변동 Insert-Only 영구 기록</td><td><code class="inl">Σ(BID+WIN) − Σ(REFUND+DIVIDEND) = ESCROW.balance</code>. <code class="inl">CREDIT_ADMIN</code>은 분리 집계</td><td class="c">AC-N2.1, AC-S.2</td></tr>
-      <tr><td><b>NFR-3 실시간 렌더링</b></td><td>마감 타이머·최고가 무새로고침 갱신</td><td><b>SSE</b>(<code class="inl">@Sse</code>, <code class="inl">AuctionStream</code>)로 구현 (CUT-6; WebSocket 대체)</td><td class="c">—</td></tr>
-      <tr><td><b>NFR-4 가시성</b></td><td>본인 예상 연말 배당 상시 조회</td><td>대시보드 + <code class="inl">/dividend</code> 화면</td><td class="c">—</td></tr>
+      <tr><td><b>NFR-3 실시간 렌더링</b></td><td>마감 타이머·최고가 무새로고침 갱신</td><td><b>SSE</b>(<code class="inl">@Sse</code>, <code class="inl">AuctionStream</code>)로 구현 (CUT-6; WebSocket 대체)</td><td class="c">-</td></tr>
+      <tr><td><b>NFR-4 가시성</b></td><td>본인 예상 연말 배당 상시 조회</td><td>대시보드 + <code class="inl">/dividend</code> 화면</td><td class="c">-</td></tr>
       <tr><td><b>NFR-5 보안/RBAC</b></td><td>권한 분리, 관리자 COI 감사</td><td>3-가드(<code class="inl">JwtAuthGuard</code>→<code class="inl">RolesGuard</code>→<code class="inl">SelfOrAdminGuard</code>), <code class="inl">actor_role</code> 원장 기록</td><td class="c">AC-S.1</td></tr>
     </tbody>
   </table></div>
@@ -267,18 +263,18 @@
     <thead><tr><th style="width:16%">규칙</th><th>내용</th><th>as-built 주의</th></tr></thead>
     <tbody>
       <tr><td><b>DB-RULE-1</b></td><td><code class="inl">LEDGER_ENTRY</code> INSERT 전용 (UPDATE/DELETE 트리거 차단)</td><td>DB 트리거로 강제</td></tr>
-      <tr><td><b>DB-RULE-2</b></td><td>연도별 정산 파티셔닝</td><td>Soft Delete 컬럼·12/31 만료 배치는 <b>미구현</b> — 연도 파티셔닝(ADR-004)이 동일 효과 + 감사 이력 보존</td></tr>
+      <tr><td><b>DB-RULE-2</b></td><td>연도별 정산 파티셔닝</td><td>Soft Delete 컬럼·12/31 만료 배치는 <b>미구현</b> - 연도 파티셔닝(ADR-004)이 동일 효과 + 감사 이력 보존</td></tr>
       <tr><td><b>DB-RULE-3</b></td><td>낙찰 시 <code class="inl">wallet.balance ≥ highest</code>여야 Commit</td><td><code class="inl">BiddingCurrency.debit()</code>로 강제</td></tr>
-      <tr><td><b>DB-RULE-4</b></td><td>화폐 단위 분리 — 에스크로 등식은 통화별 검증</td><td>별도 <code class="inl">ESCROW</code> 테이블 없음 — <code class="inl">LEDGER_ENTRY</code> 파생 집계</td></tr>
+      <tr><td><b>DB-RULE-4</b></td><td>화폐 단위 분리 - 에스크로 등식은 통화별 검증</td><td>별도 <code class="inl">ESCROW</code> 테이블 없음 - <code class="inl">LEDGER_ENTRY</code> 파생 집계</td></tr>
     </tbody>
   </table></div>
 
   <h3 class="sub">6.3. DBMS 결정</h3>
   <div class="tbl-wrap"><table>
-    <thead><tr><th style="width:16%">항목</th><th style="width:28%">레거시 SRS</th><th>as-built</th></tr></thead>
+    <thead><tr><th style="width:16%">항목</th><th style="width:28%">초기 SRS(v1.0)</th><th>현행 (as-built)</th></tr></thead>
     <tbody>
       <tr><td>DBMS</td><td>PostgreSQL(권장)</td><td><b>SQLite</b>(파일 DB, 컨테이너 불요)</td></tr>
-      <tr><td>근거</td><td>—</td><td>학교 프로젝트 범위 + 동봉 시드 DB 배포 용이성. BigInt PK 사용으로 금액/ID는 <code class="inl">bigint</code>(와이어에서 문자열 직렬화)</td></tr>
+      <tr><td>근거</td><td>-</td><td>학교 프로젝트 범위 + 동봉 시드 DB 배포 용이성. BigInt PK 사용으로 금액/ID는 <code class="inl">bigint</code>(와이어에서 문자열 직렬화)</td></tr>
     </tbody>
   </table></div>
 
@@ -286,10 +282,10 @@
 
   <h2 class="sec" id="sec7">7. 인터페이스 요구사항</h2>
 
-  <h3 class="sub">7.1. 외부 인터페이스 (HR 연동 — 포트 추상화)</h3>
-  <p>레거시 SRS의 직접 HR REST 호출(<code class="inl">POST /api/hr/leave</code>, <code class="inl">POST /api/hr/welfare</code>)은 <b>포트 뒤로 추상화</b>되었다.</p>
+  <h3 class="sub">7.1. 외부 인터페이스 (HR 연동 - 포트 추상화)</h3>
+  <p>초기 SRS의 직접 HR REST 호출(<code class="inl">POST /api/hr/leave</code>, <code class="inl">POST /api/hr/welfare</code>)은 <b>포트 뒤로 추상화</b>되었다.</p>
   <div class="tbl-wrap"><table>
-    <thead><tr><th>레거시 외부 호출</th><th style="width:24%">as-built 포트</th><th style="width:30%">기본 어댑터</th></tr></thead>
+    <thead><tr><th>초기안 외부 호출</th><th style="width:24%">현행 포트</th><th style="width:30%">기본 어댑터</th></tr></thead>
     <tbody>
       <tr><td><code class="inl">POST /api/hr/leave</code> (낙찰 연차 부여)</td><td><code class="inl">LeaveGrantPort</code></td><td><code class="inl">InternalLeaveAdapter</code> (로컬 INSERT, 같은 트랜잭션)</td></tr>
       <tr><td><code class="inl">POST /api/hr/welfare</code> (배당 출금)</td><td><code class="inl">PayoutChannel</code></td><td>Outbox 경유 발행</td></tr>
@@ -318,16 +314,16 @@
       <tr><td class="c">FR-4.1</td><td>ADR-008, ADR-001</td><td><code class="inl">/dividend</code></td><td><code class="inl">POST /api/admin/dividend/settle</code></td><td>AC-4.1.1~4, E1~2</td></tr>
       <tr><td class="c">FR-4.2</td><td>(scope)</td><td><code class="inl">/admin/auctions</code></td><td><code class="inl">POST …/{id}/grant-event</code></td><td>AC-4.2.1~2, E1~2</td></tr>
       <tr><td class="c">FR-5.1</td><td>ADR-011</td><td><code class="inl">/admin/members</code></td><td><code class="inl">POST /api/admin/wallet/credit</code></td><td>AC-5.1.1~2, E1~4</td></tr>
-      <tr><td class="c">FR-5.2</td><td>—</td><td><code class="inl">/activity</code>, <code class="inl">/admin/ledger</code></td><td><code class="inl">GET /api/users/{id}/balance</code></td><td>AC-5.2.1~3, E1~3</td></tr>
+      <tr><td class="c">FR-5.2</td><td>-</td><td><code class="inl">/activity</code>, <code class="inl">/admin/ledger</code></td><td><code class="inl">GET /api/users/{id}/balance</code></td><td>AC-5.2.1~3, E1~3</td></tr>
     </tbody>
   </table></div>
 
   <hr class="hr">
 
-  <h2 class="sec" id="sec9">9. 레거시 SRS 대비 변경점</h2>
-  <p>최초 레거시 SRS(HWP, 2026-04-10) 대비, 구현 과정에서 확정된 주요 변경을 정리한다. <b>본 문서·기능 명세서·구현 코드는 as-built(우측 열)를 기준으로 한다.</b></p>
+  <h2 class="sec" id="sec9">9. 초기 SRS 대비 설계 고도화 내역</h2>
+  <p>초기 SRS(v1.0) 대비, 개발을 진행하며 고도화·확정한 주요 사항을 정리한다. <b>본 문서·기능 명세서·구현 코드는 현행(as-built, 우측 열)을 기준으로 한다.</b></p>
   <div class="tbl-wrap"><table>
-    <thead><tr><th style="width:16%">항목</th><th style="width:26%">레거시 SRS</th><th>as-built (확정)</th><th style="width:18%">근거</th></tr></thead>
+    <thead><tr><th style="width:16%">항목</th><th style="width:26%">초기 SRS(v1.0)</th><th>현행 (as-built)</th><th style="width:18%">근거</th></tr></thead>
     <tbody>
       <tr><td>DBMS</td><td>PostgreSQL</td><td><b>SQLite</b></td><td>학교 범위·시드 DB 배포</td></tr>
       <tr><td>동시성 제어</td><td>Redis 분산 락</td><td><b>SQLite write 락</b>(<code class="inl">lockAuction</code>)</td><td>CUT-1, ADR-006 Superseded</td></tr>
@@ -339,13 +335,15 @@
       <tr><td>원장 테이블명</td><td><code class="inl">POINT_TRANSACTION_LOG</code></td><td><b><code class="inl">LEDGER_ENTRY</code></b></td><td>리네이밍</td></tr>
       <tr><td>재화 명칭</td><td>복지 포인트</td><td><b>콘(Cone)</b> VO</td><td>ADR-015</td></tr>
       <tr><td>인증</td><td>그룹웨어 SSO(단일)</td><td><b>ezpass 위임 / local 2모드</b></td><td>ADR-019~022</td></tr>
-      <tr><td>신규 기능</td><td>—</td><td><b>복지 교환몰 · 사용자 충전 요청</b></td><td>ADR-023, ADR-024</td></tr>
+      <tr><td>신규 기능</td><td>-</td><td><b>복지 교환몰 · 사용자 충전 요청</b></td><td>ADR-023, ADR-024</td></tr>
     </tbody>
   </table></div>
-  <div class="callout"><span class="ic">📎</span><span>일부 항목은 <b>scope cut</b>(의도된 축소)이다. 복원 비용·이유는 <a href="../06_tech/scope-cuts.md">scope-cuts.md</a>를 정본으로 한다.</span></div>
+  <div class="callout"><span>일부 항목은 <b>scope cut</b>(의도된 축소)이다. 복원 비용·이유는 <a href="../06_tech/scope-cuts.md">scope-cuts.md</a>를 정본으로 한다.</span></div>
 
   <footer>타임소프트콘 · 요구사항 설계서 v1.1</footer>
 
 </div>
+<!-- 페이지 번호·페이지 분할 폴리필: 화면에서도 인쇄와 동일하게 페이지 단위로 렌더 -->
+<script src="https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js"></script>
 </body>
 </html>

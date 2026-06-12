@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>테스트 결과 보고서 - 타임소프트콘</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  :root{
+    --ink:#37352f; --muted:#787774; --faint:#9b9a97;
+    --line:#e9e9e7; --line2:#ededec; --bg-gray:#f7f7f5;
+    --ok-bg:#dbeddb; --ok-tx:#1c3829; --part-bg:#fbecca; --part-tx:#5b4711;
+    --alt-bg:#ddebf1; --alt-tx:#183347; --no-bg:#eceae6; --no-tx:#6b6a66;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    font-weight:500; color:var(--ink); line-height:1.65; margin:0; background:#fff; font-size:16px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  .page{max-width:880px; margin:0 auto; padding:60px 48px 120px;}
+  h1.title{font-size:38px; font-weight:800; letter-spacing:-.5px; margin:0 0 4px;}
+  .subtitle{color:var(--muted); font-size:15px; font-weight:500; margin:0 0 28px;}
+  h2.sec{font-size:25px; font-weight:600; letter-spacing:-.3px; margin:46px 0 6px; padding-top:8px;}
+  h3.sub{font-size:18.5px; font-weight:600; margin:30px 0 8px;}
+  p{margin:8px 0;}
+  .ref{color:var(--faint); font-size:13.5px; margin:4px 0;}
+  .callout{background:var(--bg-gray); border-radius:6px; padding:14px 18px; margin:16px 0; font-size:14.5px; line-height:1.62;}
+  .callout.warn{background:#fbf3e7;}
+  .hr{border:none; border-top:1px solid var(--line); margin:36px 0;}
+  .tbl-wrap{margin:14px 0; overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:13px; border:1px solid var(--line);}
+  th,td{border:1px solid var(--line); padding:7px 10px; vertical-align:top; text-align:left;}
+  th{background:var(--bg-gray); color:var(--muted); font-weight:600; font-size:12px;}
+  td.c{text-align:center; white-space:nowrap;}
+  tbody tr:hover{background:#fbfbfa;}
+  code.inl{background:var(--bg-gray); border-radius:4px; padding:1px 5px; font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#9a4b2f;}
+  .pill{display:inline-block; border-radius:4px; padding:1px 8px; font-size:12px; font-weight:600; white-space:nowrap;}
+  .st-ok{background:var(--ok-bg); color:var(--ok-tx);}
+  .st-part{background:var(--part-bg); color:var(--part-tx);}
+  .st-alt{background:var(--alt-bg); color:var(--alt-tx);}
+  .st-no{background:var(--no-bg); color:var(--no-tx);}
+  .code-cap{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    color:var(--muted); background:var(--bg-gray); border:1px solid var(--line); border-bottom:none;
+    border-radius:6px 6px 0 0; padding:6px 12px; margin-top:16px;}
+  pre.code{margin:0 0 4px; background:#1c1c1a; border-radius:0 0 6px 6px;
+    padding:14px 16px; overflow-x:auto; font-size:12px; line-height:1.6;}
+  pre.code code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#d6d5d0; white-space:pre;}
+  pre.code .ok{color:#7dc98f;} pre.code .dim{color:#8a8a86;} pre.code .hl{color:#e6c07b;}
+  .kpi{display:flex; gap:14px; flex-wrap:wrap; margin:18px 0;}
+  .kpi .card{flex:1 1 150px; background:var(--bg-gray); border-radius:8px; padding:16px 18px;}
+  .kpi .num{font-size:30px; font-weight:800; letter-spacing:-.5px; line-height:1;}
+  .kpi .lbl{color:var(--muted); font-size:13px; margin-top:6px;}
+  .kpi .num.green{color:#1c7d3f;}
+  .toc{background:var(--bg-gray); border-radius:6px; padding:18px 22px; margin:18px 0 8px; font-size:14px;}
+  .toc ol{margin:6px 0; padding-left:22px;} .toc li{margin:3px 0;}
+  .toc a{color:var(--ink); text-decoration:none;} .toc a:hover{text-decoration:underline;}
+  footer{color:var(--faint); font-size:12.5px; margin-top:56px; padding-top:16px; border-top:1px solid var(--line);}
+  @media(max-width:680px){ .page{padding:32px 18px 80px;} h1.title{font-size:30px;} }
+  @media print{
+    @page{
+      margin:15mm 12mm;
+      @top-right{ content: "테스트 결과 보고서 - 타임소프트콘"; font-size:9pt; color:#9b9a97; }
+      @bottom-center{ content: counter(page) " / " counter(pages); font-size:9pt; color:#9b9a97; }
+    }
+    html,body{ font-size:10pt; background:#fff; }
+    .page{ max-width:none; margin:0; padding:0; }
+    a{ color:var(--ink); text-decoration:none; }
+    tbody tr:hover{ background:transparent; }
+    pre.code{ white-space:pre-wrap; }
+    .tbl-wrap{ overflow:visible; }
+    .tbl-wrap, table, .callout, .toc, .kpi, pre.code, .code-cap{ break-inside:avoid; page-break-inside:avoid; }
+    tr, img{ break-inside:avoid; page-break-inside:avoid; }
+    thead{ display:table-header-group; }
+    h2.sec{ break-before:page; page-break-before:always; }
+    h1.title, h2.sec, h3.sub{ break-after:avoid; page-break-after:avoid; }
+    h2.sec + p, h3.sub + p, p:has(+ .tbl-wrap), p:has(+ .callout), p:has(+ .code-cap), p:has(+ pre.code){ break-after:avoid; page-break-after:avoid; }
+    th, .pill, .callout, code.inl, .toc, .kpi .card, .code-cap{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .hr{ margin:20px 0; }
+    footer{ break-inside:avoid; page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">테스트 결과 보고서</h1>
+  <p class="subtitle">타임소프트콘 - 연차 경매 시스템 (B2E 연차 경매·에스크로 배당 플랫폼) · 김기철, 오지석</p>
+
+  <div class="callout"><b>목적</b> · 핵심 불변식(Insert-Only 원장, 에스크로 정합성 Σ=escrow, 휴가 차감 우선순위, 단일 트랜잭션 입찰·정산, 멱등성)을 자동화 테스트로 검증한 결과를 보고한다. 아래 수치·로그는 <b>실제 실행 결과</b>이며, 도메인 단위 테스트와 실제 SQLite를 띄운 통합(e2e) 테스트로 나뉜다.</div>
+
+  <p class="ref">도구 Jest + ts-jest · 런타임 Node.js</p>
+
+  <h3 class="sub">총괄 결과</h3>
+  <div class="kpi">
+    <div class="card"><div class="num green">78 / 78</div><div class="lbl">총 테스트 통과 (100%)</div></div>
+    <div class="card"><div class="num">13</div><div class="lbl">테스트 스위트 (8 단위 + 5 e2e)</div></div>
+    <div class="card"><div class="num">54</div><div class="lbl">단위 테스트</div></div>
+    <div class="card"><div class="num">24</div><div class="lbl">통합(e2e) 테스트</div></div>
+    <div class="card"><div class="num">~5.7s</div><div class="lbl">총 실행 시간</div></div>
+  </div>
+
+  <div class="toc">
+    <b>목차</b>
+    <ol>
+      <li><a href="#t1">테스트 환경 · 전략</a></li>
+      <li><a href="#t2">단위 테스트 (Domain)</a></li>
+      <li><a href="#t3">통합 테스트 (e2e, 실제 SQLite)</a></li>
+      <li><a href="#t4">요구사항 ↔ 테스트 추적</a></li>
+      <li><a href="#t5">실행 방법 · 콘솔 로그</a></li>
+    </ol>
+  </div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="t1">1. 테스트 환경 · 전략</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:22%">구분</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>테스트 러너</td><td>Jest (+ ts-jest 트랜스폼), <code class="inl">testEnvironment: node</code></td></tr>
+      <tr><td>단위 테스트</td><td>도메인 순수 로직 (DB 없음). <code class="inl">*.spec.ts</code> — 소스 옆에 배치, <code class="inl">rootDir=src</code></td></tr>
+      <tr><td>통합(e2e) 테스트</td><td><b>실제 SQLite</b> 임시 DB(<code class="inl">test/db-path.ts</code>)에 마이그레이션 후 실행. <code class="inl">globalSetup</code>이 임시 DB 생성·마이그레이션, <code class="inl">maxWorkers:1</code>로 직렬 실행 → 시드 <code class="inl">dev.db</code> 무손상</td></tr>
+      <tr><td>검증 철학</td><td>FR/NFR의 인수 조건(<a href="acceptance-criteria.md">acceptance-criteria.md</a>)을 그대로 테스트로 옮김. 불변식(원장·에스크로·우선순위·단일 tx·멱등)을 단언</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="t2">2. 단위 테스트 (Domain)</h2>
+  <p><span class="pill st-ok">8 suites · 54 tests · 전부 통과 (3.23s)</span> — 외부 의존성 없는 순수 도메인 로직 검증.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:30%">스위트</th><th class="c" style="width:10%">결과</th><th>검증 내용 (대표 케이스)</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">auction.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>생성/오픈/입찰/정산 상태 전이, 최소 증분 검증, 직전 리더 반환(환불용), 마감 후 입찰 거부, 자기 재입찰 거부, anti-snipe 연장(CUT-5)</td></tr>
+      <tr><td><code class="inl">wallet.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>0 잔액 개시, 적립/차감, 잔액 부족 시 <code class="inl">InsufficientConeError</code></td></tr>
+      <tr><td><code class="inl">leave-deduction.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>FR-3.1 우선순위 — AUCTION→EVENT→REGULAR 순차 소진, 빈 버킷 스킵, 잔여 부족 예외, 비양수 일수 거부</td></tr>
+      <tr><td><code class="inl">leave-pool-plan.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>기여자별 stake 기록(userId 정렬, 0일 제외), 기여 없을 때 빈 계획</td></tr>
+      <tr><td><code class="inl">release-plan.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>분산 발행 — daily/weekly/monthly 스케줄 계산, 잘못된 형식·quantity=0 예외, none=즉시 전량</td></tr>
+      <tr><td><code class="inl">cone.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>VO <code class="inl">Cone</code> — 음수/비정수 거부, add/subtract 불변성, 잔액 부족 예외</td></tr>
+      <tr><td><code class="inl">auction-id.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>VO <code class="inl">AuctionId</code> — <code class="inl">A-YYYY-NNN</code> 형식 검증, 값 동등성</td></tr>
+      <tr><td><code class="inl">user-id.spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>VO <code class="inl">UserId</code> — 양의 정수만 허용, 값 동등성</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="t3">3. 통합 테스트 (e2e, 실제 SQLite)</h2>
+  <p><span class="pill st-ok">5 suites · 24 tests · 전부 통과 (2.48s)</span> — 실제 DB 트랜잭션으로 핵심 시나리오를 단언.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:28%">스위트</th><th class="c" style="width:10%">결과</th><th>검증 내용</th></tr></thead>
+    <tbody>
+      <tr><td><code class="inl">place-bid.e2e-spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>입찰자 차감 + BID 원장 1건을 <b>단일 tx</b>로, 직전 리더 <b>자동 환불</b>(원래 BID는 Insert-Only 보존), 잔액 부족 시 <b>전체 롤백</b>, anti-snipe 마감 연장 영속화</td></tr>
+      <tr><td><code class="inl">settle-dividend.e2e-spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>정산(AWARD + AUCTION 휴가 부여) 후 연말 배당 <b>Σ배당 = 에스크로</b>(NFR-2), 재정산 시 <b>멱등 거부</b>(이중 지급 없음)</td></tr>
+      <tr><td><code class="inl">leave-pool.e2e-spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>REGULAR 미사용 → stake+supply 수집, 동일 연도 재수집 <b>409 멱등 거부</b>, dryRun 미기록 미리보기, cadence=none 일괄 발행, supply 빈 경우 EMPTY</td></tr>
+      <tr><td><code class="inl">leave-admin.e2e-spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>휴가 차감 우선순위(ADR-003), 잔여 부족 시 409(행 변경 없음), UNSOLD→EVENT 전환, 비-UNSOLD 전환 거부, 연도별 유찰 청산 멱등</td></tr>
+      <tr><td><code class="inl">admin-and-activity.e2e-spec.ts</code></td><td class="c"><span class="pill st-ok">PASS</span></td><td>FR-5.1 관리자 적립(+CREDIT_ADMIN 원장·사유 필수), 빈 사유 거부, CREDIT_ADMIN 에스크로 제외(NFR-2), 활동 조회 정렬·요약, 무입찰 UNSOLD 정산</td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="t4">4. 요구사항 ↔ 테스트 추적</h2>
+  <p>각 요구사항(FR/NFR)이 어느 테스트로 검증되는지의 추적 매트릭스. 인수 조건(AC)은 <a href="acceptance-criteria.md">acceptance-criteria.md</a> 기준.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th class="c" style="width:12%">요구사항</th><th>검증 테스트</th><th class="c" style="width:12%">결과</th></tr></thead>
+    <tbody>
+      <tr><td class="c">FR-1.1 풀 수집</td><td><code class="inl">leave-pool-plan.spec</code>, <code class="inl">leave-pool.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-2.1 입찰</td><td><code class="inl">auction.spec</code>, <code class="inl">place-bid.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-2.2 낙찰·에스크로</td><td><code class="inl">auction.spec</code>(settle), <code class="inl">settle-dividend.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-2.3 휴가 부여</td><td><code class="inl">settle-dividend.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-3.1 차감 우선순위</td><td><code class="inl">leave-deduction.spec</code>, <code class="inl">leave-admin.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-4.1 배당 정산</td><td><code class="inl">settle-dividend.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-4.2 유찰 활용·청산</td><td><code class="inl">leave-admin.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-5.1 관리자 적립</td><td><code class="inl">admin-and-activity.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">FR-5.2 조회</td><td><code class="inl">admin-and-activity.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">NFR-1 동시성/단일 tx</td><td><code class="inl">place-bid.e2e</code>(롤백·단일 tx)</td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">NFR-2 재무 정합성</td><td><code class="inl">settle-dividend.e2e</code>(Σ=escrow), <code class="inl">admin-and-activity.e2e</code>(CREDIT_ADMIN 제외)</td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+      <tr><td class="c">멱등성</td><td><code class="inl">settle-dividend.e2e</code>, <code class="inl">leave-pool.e2e</code>, <code class="inl">leave-admin.e2e</code></td><td class="c"><span class="pill st-ok">통과</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <hr class="hr">
+
+  <h2 class="sec" id="t5">5. 실행 방법 · 콘솔 로그</h2>
+  <p>재현 명령 (모두 <code class="inl">backend/</code> 디렉터리에서):</p>
+  <div class="code-cap">단위 테스트 (DB 없음)</div>
+  <pre class="code"><code><span class="dim">$</span> npm test
+<span class="ok">PASS</span> src/domain/shared/value-objects/cone.spec.ts
+<span class="ok">PASS</span> src/domain/shared/value-objects/auction-id.spec.ts
+<span class="ok">PASS</span> src/domain/wallet/wallet.spec.ts
+<span class="ok">PASS</span> src/domain/leave/leave-deduction.spec.ts
+<span class="ok">PASS</span> src/domain/leave-pool/leave-pool-plan.spec.ts
+<span class="ok">PASS</span> src/domain/shared/value-objects/user-id.spec.ts
+<span class="ok">PASS</span> src/domain/leave-pool/release-plan.spec.ts
+<span class="ok">PASS</span> src/domain/auction/auction.spec.ts
+
+Test Suites: <span class="hl">8 passed, 8 total</span>
+Tests:       <span class="hl">54 passed, 54 total</span>
+Snapshots:   0 total
+Time:        3.232 s</code></pre>
+
+  <div class="code-cap">통합 테스트 (실제 SQLite)</div>
+  <pre class="code"><code><span class="dim">$</span> npm run test:e2e
+<span class="dim">All migrations have been successfully applied.</span>
+<span class="ok">PASS</span> test/admin-and-activity.e2e-spec.ts
+<span class="ok">PASS</span> test/leave-admin.e2e-spec.ts
+<span class="ok">PASS</span> test/leave-pool.e2e-spec.ts
+<span class="ok">PASS</span> test/settle-dividend.e2e-spec.ts
+<span class="ok">PASS</span> test/place-bid.e2e-spec.ts
+
+Test Suites: <span class="hl">5 passed, 5 total</span>
+Tests:       <span class="hl">24 passed, 24 total</span>
+Snapshots:   0 total
+Time:        2.48 s
+Ran all test suites.</code></pre>
+
+  <div class="callout warn"><b>참고</b> · 본 보고서의 자동화 테스트는 <b>기능·정합성</b> 검증이다. 두 KPI(연차 활용률 개선폭, 직원 만족도)는 시스템 외부 측정(baseline 집계·설문)이 필요해 본 테스트 범위 밖이며, 운영 계획에서 별도 측정한다(<a href="business-rules.md">business-rules.md §4</a>).</div>
+
+  <footer>타임소프트콘 · 테스트 결과 보고서 v1.0</footer>
+
+</div>
+</body>
+</html>
