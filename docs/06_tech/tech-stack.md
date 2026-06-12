@@ -1,21 +1,23 @@
 # 기술 스택 결정서 (Tech Radar)
 
-**상태**: 🟡 선택지 제시, 팀 확정 전
+**상태**: ✅ 확정 — 구현으로 정착 (2026-06-12 코드 기준 갱신)
 **결정자**: 타임소프트콘 (김기철, 오지석)
+
+> 이 문서는 원래 "선택지 제시" 단계의 레이더였으나, 실제 구현이 스택을 확정했다.
+> 아래 §2의 후보 비교는 *의사결정 근거*로 보존하고, §3을 **As-Built(실제 구축)** 표로 갱신했다.
+> 코드가 진실의 원천(`backend/`, `frontend/`) — 충돌 시 코드를 따른다.
 
 ---
 
-## 1. 결정 체크리스트
+## 1. 결정 체크리스트 (전부 확정)
 
-프로젝트 시작 전 반드시 확정해야 할 항목:
-
-- [ ] 백엔드 언어/프레임워크
-- [ ] 프론트엔드 프레임워크
-- [ ] DB 제품/버전
-- [ ] 메시지 큐 제품 (ADR-005 결과에 따라 필요)
-- [ ] 컨테이너화 여부 (Docker 기본 전제)
-- [ ] 배포 환경 (K8s / ECS / Cloud Run / VM)
-- [ ] CI/CD 도구
+- [x] 백엔드 언어/프레임워크 → **NestJS (TypeScript, Node 20)**
+- [x] 프론트엔드 프레임워크 → **React 18 + Vite 5 + TypeScript**
+- [x] DB 제품/버전 → **SQLite (파일 기반, Prisma provider=sqlite)** (2026-05-26 MySQL→SQLite 전환)
+- [x] 메시지 큐 제품 → **별도 MQ 미도입.** in-process 이벤트버스(`@nestjs/event-emitter`) + `outbox` 테이블(현재 dormant, 외부 연동 시 가동) — ADR-013/016
+- [x] 컨테이너화 여부 → **불필요** (SQLite 파일 DB라 DB 컨테이너 0; Docker compose 미사용)
+- [x] 배포 환경 → 학교 프로젝트 스코프: 로컬 단일 인스턴스(`backend` :3002 / `frontend` :5173)
+- [x] CI/CD 도구 → 학교 프로젝트 스코프 외 (미구성)
 
 ---
 
@@ -85,24 +87,25 @@
 
 ---
 
-## 3. 권장 최종 스택 (제안)
+## 3. As-Built 최종 스택 (실제 구축)
 
-| 영역 | 선택 | 버전 |
+| 영역 | 선택 | 버전/비고 |
 |---|---|---|
 | **백엔드** | NestJS | Node 20 LTS |
 | 언어 | TypeScript | 5.x |
-| **ORM** | Prisma or TypeORM | |
+| **ORM** | **Prisma** | `@prisma/client` ^5.22 (TypeORM 미채택) |
 | **프론트** | React + Vite | React 18, Vite 5 |
-| UI 라이브러리 | Mantine or MUI | |
-| **DB** | SQLite | (파일 기반) |
-| **동시성 제어** | SQLite write 락(lockAuction) | — |
-| **실시간** | Socket.IO | |
-| **MQ/Outbox** | SQLite Outbox 테이블 (Phase 1), Kafka (Phase 2) | |
-| **컨테이너** | Docker | |
-| **오케스트레이션** | Docker Compose (개발) / K8s (운영 선택) | |
-| **CI/CD** | Jenkins + Docker Registry | |
-| **모니터링** | Prometheus + Grafana + Loki | |
-| **테스트** | Jest (단위), Playwright (E2E), k6 (부하) | |
+| UI 라이브러리 | **Tailwind CSS + lucide-react** | Tailwind ^3.4 (Mantine/MUI 둘 다 미채택) |
+| **DB** | SQLite | 파일 기반(`prisma/dev.db`), provider=sqlite |
+| **동시성 제어** | SQLite write 락(`lockAuction` no-op UPDATE) | CUT-1, Redis 미사용 |
+| **실시간** | **SSE (NestJS `@Sse`)** | `AuctionStream`/`NotificationStream` (Socket.IO/WebSocket 미채택, CUT-6 대체) |
+| **MQ/Outbox** | in-process 이벤트버스 + `outbox` 테이블(dormant) | `@nestjs/event-emitter`; Kafka 미도입 |
+| **인증** | JWT(`@nestjs/jwt`) + bcrypt, ezpass 위임/local 모드 | ADR-019~022 |
+| **컨테이너/오케스트레이션** | 미사용 | SQLite라 DB 컨테이너 불필요 |
+| **CI/CD / 모니터링** | 미구성 | 학교 프로젝트 스코프 외 |
+| **테스트** | Jest (단위 + e2e) | Playwright/k6 미도입 |
+
+> ℹ️ `mysql2`는 **여전히 쓰인다**(제거 금지). 우리 Prisma는 sqlite지만, 사내 ezpass/msaportal **MySQL DB를 직접 읽어야** 하는 어댑터(`adapters/hr/ezpass-hr-leave.client.ts`, `adapters/directory/msaportal-member-directory.adapter.ts`, `prisma/seed.ts`, `scripts/*`)가 `mysql2/promise`를 사용. 다만 런타임 의존인데 `devDependencies`에 있어 **분류상으로는 `dependencies`로 옮기는 게 맞다**(기능엔 영향 없음).
 
 ---
 
@@ -130,12 +133,14 @@ typescript: 5.3.x
 
 ---
 
-## TODO
+## TODO (정리)
 
-- [ ] NestJS vs Spring Boot 최종 투표
-- [ ] 프론트 UI 라이브러리 선정
-- [ ] Docker Compose YAML 초안 작성
-- [ ] `.nvmrc` / `.tool-versions` 같은 런타임 버전 락 파일 준비
+- [x] ~~NestJS vs Spring Boot 최종 투표~~ → **NestJS 채택** (코드로 정착)
+- [x] ~~프론트 UI 라이브러리 선정~~ → **Tailwind CSS + lucide-react** 채택
+- [x] ~~Docker Compose YAML 초안 작성~~ → SQLite 전환으로 **불필요**(DB 컨테이너 0)
+- [ ] (선택) `mysql2`를 `devDependencies` → `dependencies`로 분류 정정 (런타임 사용 중이라 제거는 불가)
+- [ ] (선택) `backend/.env.example`의 죽은 `LEAVEPOOL_WEEKLY_QTY` 줄 정리 (코드가 읽지 않음 — 실제 분산은 `release_policy` 테이블)
+- [ ] (선택) 런타임 버전 락 파일(`.nvmrc`) 준비 — 학교 프로젝트 스코프상 낮은 우선순위
 
 ## 관련 문서
 - [architecture.md](../03_design/architecture.md)

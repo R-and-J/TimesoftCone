@@ -4,7 +4,20 @@
 **팀**: 타임소프트콘 (김기철, 오지석)
 **렌더링**: https://mermaid.live (하단 코드 블록 복사 → 붙여넣기 → PNG 다운로드)
 
-> **시스템 정적 구조** — 13 클래스 · 4 열거형 · 정식 UML classDiagram 문법 · 모든 관계 유형 포함
+> **시스템 정적 구조** — 정식 UML classDiagram 문법 · 모든 관계 유형 포함
+
+> ## ⚙️ 코드 기준 동기화 메모 (2026-06-12)
+>
+> 본 다이어그램은 **OO 설계 관점**(추상 계층/인터페이스/도메인 서비스)을 보여주며, 데이터 모델(속성·enum 값)은 실제 `backend/prisma/schema.prisma`에 맞춰 정정되었다. DB-레벨에서는 SQLite라 enum 블록이 없고 **String 컬럼 + CHECK 제약**으로 표현된다. 주요 정정:
+> - **`UserRole`**: `EMPLOYEE`/`ADMIN` 2값이 아니라 `ADMIN`/`EZPASS_ADMIN`/`EXAM_ADMIN`/`EZPASS`/`EXAM` 5값.
+> - **`AuctionStatus`**: 5값(`DRAFT`/`CREATED`/`OPEN`/`AWARDED`/`UNSOLD`) — `CLOSED`/`EXPIRED` 없음.
+> - **`ActionType`**: 10값(`BID`/`REFUND`/`WIN`/`DIVIDEND`/`CREDIT_ADMIN`/`EXPIRE`/`REDEEM`/`REDEEM_REFUND`/`CHARGE_REQUESTED`/`CHARGE_REJECTED`).
+> - **`LeaveBalance`**: `allocated_days` 단일이 아니라 `granted_days`+`adjusted_days`+`used_days`, **`deleted_at` 없음**.
+> - **`Auction`**: PK는 String(예 `A-2026-106`), `started_at`/`ends_at`/`highest`/`highest_bidder_id`, **`year` 컬럼 없음**.
+> - **`LedgerEntry`**: `escrow_balance_snapshot`/`reason` 아니라 `balance_after`(개인 지갑 잔액)/`ref_note`, 시각은 `occurred_at`.
+> - **`Stake`**: `contributed_days`+`stake_ratio` 아니라 `days` 단일(지분 비율은 앱 레이어 동적 계산).
+> - **`Escrow`**: 별도 테이블이 **아님** — `ledger_entry` 합계로 파생되는 도메인 서비스(`<<service>>`)로만 존재.
+> - 멀티테넌시 `company_id`(FK→company)는 모든 테넌트 테이블에 존재(다이어그램은 단순화 위해 일부 생략).
 
 ---
 
@@ -100,9 +113,10 @@ classDiagram
         #id: bigint
         #user_id: bigint
         #year: int
-        #allocated_days: int
+        #leave_type: LeaveType
+        #granted_days: int
+        #adjusted_days: int
         #used_days: int
-        #deleted_at: datetime
         +getRemaining() int
         +deduct(days: int) void
         +expireAtYearEnd()* void
@@ -131,15 +145,17 @@ classDiagram
 
     %% ---------- Core Entities ----------
     class Auction["Auction · 경매"] {
-        -id: bigint
+        -id: String "예: A-2026-106"
         -status: AuctionStatus
-        -year: int
-        -start_time: datetime
-        -end_time: datetime
-        -highest_bid: int
-        -winner_id: bigint
-        +placeBid(user: Employee, amt: int) BidResult
-        +close() void
+        -start_price: bigint
+        -started_at: datetime
+        -ends_at: datetime
+        -highest: bigint
+        -highest_bidder_id: bigint
+        -min_increment: bigint
+        -leave_days: int
+        +placeBid(user: Employee, amt: bigint) BidResult
+        +settle() void
         +isExpired() bool
         +isAwarded() bool
     }
@@ -148,31 +164,31 @@ classDiagram
         <<Insert-Only>>
         -id: bigint
         -user_id: bigint
-        -auction_id: bigint
+        -auction_id: String
         -currency: Currency
         -action_type: ActionType
         -amount: bigint
-        -escrow_balance_snapshot: bigint
-        -reason: String
-        -created_at: datetime
+        -balance_after: bigint
+        -ref_note: String
+        -occurred_at: datetime
         +record()$ void
     }
 
     class Stake["Stake · 지분"] {
-        -id: bigint
+        -id: int
         -user_id: bigint
         -year: int
-        -contributed_days: int
-        -stake_ratio: decimal
+        -days: int
+        +stakeRatio(yearTotal: int) decimal "앱 레이어 동적 계산(컬럼 아님)"
         +calculateDividend(total: int) int
     }
 
     %% ---------- Service ----------
-    class Escrow["Escrow · 에스크로(중앙 수익금 대장)"] {
+    %% 주의: Escrow는 DB 테이블이 아니라 ledger_entry 합계로 파생되는 도메인 서비스.
+    class Escrow["Escrow · 에스크로(파생 — 테이블 아님)"] {
         <<service>>
-        -year: int
         -currency: Currency
-        -balance: bigint
+        +balance(currency) bigint "ledger 합계로 파생(DB-RULE-4)"
         +accumulate(amt: Cone) void
         +distribute(stakes: List~Stake~) Map
         +getBalance() Cone
@@ -207,12 +223,11 @@ classDiagram
 
     class AuctionStatus["AuctionStatus · 경매 상태"] {
         <<enumeration>>
+        DRAFT
         CREATED
         OPEN
-        CLOSED
         AWARDED
         UNSOLD
-        EXPIRED
     }
 
     class ActionType["ActionType · 거래 타입"] {
@@ -223,12 +238,19 @@ classDiagram
         DIVIDEND
         CREDIT_ADMIN
         EXPIRE
+        REDEEM
+        REDEEM_REFUND
+        CHARGE_REQUESTED
+        CHARGE_REJECTED
     }
 
     class UserRole["UserRole · 사용자 역할"] {
         <<enumeration>>
-        EMPLOYEE
         ADMIN
+        EZPASS_ADMIN
+        EXAM_ADMIN
+        EZPASS
+        EXAM
     }
 
     class Currency["Currency · 화폐 코드"] {
@@ -263,7 +285,7 @@ classDiagram
 ![Class Diagram](class.png)
 
 > 📸 mermaid.live에서 렌더링한 이미지. 소스 변경 시 재렌더링하여 `class.png`로 덮어쓰기.
-> ✅ **최신 렌더 완료** (2026-05-27, kroki): `Wallet` 분리·`LedgerEntry`·`AuctionStatus` 6상태·`Currency` enum이 반영된 현재 소스로 재렌더됨. 재생성: `python presentation/render-uml.py`.
+> ⚠️ **소스 갱신됨 (2026-06-12, 코드 동기화)**: 데이터 모델 속성/enum 값을 `schema.prisma`에 맞게 정정(아래 본문 참고). `class.png`는 **재렌더 필요**. 재생성: `python presentation/render-uml.py`.
 
 ---
 
@@ -296,7 +318,7 @@ classDiagram
 - **Escrow `<<service>>`** → [ADR-001](../../04_decisions/ADR-001-escrow-model.md) 상태 없는 도메인 서비스
 - **Wallet 분리 + Currency enum** → [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md) 통화 추상화, [ADR-011](../../04_decisions/ADR-011-welfare-point-ownership.md) 잔액 마스터 본 시스템 보유
 - **LedgerEntry 통합 원장** → [ADR-010](../../04_decisions/ADR-010-currency-abstraction.md)·[ADR-011](../../04_decisions/ADR-011-welfare-point-ownership.md) `currency`/`reason` 컬럼 추가, `CREDIT_ADMIN` 액션
-- **AuctionStatus 6상태** → [ADR-014](../../04_decisions/ADR-014-auction-state-pattern.md) State 패턴
+- **AuctionStatus 5상태** (`DRAFT`/`CREATED`/`OPEN`/`AWARDED`/`UNSOLD`) → [ADR-014](../../04_decisions/ADR-014-auction-state-pattern.md) State 패턴은 [CUT-3](../../06_tech/scope-cuts.md)으로 status 문자열+guard로 축소(코드 기준)
 
 ---
 

@@ -58,7 +58,7 @@
 
 **되돌리는 비용**: 낮음. Use Case 끝에 `await this.events.publish(new BidPlacedEvent(...))` 한 줄 추가.
 
-**↩️ 부분 부활 (2026-05-27)**: **알림 기능이 첫 실구독자가 되어 EventBus를 되살림**(예상대로 ~1시간). `@nestjs/event-emitter` 도입, `PlaceBid`/`SettleAuction`이 커밋 후 `BidPlacedEvent`/`AuctionWonEvent` emit → `NotificationObserver`가 구독해 `notification` 행 적재(밀림/낙찰). "구독자 0 → 추상화 비용만"이 더는 아님. 단 WebSocket 브로드캐스트(CUT-6)·메트릭·Slack 구독자는 여전히 없음 — 같은 이벤트에 핸들러만 더 붙이면 됨(Use Case 무수정). 이벤트 클래스는 도메인이 아니라 `application/events/`에 둠(도메인 순수성 유지) — ADR-013 원안의 "도메인 코어 위치" 제약과는 의도적으로 다름. 상세 [[ADR-013]] 구현 현황.
+**↩️ 부활 (2026-05-27 ~ 06-04)**: **알림 기능이 첫 실구독자가 되어 EventBus를 되살림**(예상대로 ~1시간). `@nestjs/event-emitter` 도입, `NotificationObserver`가 단일 실구독자로 **10개 핸들러**를 가짐. 이벤트는 4그룹으로 확장됨(`application/events/`): `auction-events`(bid_placed·won·**inventory_created**) · `charge-events`(ADR-024 충전: submitted·approved·rejected) · `redemption-events`(ADR-023 교환: submitted·approved·rejected·received) · `notification-events`(created). "구독자 0 → 추상화 비용만"이 더는 아님. 실시간 전달은 WebSocket이 아니라 **SSE**(`@Sse`, `NotificationStream`/`AuctionStream` — CUT-6 대체)로 구현됨; `NotificationObserver`가 `notification.created`를 재발행하면 `NotificationStream`이 받아 화면으로 push. 메트릭·Slack 구독자는 여전히 없음 — 핸들러만 더 붙이면 됨(Use Case 무수정). 이벤트 클래스는 도메인이 아니라 `application/events/`에 둠(도메인 순수성 유지) — ADR-013 원안의 "도메인 코어 위치" 제약과는 의도적으로 다름. 상세 [[event-bus-guide]] · [[ADR-013]] 구현 현황.
 
 ---
 

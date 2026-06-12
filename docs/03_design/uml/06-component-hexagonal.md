@@ -25,7 +25,7 @@ flowchart TB
     subgraph IN["interfaces/ (Inbound)"]
       direction LR
       REST["«component»<br/>REST Controller"]
-      WS["«component»<br/>WebSocket Gateway"]
+      WS["«component»<br/>SSE Stream (@Sse)"]
       CRON["«component»<br/>Cron / Scheduler"]
       ADM["«component»<br/>Admin"]
     end

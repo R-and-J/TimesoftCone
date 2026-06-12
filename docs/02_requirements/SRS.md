@@ -160,13 +160,13 @@ Content-Type: application/json
 #### 3.4.2 데이터 무결성 제약조건
 
 - **[DB-RULE-1] 대장 불변의 법칙**: `LEDGER_ENTRY` 테이블은 추적을 위해 오직 INSERT만 허용되며 UPDATE, DELETE는 시스템적으로 차단된다 (DB 트리거 강제).
-- **[DB-RULE-2] 연도별 정산 파티셔닝**: `LEAVE_BALANCE`는 `year` 기준으로 관리되며, 12월 31일 배치 시 `AUCTION`, `EVENT` 속성의 이전 연도 데이터는 자동 소멸(Soft Delete) 처리된다.
-- **[DB-RULE-3] 외래키 및 잔액 제약**: 낙찰 확정 시 `AUCTION.winner_id`의 `wallet(user_id, currency='WELFARE_POINT').balance`는 반드시 `highest_bid` 이상이어야만 트랜잭션이 Commit 된다. ([[ADR-010]] 추상화 뒤에서 `BiddingCurrency.debit()` 호출로 강제)
-- **[DB-RULE-4] 화폐 단위 분리**: `LEDGER_ENTRY`·`ESCROW`·`WALLET`은 모두 `currency` 컬럼을 가지며, 에스크로 정합성 등식은 *통화별로* 분리 검증된다.
+- **[DB-RULE-2] 연도별 정산 파티셔닝**: `LEAVE_BALANCE`는 `(user_id, year, leave_type)` 단위 행으로 관리된다(UNIQUE 제약). 잔여 조회·차감이 항상 해당 `year` 스코프로 이뤄지므로 이전 연도의 `AUCTION`/`EVENT` 잔여는 다음 연도 계산에서 자연히 빠진다. *As-built 주의*: 원래 설계의 `deleted_at` Soft Delete 컬럼·12/31 만료 배치는 **구현하지 않았다** — 연도-파티셔닝([[ADR-004]])이 같은 효과를 내고 행을 삭제하지 않아 감사 이력도 보존된다.
+- **[DB-RULE-3] 외래키 및 잔액 제약**: 낙찰 확정 시 `AUCTION.highest_bidder_id`의 `wallet(user_id, currency='WELFARE_POINT').balance`는 반드시 `highest` 이상이어야만 트랜잭션이 Commit 된다. ([[ADR-010]] 추상화 뒤에서 `BiddingCurrency.debit()` 호출로 강제)
+- **[DB-RULE-4] 화폐 단위 분리**: `LEDGER_ENTRY`·`WALLET`은 `currency` 컬럼을 가지며, 에스크로 정합성 등식은 *통화별로* 분리 검증된다. *As-built 주의*: 별도 `ESCROW` 테이블은 두지 않았다 — 에스크로 잔액은 `LEDGER_ENTRY`에서 통화별로 파생 집계(`Σ(BID+WIN) − Σ(REFUND+DIVIDEND)`)한다.
 
 ### 3.5. 사용자 인터페이스 요구사항
 
-- **실시간 렌더링**: 경매 마감 타이머와 실시간 최고가는 **WebSocket**을 통해 화면 새로고침 없이 동적으로 렌더링되어야 한다.
+- **실시간 렌더링**: 경매 마감 타이머와 실시간 최고가는 화면 새로고침 없이 동적으로 렌더링되어야 한다. *As-built*: WebSocket이 아니라 **SSE(`@Sse`, `AuctionStream`)** 로 구현됨([[scope-cuts]] CUT-6 대체).
 - **가시성**: 사용자는 자신의 지분율(Stake)에 따른 **"올해 예상 연말 배당금"**을 대시보드에서 상시 조회할 수 있어야 한다.
 
 ---

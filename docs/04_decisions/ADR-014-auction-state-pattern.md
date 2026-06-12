@@ -1,8 +1,19 @@
 # ADR-014: Auction 도메인에 State 패턴 적용
 
-- **상태**: ✅ Accepted
+- **상태**: 🟡 Accepted (설계) → ⚠️ **As-Built에서 CUT-3로 단순화** (아래 배너 참조)
 - **결정일**: 2026-05-14
 - **결정자**: 타임소프트콘
+
+> ## ⚠️ As-Built 차이 (2026-06-12 코드 기준)
+> 이 ADR이 설계한 **GoF State 패턴(상태=객체)은 실제 코드에 구현되지 않았다.** 학교 프로젝트 스코프에 맞춰
+> [scope-cuts.md **CUT-3**](../06_tech/scope-cuts.md)로 의도적으로 단순화했다 — 아래 "옵션 X(Rejected)"가 실제로 채택된 셈이다.
+> - 실제 구현: `domain/auction/auction-status.ts`의 **`AuctionStatus` 문자열 enum + `auction.placeBid()`/`settle()` 내부 guard 절**.
+>   `OpenState`/`ClosedState` 같은 상태 클래스·`states/` 디렉토리·상태 매퍼는 **존재하지 않는다.**
+> - 실제 상태값: `DRAFT · CREATED · OPEN · AWARDED · UNSOLD` (5종). 설계의 `CLOSED`·`EXPIRED`는 **별도 영속 상태로 두지 않음** —
+>   마감 정산은 `OPEN → (AWARDED | UNSOLD)`로 직접 전이하고, 연말 만료는 연도-파티셔닝(ADR-004)으로 흡수.
+> - 상태 전이 규칙은 여전히 **`Auction` 애그리거트 안**에 둔다(use case/controller로 새지 않음) — 패턴만 다를 뿐 캡슐화 원칙은 유지.
+>
+> 아래 본문은 *왜 State 패턴이 이론적으로 적합했는가*의 설계 근거로 보존한다. 실제 빌드 기준은 CUT-3과 코드를 따른다.
 
 ## 컨텍스트
 

@@ -125,11 +125,19 @@ npm run dev     # /api → 127.0.0.1:3002 자동 프록시
   - [ADR-016 자체 휴가 관리 시스템 보유](04_decisions/ADR-016-internal-leave-system.md)
   - [ADR-017 휴가 풀/경매 인벤토리 분리 컨텍스트](04_decisions/ADR-017-leave-pool-context.md)
   - [ADR-018 경매 정산 규칙 (패자 환불·입찰 취소)](04_decisions/ADR-018-auction-settlement-rules.md)
+  - [ADR-023 내부 교환 채널 (스토어/배송 없는 복지몰)](04_decisions/ADR-023-internal-redemption-channels.md)
+  - [ADR-024 사용자 주도 충전 요청](04_decisions/ADR-024-user-initiated-charge-request.md)
+  - [ADR-025 ezpass 연차 쓰기 완화 (REST 직쓰기 허용)](04_decisions/ADR-025-ezpass-leave-write-relaxation.md)
+- **인증/신원 (Auth)**
+  - [ADR-019 중앙 인증(ezpass) 위임](04_decisions/ADR-019-central-auth-delegation.md)
+  - [ADR-020 신원=ezpass / 연차=내부 보유](04_decisions/ADR-020-member-identity-ezpass-leave-internal.md)
+  - [ADR-021 이식형 핸드오프 export](04_decisions/ADR-021-portable-handoff-export.md)
+  - [ADR-022 Identity 어댑터 배포 모드(delegated/local)](04_decisions/ADR-022-identity-adapter-deployment-modes.md)
 - **구조 결정 (정책에 직교)**
   - [ADR-012 Hexagonal Architecture](04_decisions/ADR-012-hexagonal-architecture.md)
   - [ADR-010 통화 추상화 (CurrencyProvider)](04_decisions/ADR-010-currency-abstraction.md)
   - [ADR-013 Domain Event 기반 처리](04_decisions/ADR-013-domain-event.md)
-  - [ADR-014 Auction State 패턴](04_decisions/ADR-014-auction-state-pattern.md)
+  - [ADR-014 Auction State 패턴](04_decisions/ADR-014-auction-state-pattern.md) ⚠️ (As-built: CUT-3 — State 패턴 대신 `AuctionStatus` enum + guard)
   - [ADR-015 Value Object 도입 정책](04_decisions/ADR-015-value-object.md)
 
 ### 05. 인수인계 (Handover)
@@ -161,7 +169,7 @@ npm run dev     # /api → 127.0.0.1:3002 자동 프록시
 | 카테고리 | 문서 | 상태 |
 |---|---|---|
 | 기획 | proposal.md | ✅ 완성 |
-| 요구사항 | SRS.md | ✅ v1.2 (ADR-005·010~018 반영) |
+| 요구사항 | SRS.md | ✅ v1.3 (ADR-005·010~018 반영) |
 | 요구사항 | glossary.md | ✅ 완성 |
 | 요구사항 | business-rules.md | ✅ v1 (운영 파라미터·계산식·KPI) |
 | 요구사항 | edge-cases.md | ✅ v1 (엣지 케이스 카탈로그) |
@@ -169,19 +177,22 @@ npm run dev     # /api → 127.0.0.1:3002 자동 프록시
 | 요구사항 | acceptance-criteria.md | ✅ v1 (FR별 인수 조건) |
 | 설계 | UML.md | ✅ 완성 |
 | 설계 | architecture.md | ✅ v2 (Hexagonal·구조 ADR 반영) |
-| 설계 | erd.md | ✅ v2 (wallet 분리·LEDGER_ENTRY 반영) |
+| 설계 | erd.md | ✅ v3 (코드 schema.prisma 기준 동기화 2026-06-12) |
 | 설계 | api-spec.md | ✅ v3 (narrative summary) |
 | 설계 | openapi.yaml | ✅ v0.1 (OpenAPI 3.0 정식 spec) |
 | ADR | 001~005 | ✅ 확정 (005 = Outbox + 내부화) |
-| ADR | 006~008 | 🟡 Proposed |
+| ADR | 006 | ⛔ Superseded (CUT-1 SQLite write 락) |
+| ADR | 007~008 | 🟡 Proposed |
 | ADR | 009 | ✅ Accepted (v2 개정) |
-| ADR | 010~018 | ✅ Accepted (구조·휴가 내부화·정산 규칙) |
+| ADR | 010~018 | ✅ Accepted (구조·휴가 내부화·정산 규칙; 014는 CUT-3로 enum+guard 대체) |
+| ADR | 019~022 | ✅ Accepted (인증/신원 — ezpass 위임·내부 연차·배포 모드) |
+| ADR | 023~025 | ✅ Accepted (교환 채널·충전 요청·ezpass 연차 쓰기) |
 | 인수인계 | handover.md | ✅ v1.1 베이스 + Action 복원 |
 | 인수인계 | demo-scenario.md | ✅ v1 (시연 순서·입력값·기대결과·대체자료) |
-| 기술 | tech-stack.md | 🟡 선택지 제시, 미결정 |
+| 기술 | tech-stack.md | ✅ 확정 (As-Built: NestJS/Prisma/SQLite/React+Tailwind) |
 | 기술 | db-schema.sql | ✅ v2 (wallet/ledger_entry 분리) |
 | 기술 | git-workflow.md | 🟡 제안 |
-| 기술 | dev-setup.md | ⚪ TODO |
+| 기술 | dev-setup.md | 🟡 (실제 .env.example 기준 갱신 필요) |
 | 계획 | wbs.md | 🟡 v3 (비즈니스 리스크 대장·롤아웃 전략 추가) |
 | 계획 | roles.md | ⚪ TODO |
 
@@ -193,9 +204,9 @@ npm run dev     # /api → 127.0.0.1:3002 자동 프록시
 
 1. ~~**[ADR-005] HR API 호출 시점 재설계**~~ — ✅ 해결 (Outbox + InternalLeaveAdapter)
 2. ~~**도메인 계산식 명세**~~ — ✅ 해결 (business-rules.md + ADR-018: 패자 환불·Stake·배당 나머지)
-3. **[tech-stack.md] 백엔드 프레임워크·DB·MQ 확정** — 나머지 모든 개발의 전제 (미결)
-4. **[db-schema.sql] Insert-Only 트리거 검증** — NFR-2 재무 정합성의 최종 방어선
-5. **운영 파라미터 구체 수치 확정** — 최소 증분 금액, 분산 오픈 주당 개수, 첫 해 시작가 (business-rules.md §5)
+3. ~~**[tech-stack.md] 백엔드 프레임워크·DB·MQ 확정**~~ — ✅ 해결 (NestJS/Prisma/SQLite 구현 정착)
+4. ~~**[db-schema.sql] Insert-Only 트리거 검증**~~ — ✅ 해결 (`ledger_entry_no_update`/`no_delete` 트리거 init 마이그레이션에 구현)
+5. ~~**운영 파라미터 구체 수치 확정**~~ — 🟡 코드/env 기본값으로 동작 중(최소증분 100·시작가 30,000·주간쿼터는 `release_policy` 테이블). 팀 *공식* 확정값은 여전히 미정 (business-rules.md §1)
 
 ## 📐 핵심 설계 원칙 (요약)
 
@@ -211,5 +222,5 @@ npm run dev     # /api → 127.0.0.1:3002 자동 프록시
 7. **Hexagonal Architecture** — 도메인 코어와 외부 의존(인프라·외부 API) 격리
 8. **통화 추상화 (OCP)** — 화폐 종류는 `CurrencyProvider` 인터페이스 뒤로 격리
 9. **Wallet 마스터 본 시스템 보유** — 입찰 결제 경로에서 외부 호출 0
-10. **Domain Event 기반 횡단 관심사 처리** — Use Case가 부수효과를 직접 알지 못함
-11. **State 패턴 + Value Object** — 도메인 표현력과 컴파일 타임 안전성 동시 확보
+10. **Domain Event 기반 횡단 관심사 처리** — Use Case가 부수효과를 직접 알지 못함 (NotificationObserver + 충전/교환/재고 구독자)
+11. **Value Object 도입** — `UserId`·`Cone`(포인트)·`AuctionId`·`Currency` 등 핵심 타입을 클래스로 래핑해 컴파일 타임 안전성 확보 (State 패턴은 CUT-3로 미채택 — `AuctionStatus` enum + guard로 단순화)

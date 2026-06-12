@@ -71,32 +71,40 @@ npm run dev
 
 ## 5. 환경변수 (.env.example)
 
+> ⚠️ 아래는 **요지 발췌**다. 권위 있는 원본은 항상 `backend/.env.example` (이 문서가 아니라 그 파일을 복사). 과거 SSO/HR_API_BASE_URL 기반 샘플은 폐기됨 — 현재 인증은 ezpass 위임/local 모드(ADR-019~022)이고 키 이름이 다르다.
+
 ```bash
-# Server
+# App
 NODE_ENV=development
-PORT=3000
+PORT=3002
 
 # Database (SQLite — 파일 기반, 외부 서버 불필요)
-DATABASE_URL=file:./prisma/dev.db
+DATABASE_URL="file:./dev.db"
 
-# SSO
-SSO_PROVIDER=company-idp
-SSO_CLIENT_ID=your-client-id
-SSO_CLIENT_SECRET=...
-SSO_REDIRECT_URI=http://localhost:3000/auth/sso/callback
+# 자체 발급 JWT (RBAC) — 단일 키. (구 JWT_EXPIRE_ACCESS/REFRESH 아님)
+JWT_SECRET=dev-only-change-me-please-32+chars-secret
+JWT_EXPIRES_IN=12h
 
-# HR API
-HR_API_BASE_URL=http://hr.company.internal
-HR_API_TOKEN=...
+# 스케줄러/운영 knob (전부 끄려면 0 또는 *_AUTO_ENABLED=false)
+SETTLE_INTERVAL_MS=60000
+ANTISNIPE_WINDOW_MS=300000
+ANTISNIPE_EXTEND_MS=300000
+LEAVEPOOL_START_PRICE=30000
+LEAVEPOOL_MIN_INCREMENT=100
+LEAVEPOOL_AUCTION_DAYS=7
+DIVIDEND_AUTO_ENABLED=false
+LEAVEPOOL_AUTO_ENABLED=false
 
-# JWT
-JWT_SECRET=change-me-in-production
-JWT_EXPIRE_ACCESS=1h
-JWT_EXPIRE_REFRESH=7d
+# 사내 ezpass 중앙 인증 위임 (ADR-019). 실제 값은 .env 에만.
+EZPASS_BASE_URL=https://<ezpass-host>/api/ezpass-backend-cmmn
+EZPASS_CMPNY_NO=1
+EZPASS_EMAIL_DOMAIN=timesoftcone.com   # 이 도메인=EZPASS 연동, 그 외=EXAM 독립
 
 # Logging
 LOG_LEVEL=debug
 ```
+
+> 전체 키(배당/풀 컷오프·점진 발행·유찰 purge·TLS 등)는 `backend/.env.example` 참조.
 
 ---
 

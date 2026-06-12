@@ -1,251 +1,278 @@
 openapi: 3.0.3
 
+# ============================================================================
+# 코드 기준 동기화: 2026-06-12
+# 본 스펙은 backend/src/interfaces/http/*.controller.ts 의 실제 라우트를 전수
+# 추출해 갱신했다. 모든 컨트롤러는 @Controller("api/...") 접두사를 가지므로
+# 실제 경로는 /api/... 이다(전역 prefix 없음).
+# 인증은 전역 가드 3종(JwtAuthGuard → RolesGuard → SelfOrAdminGuard)이
+# app.module.ts 에 APP_GUARD 로 등록되어 모든 라우트에 적용된다:
+#   - @Public()          → 인증 불필요 (POST /api/auth/login, SSE stream 일부)
+#   - @Roles(...ADMIN_ROLES) → 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN)만
+#   - @SelfParam("userId")   → 경로의 :userId 가 토큰 주체와 같거나 ADMIN
+# SSE(@Sse)는 EventSource 가 헤더를 못 실으므로 ?token=<JWT> 쿼리 인증을 지원.
+# ============================================================================
+
 info:
   title: 사내 연차 경매 시스템 API
   description: |
     B2E Escrow & Dividend 모델 기반 연차 경매 플랫폼의 정식 REST API 명세.
 
-    - 인증: Bearer JWT (SSO 발급)
-    - 모든 응답은 `ApiSuccess` 또는 `ApiError` 봉투(envelope)로 감싸짐
-    - 내부 호출 엔드콘(`/internal/*`)는 `X-Internal-Token` 헤더 필수 — 외부 노출 금지
-    - 권한 검증은 `permission-matrix.md` 1:1 매핑
-  version: 0.1.0
+    - 인증: Bearer JWT (`POST /api/auth/login` 으로 발급, ezpass 위임 — ADR-019)
+    - 멀티테넌시: 일반 role 은 자기 회사로 스코프 고정. super `ADMIN` 은
+      `X-Company-Id` 헤더로 회사 전환(없으면 전 회사 통합).
+    - 응답 envelope: 컨트롤러는 use-case 결과를 그대로 반환한다. 과거 문서의
+      `{success,data,error,timestamp}` 봉투는 **미적용**(코드에 없음). 오류는
+      NestJS 표준 예외 형태(`{statusCode,message,error}`)로 나간다.
+    - 권한 검증은 `permission-matrix.md` 와 매핑.
+  version: 0.2.0
   contact:
     name: 타임소프트콘 (김기철, 오지석)
 
 servers:
-  - url: https://auction.company.internal/api/v1
+  - url: http://localhost:3002
+    description: 로컬 개발 (PORT=.env, 기본 3002). 경로에 /api 접두사 포함.
+  - url: https://auction.company.internal
     description: 운영 (예정)
-  - url: http://localhost:3000/api/v1
-    description: 로컬 개발
 
 tags:
   - name: Auth
-    description: SSO 인증·토큰
-  - name: Self (Employee)
-    description: 본인 데이터 조회 (ABAC 자기 검증 적용)
+    description: 로그인 (ezpass 위임)
+  - name: Self
+    description: 본인 데이터 조회 (@SelfParam 자기 검증 또는 토큰 주체)
   - name: Auction
     description: 경매 조회·입찰
-  - name: Admin - Employee
-    description: 관리자의 직원 데이터 조회·적립 (RBAC=ADMIN)
-  - name: Admin - Operations
-    description: 경매 운영·EVENT 지급·설정 (RBAC=ADMIN)
-  - name: Admin - Audit
-    description: 감사·모니터링 (RBAC=ADMIN)
-  - name: Internal
-    description: 시스템 내부 호출 전용 (X-Internal-Token)
+  - name: Wallet & Charge
+    description: 잔액 조회·충전 요청 (ADR-024)
+  - name: Redemption
+    description: 콘 교환 신청 (ADR-023)
+  - name: Admin - Auction Ops
+    description: 경매 운영 (RBAC=ADMIN 계열)
+  - name: Admin - Wallet & Charge
+    description: 관리자 적립·충전 요청 승인 (RBAC=ADMIN 계열)
+  - name: Admin - Redemption
+    description: 교환 카탈로그·신청 관리 (RBAC=ADMIN 계열)
+  - name: Admin - Members
+    description: 회원 관리·동기화 (RBAC=ADMIN 계열)
+  - name: Admin - Leave & Pool
+    description: 휴가 사용·연말 풀 수집/발행 (RBAC=ADMIN 계열)
+  - name: Admin - Dividend
+    description: 연말 배당 정산 (RBAC=ADMIN 계열)
+  - name: Admin - Audit & Export
+    description: 통계·원장·정산 export (RBAC=ADMIN 계열)
 
 security:
   - bearerAuth: []
 
 # ============================================================================
-# Paths
+# Paths  (모두 /api 접두사)
 # ============================================================================
 paths:
-  # ---- Auth ----
-  /auth/sso/callback:
-    get:
-      tags: [Auth]
-      summary: SSO 로그인 콜백
-      security: []
-      parameters:
-        - in: query
-          name: code
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: 로그인 성공, 토큰 발급
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/SsoLoginResult' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-
-  /auth/refresh:
+  # -------------------------------------------------------------------- Auth
+  /api/auth/login:
     post:
       tags: [Auth]
-      summary: 액세스 토큰 갱신
+      summary: 로그인 (이메일+비밀번호, ezpass 위임 — ADR-019)
+      description: |
+        중앙 인증(ezpass)에 자격 검증을 위임한다. 성공 시 JWT(`sub`/`role`/`empId`)
+        를 발급. `@Public()` — 인증 불필요.
       security: []
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [refreshToken]
-              properties:
-                refreshToken: { type: string }
+            schema: { $ref: '#/components/schemas/LoginRequest' }
       responses:
         '200':
-          description: 새 토큰 쌍
+          description: 로그인 성공, 토큰 발급
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/TokenPair' }
+              schema: { $ref: '#/components/schemas/LoginResult' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
-  # ---- Self (Employee) ----
-  /users/me/wallet:
+  # -------------------------------------------------------------------- Self
+  /api/users/{userId}/activity:
     get:
-      tags: [Self (Employee)]
+      tags: [Self]
+      summary: 내 활동 내역 (입찰·낙찰·원장 요약)
+      description: '@SelfParam("userId") — 본인 또는 ADMIN.'
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
+      responses:
+        '200': { description: 활동 내역 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/users/{userId}/balance:
+    get:
+      tags: [Self]
       summary: 내 지갑 잔액 조회 (FR-5.2)
-      parameters:
-        - in: query
-          name: currency
-          schema: { type: string, default: WELFARE_POINT }
+      description: '@SelfParam("userId") — 본인 또는 ADMIN. 기본 통화 잔액.'
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
       responses:
         '200':
           description: 현재 잔액
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/WalletBalance' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema: { $ref: '#/components/schemas/WalletBalance' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
-  /users/me/ledger:
+  /api/users/{userId}/leave:
     get:
-      tags: [Self (Employee)]
-      summary: 내 거래 내역 조회 (FR-5.2)
-      parameters:
-        - $ref: '#/components/parameters/CurrencyQuery'
-        - $ref: '#/components/parameters/ActionTypeQuery'
-        - $ref: '#/components/parameters/FromQuery'
-        - $ref: '#/components/parameters/ToQuery'
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/SizeQuery'
-      responses:
-        '200':
-          description: 거래 내역 (페이지네이션)
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/PaginatedLedger' }
-
-  /users/me/leave-balance:
-    get:
-      tags: [Self (Employee)]
-      summary: 내 휴가 잔액 조회
-      parameters:
-        - $ref: '#/components/parameters/YearQuery'
+      tags: [Self]
+      summary: 내 휴가 잔액 조회 (3-flag)
+      description: '@SelfParam("userId") — 본인 또는 ADMIN.'
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
       responses:
         '200':
           description: 휴가 타입별 잔액
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/LeaveBalanceEntry' }
+                type: array
+                items: { $ref: '#/components/schemas/LeaveBalanceEntry' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
-  /users/me/dividend:
+  /api/users/{userId}/notifications:
     get:
-      tags: [Self (Employee)]
-      summary: 내 예상/확정 배당 조회
+      tags: [Self]
+      summary: 내 알림 목록 (종 아이콘 피드)
+      description: '@SelfParam("userId") — 본인 또는 ADMIN.'
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
+      responses:
+        '200': { description: 알림 목록 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/users/{userId}/notifications/read:
+    post:
+      tags: [Self]
+      summary: 알림 읽음 처리
+      description: '@SelfParam("userId"). body.ids 생략 시 전체 읽음.'
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200': { description: 읽음 처리 결과 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/users/{userId}/notifications/stream:
+    get:
+      tags: [Self]
+      summary: 실시간 알림 SSE 스트림
+      description: |
+        `@Sse` Server-Sent Events. EventSource 는 헤더를 못 실으므로
+        `?token=<JWT>` 쿼리로 인증. 메시지는 신호만(type/title/message/linkPath);
+        클라는 신호 수신 시 위 목록 API 로 정본을 다시 읽는다.
       parameters:
-        - $ref: '#/components/parameters/YearQuery'
+        - { $ref: '#/components/parameters/UserIdPath' }
+        - in: query
+          name: token
+          schema: { type: string }
+          description: EventSource 인증용 JWT (Bearer 대체)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /api/dividend/me/{userId}:
+    get:
+      tags: [Self]
+      summary: 내 배당 조회 (연도별 stake 기준 — ADR-017)
+      description: '@SelfParam("userId"). ?year= 미지정 시 현재 연도.'
+      parameters:
+        - { $ref: '#/components/parameters/UserIdPath' }
+        - { $ref: '#/components/parameters/YearQuery' }
       responses:
         '200':
           description: 배당 정보
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/DividendInfo' }
+              schema: { $ref: '#/components/schemas/DividendInfo' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
-  /users/me/stake:
+  /api/users/{userId}/redemption-orders:
     get:
-      tags: [Self (Employee)]
-      summary: 내 지분 조회
-      parameters:
-        - $ref: '#/components/parameters/YearQuery'
+      tags: [Self]
+      summary: 내 즉시결제 교환 이력 (deprecated)
+      description: |
+        옛 즉시결제 주문 이력. 신청 흐름은 `/api/redemption/requests/*` 로 이관.
+        `@SelfParam("userId")`.
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
       responses:
-        '200':
-          description: Stake 정보
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/StakeInfo' }
+        '200': { description: 주문 이력 }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
-  # ---- Auction ----
-  /auctions:
+  # ----------------------------------------------------------------- Auction
+  /api/auctions:
     get:
       tags: [Auction]
       summary: 경매 목록 조회 (FR-2.1)
+      description: |
+        회사 스코프 자동 적용(@CompanyScope). `status` 는 CSV(예: `OPEN,CLOSED`).
       parameters:
         - in: query
           name: status
-          schema:
-            $ref: '#/components/schemas/AuctionStatus'
-        - $ref: '#/components/parameters/YearQuery'
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/SizeQuery'
+          schema: { type: string, example: "OPEN,CLOSED" }
+          description: AuctionStatus CSV 필터
+        - { $ref: '#/components/parameters/YearQuery' }
       responses:
         '200':
           description: 경매 목록
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/PaginatedAuctions' }
+                type: array
+                items: { $ref: '#/components/schemas/AuctionSummary' }
 
-  /auctions/{id}:
+  /api/auctions/{id}/stream:
+    get:
+      tags: [Auction]
+      summary: 경매 실시간 업데이트 SSE 스트림 (CUT-6 대체)
+      description: |
+        `@Public() @Sse` — 신호만 전송(민감정보 없음). 프론트는 신호 수신 시
+        인증된 상세 API 를 다시 읽는다. (과거 문서의 WebSocket `/ws/...` 는
+        구현되지 않았으며 SSE 폴/푸시로 대체됨.)
+      security: []
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /api/auctions/{id}:
     get:
       tags: [Auction]
       summary: 경매 상세 조회
-      parameters:
-        - $ref: '#/components/parameters/AuctionIdPath'
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
       responses:
         '200':
           description: 경매 상세
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/AuctionDetail' }
+              schema: { $ref: '#/components/schemas/AuctionDetail' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /auctions/{id}/bids:
+  /api/auctions/{id}/bids:
     post:
       tags: [Auction]
       summary: 입찰 (FR-2.1)
       description: |
-        SQLite write 락(lockAuction) → wallet 차감 → 직전자 즉시 환불 → highest_bid 갱신 → LEDGER_ENTRY → WebSocket 브로드캐스트. 모두 단일 트랜잭션. scope-cuts CUT-1(ADR-006 Superseded)·ADR-018 참조.
-      parameters:
-        - $ref: '#/components/parameters/AuctionIdPath'
+        입찰자는 **토큰 주체로 고정**(body 에 userId 안 받음 — 타인 명의 입찰 차단).
+        SQLite write 락(lockAuction) → 직전 최고가 즉시 환불 → wallet 차감 →
+        highest 갱신 → LEDGER_ENTRY INSERT → 커밋 후 BidPlacedEvent. 단일 트랜잭션.
+        (CUT-1 / ADR-018) 회사 스코프: 타사 경매 입찰 차단.
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
       requestBody:
         required: true
         content:
@@ -256,75 +283,126 @@ paths:
           description: 입찰 수락
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/BidResult' }
-        '400':
-          description: |
-            - `POINT_INSUFFICIENT` — wallet 잔액 부족
-            - `BID_TOO_LOW` — 현재가 + 최소 증분 미만
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+              schema: { $ref: '#/components/schemas/BidResult' }
         '409':
           description: |
-            - `AUCTION_CLOSED` — 마감된 경매
-            - `INVALID_STATE_TRANSITION` — OPEN 상태가 아님
+            도메인 규칙 위반(ConflictException) — 마감/최저가 미만/OPEN 아님 등.
+            메시지를 그대로 노출 가능.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+              schema: { $ref: '#/components/schemas/NestError' }
 
-  /auctions/me/bids:
-    get:
-      tags: [Auction]
-      summary: 내 입찰 이력 조회
-      parameters:
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/SizeQuery'
+  # ------------------------------------------------------- Wallet & Charge
+  /api/wallet/charge-requests:
+    post:
+      tags: [Wallet & Charge]
+      summary: 충전 요청 등록 (ADR-024)
+      description: 인증 사용자 본인(토큰 주체)이 요청. 관리자 승인 시 잔액 적립.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChargeRequestBody' }
       responses:
-        '200':
-          description: 입찰 이력
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/PaginatedMyBids' }
-
-  # ---- Admin - Employee ----
-  /admin/wallet:
+        '200': { description: 요청 등록 완료 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     get:
-      tags: [Admin - Employee]
-      summary: 직원 지갑 조회 (관리자)
+      tags: [Wallet & Charge]
+      summary: 내 충전 요청 목록 (ADR-024)
+      responses:
+        '200': { description: 내 충전 요청 목록 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # --------------------------------------------------------------- Redemption
+  /api/redemption/items:
+    get:
+      tags: [Redemption]
+      summary: 교환 카탈로그 조회 (활성 항목)
+      description: 회사 스코프(@CompanyScope) 자동 적용.
+      responses:
+        '200': { description: 카탈로그 항목 목록 }
+
+  /api/redemption/requests:
+    post:
+      tags: [Redemption]
+      summary: 교환 신청 등록 (카탈로그 항목)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itemId]
+              properties:
+                itemId: { type: integer, minimum: 1 }
+                note: { type: string, maxLength: 200, nullable: true }
+      responses:
+        '200': { description: 신청 등록 완료 }
+    get:
+      tags: [Redemption]
+      summary: 내 교환 신청 목록
+      responses:
+        '200': { description: 내 신청 목록 }
+
+  /api/redemption/requests/custom:
+    post:
+      tags: [Redemption]
+      summary: 자유 제안형 교환 신청 ("원하는대로 담기")
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customName, customPriceP]
+              properties:
+                customName: { type: string, minLength: 1, maxLength: 100 }
+                customPriceP: { type: integer, format: int64 }
+                note: { type: string, maxLength: 200, nullable: true }
+      responses:
+        '200': { description: 신청 등록 완료 }
+
+  /api/redemption/requests/{id}/confirm:
+    post:
+      tags: [Redemption]
+      summary: 수령 컨펌 (APPROVED → RECEIVED)
+      description: 본인 신청만 컨펌 가능(토큰 주체로 강제).
       parameters:
-        - in: query
-          name: userId
+        - in: path
+          name: id
           required: true
           schema: { type: integer, format: int64 }
-        - $ref: '#/components/parameters/CurrencyQuery'
+      responses:
+        '200': { description: 수령 처리 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # =========================================================================
+  # Admin  (@Roles(...ADMIN_ROLES) — ADMIN / EZPASS_ADMIN / EXAM_ADMIN)
+  # =========================================================================
+
+  # ------------------------------------------- Admin - Wallet (legacy 조회)
+  /api/wallet/{userId}:
+    get:
+      tags: [Admin - Wallet & Charge]
+      summary: 임의 사용자 지갑 조회 (관리자 전용, WA-3)
+      description: |
+        타인 잔액 조회라 `@Roles(...ADMIN_ROLES)`. 본인 잔액은
+        `/api/users/:userId/balance`(self).
+      parameters: [{ $ref: '#/components/parameters/UserIdPath' }]
       responses:
         '200':
-          description: 직원 지갑 잔액
+          description: 지갑 잔액
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/WalletBalance' }
+              schema: { $ref: '#/components/schemas/WalletBalance' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /admin/wallet/credit:
+  /api/admin/wallet/credit:
     post:
-      tags: [Admin - Employee]
-      summary: 직원 콘 적립 (FR-5.1)
-      description: CREDIT_ADMIN 액션으로 LEDGER_ENTRY INSERT. reason 필수.
+      tags: [Admin - Wallet & Charge]
+      summary: 직원 콘 적립/차감 (FR-5.1, CREDIT_ADMIN)
+      description: |
+        amount 는 양수(충전)/음수(차감) 모두 허용. reason 필수(감사). escrow 무관.
       requestBody:
         required: true
         content:
@@ -332,332 +410,318 @@ paths:
             schema: { $ref: '#/components/schemas/CreditWalletRequest' }
       responses:
         '200':
-          description: 적립 완료
+          description: 적립/차감 완료
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/CreditWalletResult' }
-        '400':
-          description: |
-            - `REASON_REQUIRED` — 사유 누락
-            - `INVALID_AMOUNT` — amount ≤ 0
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+              schema: { $ref: '#/components/schemas/CreditWalletResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/charge-requests:
+    get:
+      tags: [Admin - Wallet & Charge]
+      summary: 충전 요청 목록 (관리자, ADR-024)
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+      responses:
+        '200': { description: 충전 요청 목록 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/charge-requests/{id}:
+    get:
+      tags: [Admin - Wallet & Charge]
+      summary: 충전 요청 단건 조회 (deep-link prefill)
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      responses:
+        '200': { description: 충전 요청 }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /admin/ledger:
-    get:
-      tags: [Admin - Audit]
-      summary: 전체 거래 원장 감사 조회
-      parameters:
-        - in: query
-          name: userId
-          schema: { type: integer, format: int64 }
-        - in: query
-          name: auctionId
-          schema: { type: integer, format: int64 }
-        - $ref: '#/components/parameters/CurrencyQuery'
-        - $ref: '#/components/parameters/ActionTypeQuery'
-        - $ref: '#/components/parameters/FromQuery'
-        - $ref: '#/components/parameters/ToQuery'
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/SizeQuery'
-      responses:
-        '200':
-          description: 거래 원장
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/PaginatedLedger' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /admin/leave-balance:
-    get:
-      tags: [Admin - Employee]
-      summary: 직원 휴가 잔액 조회 (관리자)
-      parameters:
-        - in: query
-          name: userId
-          required: true
-          schema: { type: integer, format: int64 }
-        - $ref: '#/components/parameters/YearQuery'
-      responses:
-        '200':
-          description: 휴가 잔액
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/LeaveBalanceEntry' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  # ---- Admin - Operations ----
-  /admin/auctions/{id}/open:
+  /api/admin/charge-requests/{id}/approve:
     post:
-      tags: [Admin - Operations]
-      summary: 경매 수동 오픈 (분산 오픈 운영)
-      description: OP-4 분산 오픈 배치의 수동 트리거. CREATED → OPEN 전이.
-      parameters:
-        - $ref: '#/components/parameters/AuctionIdPath'
+      tags: [Admin - Wallet & Charge]
+      summary: 충전 요청 승인 (잔액 적립)
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionNote' }
+      responses:
+        '200': { description: 승인 완료 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/charge-requests/{id}/reject:
+    post:
+      tags: [Admin - Wallet & Charge]
+      summary: 충전 요청 반려
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionNote' }
+      responses:
+        '200': { description: 반려 완료 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ------------------------------------------------- Admin - Auction Ops
+  /api/admin/auctions:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: 경매(1일권) 수동 생성
+      description: |
+        id 는 서버 채번, leaveDays=1 고정. `asDraft:true` 면 DRAFT(보류). 회사 스코프.
+        (startPrice 는 @deprecated — 받지만 무시, 시작가 고정.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAuctionRequest' }
+      responses:
+        '200':
+          description: 생성 완료
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuctionDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/auctions/{id}/open:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: 경매 즉시 오픈 (CREATED → OPEN)
+      description: body 로 시작/마감 시각·시작금·일수·증분 변경 동반 가능.
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OpenAuctionRequest' }
       responses:
         '200':
           description: 오픈 완료
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/AuctionDetail' }
+              schema: { $ref: '#/components/schemas/AuctionDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: INVALID_STATE_TRANSITION
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
 
-  /admin/auctions/{id}/event-grant:
+  /api/admin/auctions/{id}/schedule:
     post:
-      tags: [Admin - Operations]
-      summary: 유찰 재고 EVENT 수동 지급 (FR-4.2)
-      parameters:
-        - $ref: '#/components/parameters/AuctionIdPath'
+      tags: [Admin - Auction Ops]
+      summary: 경매 오픈 예약 (운영 파라미터만 갱신, 상태 CREATED 유지)
+      description: 시간 도래 시 OpenDueAuctionsScheduler 가 자동 OPEN.
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/EventGrantRequest' }
+            schema: { $ref: '#/components/schemas/OpenAuctionRequest' }
       responses:
-        '200':
-          description: 지급 완료
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/EventGrantResult' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: INVALID_STATE_TRANSITION — UNSOLD 상태가 아님
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+        '200': { description: 예약 저장 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
-  /admin/auctions/{id}/force-close:
+  /api/admin/auctions/{id}/settle:
     post:
-      tags: [Admin - Operations]
-      summary: 경매 강제 마감 (장애 대응)
-      parameters:
-        - $ref: '#/components/parameters/AuctionIdPath'
+      tags: [Admin - Auction Ops]
+      summary: 경매 단건 정산 (낙찰/유찰)
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
       responses:
-        '200':
-          description: 마감 완료
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/AuctionDetail' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '200': { description: 정산 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
-  /admin/config/bid-increment:
-    put:
-      tags: [Admin - Operations]
-      summary: OP-3 최소 입찰 증분 설정
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [amount, currency]
-              properties:
-                amount:
-                  type: integer
-                  format: int64
-                  minimum: 1
-                currency:
-                  type: string
-                  default: WELFARE_POINT
+  /api/admin/auctions/settle-due:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: 마감 경과 경매 일괄 정산 (자동 배치 수동 트리거)
+      description: SettleDueAuctionsScheduler(SETTLE_INTERVAL_MS)의 수동 트리거.
       responses:
-        '200': { description: 설정 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '200': { description: 정산 배치 결과 }
 
-  /admin/config/weekly-open-quota:
-    put:
-      tags: [Admin - Operations]
-      summary: OP-5 분산 오픈 주당 개수 설정
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [quota]
-              properties:
-                quota: { type: integer, minimum: 1 }
+  /api/admin/auctions/open-due:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: 시작 시각 경과 CREATED 매물 일괄 OPEN (자동 승급 수동 트리거)
       responses:
-        '200': { description: 설정 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '200': { description: 오픈 배치 결과 }
 
-  /admin/config/starting-price:
-    put:
-      tags: [Admin - Operations]
-      summary: OP-6 시작가 모드·값 설정
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [mode]
-              properties:
-                mode:
-                  type: string
-                  enum: [FREE, FIXED_MIN, PRIOR_YEAR_AVERAGE]
-                value:
-                  type: integer
-                  description: FIXED_MIN 모드일 때만 사용
-      responses:
-        '200': { description: 설정 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  # ---- Admin - Audit ----
-  /admin/escrow:
+  /api/admin/auctions/summary:
     get:
-      tags: [Admin - Audit]
-      summary: 에스크로 현황 조회 (NFR-2 정합성 검증 포함)
-      parameters:
-        - $ref: '#/components/parameters/YearQuery'
-        - $ref: '#/components/parameters/CurrencyQuery'
+      tags: [Admin - Auction Ops]
+      summary: 경매 카운터 (총/오픈예정/진행중/종료, 회사 스코프)
       responses:
-        '200':
-          description: 에스크로 현황
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/EscrowInfo' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '200': { description: 상태별 집계 }
 
-  /admin/outbox:
+  /api/admin/auctions/next-id:
     get:
-      tags: [Admin - Audit]
-      summary: Outbox 상태 조회
+      tags: [Admin - Auction Ops]
+      summary: 다음 채번 추천 (A-YYYY-NNN)
+      parameters: [{ $ref: '#/components/parameters/YearQuery' }]
+      responses:
+        '200': { description: 추천 id }
+
+  /api/admin/auctions/{id}/extend:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: OPEN 매물 마감 시각 연장
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endsAt]
+              properties:
+                endsAt: { type: string, format: date-time }
+      responses:
+        '200': { description: 연장 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/admin/auctions/{id}/close-now:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: OPEN 매물 즉시 마감 + 정산
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
+      responses:
+        '200': { description: 마감·정산 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/admin/auctions/{id}/reopen-unsold:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: UNSOLD 매물 재오픈 (새 1일권 경매 생성, FR-4.2)
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startedAt, endsAt]
+              properties:
+                startedAt: { type: string, format: date-time }
+                endsAt: { type: string, format: date-time }
+      responses:
+        '200': { description: 재오픈 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/admin/auctions/cancel:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: CREATED 매물 다중 취소
+      description: OPEN 이상은 skipped 로 응답.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  items: { type: string, pattern: '^A-\d{4}-\d{3,}$' }
+      responses:
+        '200': { description: 취소 결과(취소/스킵 목록) }
+
+  /api/admin/auctions/{id}/grant-event:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: UNSOLD → EVENT 휴가 변환 지급 (FR-4.2)
+      parameters: [{ $ref: '#/components/parameters/AuctionIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: integer, format: int64 }
+      responses:
+        '200': { description: EVENT 지급 완료 }
+
+  /api/admin/auctions/purge-unsold:
+    post:
+      tags: [Admin - Auction Ops]
+      summary: UNSOLD 재고 영구 삭제 (FR-4.2)
       parameters:
         - in: query
-          name: status
-          schema:
-            type: string
-            enum: [PENDING, SENT, DLQ]
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/SizeQuery'
+          name: upToYear
+          schema: { type: integer }
       responses:
-        '200':
-          description: Outbox 목록
+        '200': { description: 삭제 결과 }
+
+  # ------------------------------------------------- Admin - Members
+  /api/admin/members:
+    get:
+      tags: [Admin - Members]
+      summary: 회원 목록 (회사 스코프)
+      responses:
+        '200': { description: 회원 목록 + mode }
+    post:
+      tags: [Admin - Members]
+      summary: 회원 추가 (EXAM 로컬 — ADMIN·EXAM_ADMIN)
+      description: '메서드 단위 `@Roles("ADMIN","EXAM_ADMIN")`. EZPASS 회원은 동기화로만.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMemberRequest' }
+      responses:
+        '200': { description: 생성 완료 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/members/sync:
+    post:
+      tags: [Admin - Members]
+      summary: ezpass org 회원 동기화 (ADMIN·EZPASS_ADMIN)
+      description: '메서드 단위 `@Roles("ADMIN","EZPASS_ADMIN")`.'
+      responses:
+        '200': { description: 동기화 결과 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/members/{id}:
+    patch:
+      tags: [Admin - Members]
+      summary: 회원 수정/비번재설정/비활성 (EXAM 로컬 — ADMIN·EXAM_ADMIN)
+      description: 'EZPASS 회원 수정은 use-case 에서 409.'
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMemberRequest' }
+      responses:
+        '200': { description: 수정 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: EZPASS 회원은 수정 불가
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/PaginatedOutbox' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+              schema: { $ref: '#/components/schemas/NestError' }
 
-  /admin/outbox/{id}/retry:
+  # ------------------------------------------------- Admin - Leave & Pool
+  /api/admin/leave/use:
     post:
-      tags: [Admin - Audit]
-      summary: DLQ 항목 재시도
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, format: int64 }
-      responses:
-        '200': { description: 재시도 큐 재진입 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  # ---- Internal (System Token) ----
-  /internal/batch/year-end-settlement:
-    post:
-      tags: [Internal]
-      summary: 연말 풀 수집 배치 (FR-1.1, ADR-017)
-      description: 스케줄러 또는 관리자 수동 호출. 재진입 가능(idempotent).
-      security:
-        - internalToken: []
-      responses:
-        '200': { description: 배치 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /internal/batch/dividend-distribution:
-    post:
-      tags: [Internal]
-      summary: 연말 배당 배치 (FR-4.1)
-      security:
-        - internalToken: []
-      responses:
-        '200': { description: 배치 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /internal/batch/weekly-auction-open:
-    post:
-      tags: [Internal]
-      summary: 주차별 경매 오픈 배치 (OP-4 분산 오픈)
-      security:
-        - internalToken: []
-      responses:
-        '200': { description: 오픈 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /internal/batch/close-expired-auctions:
-    post:
-      tags: [Internal]
-      summary: end_time 경과 경매 일괄 마감
-      security:
-        - internalToken: []
-      responses:
-        '200': { description: 마감 완료 }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /internal/leave/deduct:
-    post:
-      tags: [Internal]
-      summary: 휴가 차감 (FR-3.1 — 그룹웨어/Stub의 휴가 사용 승인 콜백)
-      description: AUCTION → EVENT → REGULAR 우선순위 강제 차감. ADR-003.
-      security:
-        - internalToken: []
+      tags: [Admin - Leave & Pool]
+      summary: 휴가 사용 — 우선순위 차감 (FR-3.1)
+      description: |
+        AUCTION → EVENT → REGULAR 강제 차감(ADR-003). `@Roles(...ADMIN_ROLES)` —
+        본래 그룹웨어 트리거 책임이라 직원 self 라우트로 노출하지 않고 관리자
+        디버그/시연용으로만 둔다. (과거 문서의 `/internal/leave/deduct` +
+        X-Internal-Token 모델은 폐기, 본 ADMIN RBAC 라우트로 대체.)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [userId, days, year]
+              required: [userId, days]
               properties:
                 userId: { type: integer, format: int64 }
                 days: { type: integer, minimum: 1 }
@@ -667,17 +731,315 @@ paths:
           description: 차감 완료
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiSuccess'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/DeductionResult' }
-        '400':
-          description: INSUFFICIENT_LEAVE / INVALID_AMOUNT
+              schema: { $ref: '#/components/schemas/DeductionResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: 휴가 잔여 부족 등
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+              schema: { $ref: '#/components/schemas/NestError' }
+
+  /api/admin/leave-pool/collect:
+    post:
+      tags: [Admin - Leave & Pool]
+      summary: 연말 풀 수집 (REGULAR 잔여 → supply, 매물 X) — ADR-017
+      description: 멱등(leave_pool_run.target_year UNIQUE). super ADMIN 은 전 회사 일괄.
+      parameters:
+        - in: query
+          name: dryRun
+          schema: { type: string, enum: ['true', '1'] }
+        - in: query
+          name: sourceYear
+          schema: { type: integer }
+      responses:
+        '200': { description: 수집 결과(또는 dryRun 미리보기) }
+
+  /api/admin/leave-pool/release:
+    post:
+      tags: [Admin - Leave & Pool]
+      summary: 다음 발행 회차 즉시/조건부 발행 (점진 발행)
+      parameters:
+        - in: query
+          name: force
+          schema: { type: string, enum: ['true', '1'] }
+          description: true 면 정책 무시하고 즉시 발행
+        - in: query
+          name: sourceYear
+          schema: { type: integer }
+      responses:
+        '200': { description: 발행 결과 }
+
+  /api/admin/leave-pool/upcoming:
+    get:
+      tags: [Admin - Leave & Pool]
+      summary: 다음 자동 발행 회차 미리보기
+      responses:
+        '200': { description: 다음 회차 안내 }
+
+  /api/admin/release-policy:
+    get:
+      tags: [Admin - Leave & Pool]
+      summary: 풀 매물 분산 발행 정책 조회
+      responses:
+        '200':
+          description: 현재 정책
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReleasePolicy' }
+    patch:
+      tags: [Admin - Leave & Pool]
+      summary: 풀 매물 분산 발행 정책 변경
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReleasePolicy' }
+      responses:
+        '200': { description: 변경 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/admin/leave-sync/check:
+    post:
+      tags: [Admin - Leave & Pool]
+      summary: leave_balance.AUCTION ↔ ezpass mdat 정합 점검 (비상조치)
+      description: 무거운 전수 점검. 명시 트리거. (ADR-025 — ezpass REST 경유.)
+      parameters: [{ $ref: '#/components/parameters/YearQuery' }]
+      responses:
+        '200': { description: 점검 리포트 }
+
+  /api/admin/leave-sync/{userId}/reconcile:
+    post:
+      tags: [Admin - Leave & Pool]
+      summary: 단일 사용자 강제 동기 (drift 복구)
+      parameters:
+        - { $ref: '#/components/parameters/UserIdPath' }
+        - { $ref: '#/components/parameters/YearQuery' }
+      responses:
+        '200': { description: 동기 결과(previous/applied) }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ------------------------------------------------- Admin - Dividend
+  /api/admin/dividend/settle:
+    post:
+      tags: [Admin - Dividend]
+      summary: 연말 배당 정산 (ADR-008, 멱등)
+      description: |
+        `?dryRun=true` 미리보기. 재호출 시 409(이미 정산). super ADMIN(전 회사)은
+        회사별 분리 일괄 정산. NFR-2 escrow 정합 강제.
+      parameters:
+        - in: query
+          name: dryRun
+          schema: { type: string, enum: ['true', '1'] }
+        - { $ref: '#/components/parameters/YearQuery' }
+      responses:
+        '200': { description: 정산 결과(또는 dryRun 미리보기) }
+        '409':
+          description: 이미 정산됨
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NestError' }
+
+  # ------------------------------------------------- Admin - Redemption
+  /api/admin/redemption/items:
+    get:
+      tags: [Admin - Redemption]
+      summary: 카탈로그 전체 조회 (비활성 포함, 회사 스코프)
+      responses:
+        '200': { description: 카탈로그 항목 목록 }
+    post:
+      tags: [Admin - Redemption]
+      summary: 카탈로그 항목 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RedemptionItemCreate' }
+      responses:
+        '200': { description: 추가 완료 }
+
+  /api/admin/redemption/items/{id}:
+    patch:
+      tags: [Admin - Redemption]
+      summary: 카탈로그 항목 수정
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RedemptionItemUpdate' }
+      responses:
+        '200': { description: 수정 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/admin/redemption/items/{id}/active:
+    post:
+      tags: [Admin - Redemption]
+      summary: 카탈로그 항목 활성 토글
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+      responses:
+        '200': { description: 토글 완료 }
+
+  /api/admin/redemption/items/{id}/audits:
+    get:
+      tags: [Admin - Redemption]
+      summary: 카탈로그 항목 변경 이력
+      parameters:
+        - { $ref: '#/components/parameters/IntIdPath' }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200': { description: 변경 이력 }
+
+  /api/admin/redemption-requests:
+    get:
+      tags: [Admin - Redemption]
+      summary: 교환 신청 목록 (필터, 회사 스코프)
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [PENDING, APPROVED, RECEIVED, REJECTED] }
+      responses:
+        '200': { description: 신청 목록 }
+
+  /api/admin/redemption-requests/summary:
+    get:
+      tags: [Admin - Redemption]
+      summary: 교환 신청 요약 집계
+      responses:
+        '200': { description: 요약 }
+
+  /api/admin/redemption-requests/{id}/approve:
+    post:
+      tags: [Admin - Redemption]
+      summary: 교환 신청 승인 + 쿠폰 발급
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [couponCode]
+              properties:
+                couponCode: { type: string, minLength: 1, maxLength: 500 }
+                note: { type: string, maxLength: 200, nullable: true }
+      responses:
+        '200': { description: 승인 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/admin/redemption-requests/{id}/reject:
+    post:
+      tags: [Admin - Redemption]
+      summary: 교환 신청 반려 + 환불
+      parameters: [{ $ref: '#/components/parameters/IntIdPath' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        '200': { description: 반려·환불 완료 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ------------------------------------------------- Admin - Audit & Export
+  /api/admin/stats:
+    get:
+      tags: [Admin - Audit & Export]
+      summary: 관리자 통계 (회사 스코프)
+      responses:
+        '200': { description: 통계 집계 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/ledger:
+    get:
+      tags: [Admin - Audit & Export]
+      summary: 전체 원장 감사 조회 (커서 페이지네이션)
+      parameters:
+        - in: query
+          name: actionTypes
+          schema: { type: string }
+          description: ActionType CSV 필터 (예 'BID,REFUND')
+        - { $ref: '#/components/parameters/FromQuery' }
+        - { $ref: '#/components/parameters/ToQuery' }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: cursor
+          schema: { type: integer, format: int64 }
+          description: 마지막 항목 id (커서 기반)
+      responses:
+        '200':
+          description: 원장 + nextCursor
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedLedger' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/export:
+    get:
+      tags: [Admin - Audit & Export]
+      summary: 정산 데이터 결합 export (ADR-021)
+      description: |
+        `?sets=leave-grants,dividends,spending`(생략 시 전체) ·
+        `&format=xlsx|md|json`(기본 xlsx 멀티시트). 사람용 포맷은 한글 헤더·파일명.
+        회사 스코프(@CompanyScope). 응답은 파일 다운로드(Content-Disposition).
+      parameters:
+        - in: query
+          name: sets
+          schema: { type: string }
+        - in: query
+          name: format
+          schema: { type: string, enum: [xlsx, md, json], default: xlsx }
+      responses:
+        '200': { description: 파일 다운로드 }
+
+  /api/admin/export/leave-grants:
+    get:
+      tags: [Admin - Audit & Export]
+      summary: 낙찰 연차 부여 내역 export
+      parameters:
+        - in: query
+          name: format
+          schema: { type: string, enum: [csv, json, md], default: json }
+      responses:
+        '200': { description: 내역(파일 또는 json) }
+
+  /api/admin/export/dividends:
+    get:
+      tags: [Admin - Audit & Export]
+      summary: 연말 배당 내역 export
+      parameters:
+        - in: query
+          name: format
+          schema: { type: string, enum: [csv, json, md], default: json }
+      responses:
+        '200': { description: 내역(파일 또는 json) }
+
+  /api/admin/export/spending:
+    get:
+      tags: [Admin - Audit & Export]
+      summary: 지출 내역 export
+      parameters:
+        - in: query
+          name: format
+          schema: { type: string, enum: [csv, json, md], default: json }
+      responses:
+        '200': { description: 내역(파일 또는 json) }
 
 # ============================================================================
 # Components
@@ -688,13 +1050,20 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-    internalToken:
-      type: apiKey
-      in: header
-      name: X-Internal-Token
 
   parameters:
     AuctionIdPath:
+      in: path
+      name: id
+      required: true
+      schema: { type: string, example: "A-2026-001" }
+      description: 경매 id (A-YYYY-NNN 형식)
+    UserIdPath:
+      in: path
+      name: userId
+      required: true
+      schema: { type: integer, format: int64 }
+    IntIdPath:
       in: path
       name: id
       required: true
@@ -703,15 +1072,6 @@ components:
       in: query
       name: year
       schema: { type: integer, example: 2026 }
-    CurrencyQuery:
-      in: query
-      name: currency
-      schema: { type: string, default: WELFARE_POINT }
-    ActionTypeQuery:
-      in: query
-      name: actionType
-      schema:
-        $ref: '#/components/schemas/ActionType'
     FromQuery:
       in: query
       name: from
@@ -720,72 +1080,46 @@ components:
       in: query
       name: to
       schema: { type: string, format: date-time }
-    PageQuery:
-      in: query
-      name: page
-      schema: { type: integer, minimum: 1, default: 1 }
-    SizeQuery:
-      in: query
-      name: size
-      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
 
   responses:
     Unauthorized:
-      description: 토큰 없음/만료
+      description: 토큰 없음/만료 (401)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
+          schema: { $ref: '#/components/schemas/NestError' }
     Forbidden:
-      description: 권한 부족 (RBAC 또는 ABAC 검증 실패)
+      description: 권한 부족 (RBAC/ABAC 실패, 403)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
+          schema: { $ref: '#/components/schemas/NestError' }
     NotFound:
-      description: 리소스 없음
+      description: 리소스 없음 (404)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
+          schema: { $ref: '#/components/schemas/NestError' }
+    BadRequest:
+      description: 검증 실패/도메인 오류 (400)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/NestError' }
 
   schemas:
-    # ---- 공통 봉투 ----
-    ApiSuccess:
+    # ---- 공통: NestJS 표준 예외 형태 (봉투 없음) ----
+    NestError:
       type: object
-      required: [success, data, timestamp]
       properties:
-        success: { type: boolean, enum: [true] }
-        data: { type: object, nullable: true }
-        error: { type: object, nullable: true, example: null }
-        timestamp: { type: string, format: date-time }
-
-    ApiError:
-      type: object
-      required: [success, error, timestamp]
-      properties:
-        success: { type: boolean, enum: [false] }
-        data: { type: object, nullable: true, example: null }
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code:
-              type: string
-              description: |
-                표준 에러 코드:
-                - UNAUTHORIZED · FORBIDDEN · NOT_FOUND
-                - POINT_INSUFFICIENT · BID_TOO_LOW · INVALID_STATE_TRANSITION
-                - AUCTION_CLOSED
-                - REASON_REQUIRED · INVALID_AMOUNT · USER_NOT_FOUND
-                - HR_API_TIMEOUT · ESCROW_MISMATCH
-                - INSUFFICIENT_LEAVE
-            message: { type: string }
-            details: { type: object, nullable: true }
-        timestamp: { type: string, format: date-time }
+        statusCode: { type: integer, example: 400 }
+        message:
+          oneOf:
+            - { type: string }
+            - { type: array, items: { type: string } }
+        error: { type: string, example: "Bad Request" }
 
     # ---- 열거형 ----
     AuctionStatus:
       type: string
       enum: [CREATED, OPEN, CLOSED, AWARDED, UNSOLD, EXPIRED]
-      description: Auction 6상태 (ADR-014 State 패턴)
+      description: 'as-built: AuctionStatus 문자열 + 가드절(CUT-3, ADR-014).'
 
     LeaveType:
       type: string
@@ -793,94 +1127,114 @@ components:
 
     ActionType:
       type: string
-      enum: [BID, REFUND, WIN, DIVIDEND, CREDIT_ADMIN, EXPIRE]
+      enum:
+        - BID
+        - REFUND
+        - WIN
+        - DIVIDEND
+        - CREDIT_ADMIN
+        - EXPIRE
+        - REDEEM
+        - REDEEM_REFUND
+        - CHARGE_REQUESTED
+        - CHARGE_REJECTED
 
-    UserRole:
+    Role:
       type: string
-      enum: [EMPLOYEE, ADMIN]
+      enum: [ADMIN, EZPASS_ADMIN, EXAM_ADMIN, EZPASS, EXAM]
+      description: 관리자 계열(ADMIN/EZPASS_ADMIN/EXAM_ADMIN) vs 일반(EZPASS/EXAM).
 
     # ---- 인증 ----
-    SsoLoginResult:
+    LoginRequest:
       type: object
+      required: [id, password]
+      properties:
+        id: { type: string, description: 이메일 }
+        password: { type: string }
+        cmpnyNo: { type: string, nullable: true }
+
+    LoginResult:
+      type: object
+      description: LoginUseCase 결과(토큰 + 사용자 식별).
       properties:
         accessToken: { type: string }
-        refreshToken: { type: string }
-        user: { $ref: '#/components/schemas/UserSummary' }
-
-    TokenPair:
-      type: object
-      properties:
-        accessToken: { type: string }
-        refreshToken: { type: string }
-
-    UserSummary:
-      type: object
-      properties:
-        userId: { type: integer, format: int64 }
-        empId: { type: string }
-        name: { type: string }
-        role: { $ref: '#/components/schemas/UserRole' }
+        user:
+          type: object
+          properties:
+            userId: { type: integer, format: int64 }
+            empId: { type: string }
+            name: { type: string }
+            role: { $ref: '#/components/schemas/Role' }
+            companyId: { type: integer, format: int64, nullable: true }
 
     # ---- 지갑·원장 ----
     WalletBalance:
       type: object
-      required: [userId, currency, balance]
       properties:
         userId: { type: integer, format: int64 }
         currency: { type: string }
-        balance: { type: integer, format: int64, minimum: 0 }
+        balance:
+          type: string
+          description: BigInt → json-bigint.interceptor 가 문자열로 직렬화.
         updatedAt: { type: string, format: date-time }
 
-    LedgerEntry:
+    ChargeRequestBody:
       type: object
+      required: [amount]
       properties:
-        id: { type: integer, format: int64 }
-        userId: { type: integer, format: int64 }
-        auctionId: { type: integer, format: int64, nullable: true }
-        currency: { type: string }
-        actionType: { $ref: '#/components/schemas/ActionType' }
         amount:
-          type: integer
-          format: int64
-          description: 부호 포함 (+ 입금 / − 출금)
-        escrowBalanceSnapshot: { type: integer, format: int64 }
-        reason: { type: string, nullable: true }
-        actorRole:
-          type: string
-          enum: [EMPLOYEE, ADMIN]
-          description: BR-1 완화책. 관리자 행위 시 ADMIN 플래그
-        createdAt: { type: string, format: date-time }
-
-    PaginatedLedger:
-      type: object
-      properties:
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/LedgerEntry' }
-        total: { type: integer }
-        page: { type: integer }
-        size: { type: integer }
+          oneOf:
+            - { type: integer, minimum: 1 }
+            - { type: string, pattern: '^\d+$' }
+        note: { type: string, maxLength: 200, nullable: true }
 
     CreditWalletRequest:
       type: object
-      required: [userId, currency, amount, reason]
+      required: [userId, amount, reason]
       properties:
-        userId: { type: integer, format: int64 }
-        currency: { type: string, default: WELFARE_POINT }
-        amount: { type: integer, format: int64, minimum: 1 }
-        reason:
-          type: string
-          minLength: 1
-          example: "2026 Q2 분기 복지 콘 지급"
+        userId:
+          oneOf: [{ type: integer, format: int64 }, { type: string }]
+        amount:
+          oneOf: [{ type: integer }, { type: string }]
+          description: 0 이 아닌 정수. 음수 = 차감.
+        reason: { type: string, minLength: 1 }
 
     CreditWalletResult:
       type: object
       properties:
         userId: { type: integer, format: int64 }
         currency: { type: string }
-        creditedAmount: { type: integer, format: int64 }
-        newBalance: { type: integer, format: int64 }
+        creditedAmount: { type: string }
+        newBalance: { type: string }
         ledgerEntryId: { type: integer, format: int64 }
+
+    DecisionNote:
+      type: object
+      properties:
+        note: { type: string, maxLength: 200, nullable: true }
+
+    LedgerEntry:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        auctionId: { type: string, nullable: true }
+        currency: { type: string }
+        actionType: { $ref: '#/components/schemas/ActionType' }
+        amount:
+          type: string
+          description: 부호 포함 BigInt 문자열 (+ 입금 / − 출금).
+        reason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    PaginatedLedger:
+      type: object
+      description: 커서 기반 페이지네이션.
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/LedgerEntry' }
+        nextCursor: { type: integer, format: int64, nullable: true }
 
     # ---- 휴가 ----
     LeaveBalanceEntry:
@@ -896,7 +1250,7 @@ components:
       properties:
         deductedFrom:
           type: array
-          description: AUCTION → EVENT → REGULAR 순으로 차감 내역
+          description: AUCTION → EVENT → REGULAR 순 차감 내역 (ADR-003).
           items:
             type: object
             properties:
@@ -908,18 +1262,13 @@ components:
     AuctionSummary:
       type: object
       properties:
-        id: { type: integer, format: int64 }
+        id: { type: string, example: "A-2026-001" }
         status: { $ref: '#/components/schemas/AuctionStatus' }
         year: { type: integer }
-        startTime: { type: string, format: date-time }
-        endTime: { type: string, format: date-time }
-        highestBid: { type: integer, format: int64 }
-        myCurrentBid:
-          type: integer
-          format: int64
-          nullable: true
-          description: 내가 현재 최고가 입찰자인 경우의 입찰액
-        timeRemainingSec: { type: integer }
+        startedAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        highestBid: { type: string, nullable: true }
+        leaveDays: { type: integer }
 
     AuctionDetail:
       allOf:
@@ -927,148 +1276,165 @@ components:
         - type: object
           properties:
             winnerId: { type: integer, format: int64, nullable: true }
-            startingPrice: { type: integer, format: int64 }
-            minBidIncrement: { type: integer, format: int64 }
-
-    PaginatedAuctions:
-      type: object
-      properties:
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/AuctionSummary' }
-        total: { type: integer }
-        page: { type: integer }
-        size: { type: integer }
+            startPrice: { type: string }
+            minIncrement: { type: string }
 
     BidRequest:
       type: object
       required: [amount]
       properties:
         amount:
-          type: integer
-          format: int64
-          minimum: 1
-          description: 입찰 금액 (콘)
+          oneOf: [{ type: integer, minimum: 1 }, { type: string }]
+          description: 양의 정수(콘). BigInt 호환 위해 문자열 허용.
 
     BidResult:
       type: object
       properties:
-        auctionId: { type: integer, format: int64 }
-        acceptedAmount: { type: integer, format: int64 }
-        newHighestBid: { type: integer, format: int64 }
+        auctionId: { type: string }
+        acceptedAmount: { type: string }
+        newHighestBid: { type: string }
         refundedPreviousBidder:
           type: integer
           format: int64
           nullable: true
-          description: 즉시 환불된 직전 최고가 입찰자 ID (ADR-018)
+          description: 즉시 환불된 직전 최고가 입찰자 ID (ADR-018).
 
-    MyBid:
+    CreateAuctionRequest:
       type: object
       properties:
-        auctionId: { type: integer, format: int64 }
-        amount: { type: integer, format: int64 }
-        isCurrentHighest: { type: boolean }
-        createdAt: { type: string, format: date-time }
+        quantity: { type: integer, minimum: 1, maximum: 1000, default: 1 }
+        minIncrement:
+          oneOf: [{ type: integer }, { type: string }]
+        asDraft: { type: boolean }
+        startedAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        startPrice:
+          oneOf: [{ type: integer }, { type: string }]
+          deprecated: true
 
-    PaginatedMyBids:
+    OpenAuctionRequest:
       type: object
       properties:
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/MyBid' }
-        total: { type: integer }
-        page: { type: integer }
+        startedAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        startPrice:
+          oneOf: [{ type: integer }, { type: string }]
+        minIncrement:
+          oneOf: [{ type: integer }, { type: string }]
+        leaveDays: { type: integer, minimum: 1 }
+        force: { type: boolean }
 
-    # ---- 배당·지분 ----
+    # ---- 배당 ----
     DividendInfo:
       type: object
       properties:
         year: { type: integer }
         stakeRatio: { type: number, format: double }
-        estimatedDividend:
-          type: integer
-          format: int64
-          description: 현재 에스크로 기준 예상액 (확정 전)
-        finalDividend:
-          type: integer
-          format: int64
-          nullable: true
+        estimatedDividend: { type: string, nullable: true }
+        finalDividend: { type: string, nullable: true }
         status:
           type: string
           enum: [PENDING, FINALIZED, PAID]
 
-    StakeInfo:
+    # ---- 회원 ----
+    CreateMemberRequest:
       type: object
+      required: [email, name, password]
       properties:
-        year: { type: integer }
-        contributedDays: { type: integer }
-        stakeRatio: { type: number, format: double }
-
-    # ---- 관리자 운영 ----
-    EventGrantRequest:
-      type: object
-      required: [empId, reason]
-      properties:
+        email: { type: string, format: email }
+        name: { type: string, minLength: 1 }
+        password: { type: string, minLength: 4 }
+        role: { type: string, enum: [EXAM, EXAM_ADMIN], default: EXAM }
         empId: { type: string }
-        reason: { type: string, minLength: 1 }
+        team: { type: string, nullable: true }
+        jobRank: { type: string, nullable: true }
+        jobTitle: { type: string, nullable: true }
 
-    EventGrantResult:
+    UpdateMemberRequest:
       type: object
       properties:
-        auctionId: { type: integer, format: int64 }
-        recipientUserId: { type: integer, format: int64 }
-        leaveType: { type: string, enum: [EVENT] }
-        granted: { type: integer, example: 1 }
+        name: { type: string, minLength: 1 }
+        role: { type: string, enum: [EXAM, EXAM_ADMIN] }
+        team: { type: string, nullable: true }
+        jobRank: { type: string, nullable: true }
+        jobTitle: { type: string, nullable: true }
+        active: { type: boolean }
+        password: { type: string, minLength: 4 }
 
-    EscrowInfo:
+    # ---- 교환(Redemption) ----
+    RedemptionItemCreate:
+      type: object
+      required: [sku, name, priceP]
+      properties:
+        sku: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        brand: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        priceP:
+          oneOf: [{ type: integer }, { type: string }]
+        stock: { type: integer, minimum: 0, nullable: true }
+        category: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        active: { type: boolean }
+
+    RedemptionItemUpdate:
       type: object
       properties:
-        year: { type: integer }
-        currency: { type: string }
-        balance:
-          type: integer
-          format: int64
-          description: 캐시 테이블 (escrow.balance)
-        computedBalance:
-          type: integer
-          format: int64
-          description: ledger_entry 재계산 (escrow_audit_view)
-        isConsistent:
-          type: boolean
-          description: balance == computedBalance
-        totalBidCount: { type: integer }
-        totalWinnerCount: { type: integer }
+        name: { type: string, minLength: 1 }
+        brand: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        priceP:
+          oneOf: [{ type: integer }, { type: string }]
+        stock: { type: integer, minimum: 0, nullable: true }
+        category: { type: string, nullable: true }
+        displayOrder: { type: integer }
 
-    # ---- Outbox ----
-    OutboxEntry:
-      type: object
-      properties:
-        id: { type: integer, format: int64 }
-        idempotencyKey: { type: string }
-        aggregateType: { type: string }
-        aggregateId: { type: integer, format: int64 }
-        status:
-          type: string
-          enum: [PENDING, SENT, DLQ]
-        retryCount: { type: integer }
-        lastError: { type: string, nullable: true }
-        createdAt: { type: string, format: date-time }
-        sentAt: { type: string, format: date-time, nullable: true }
-
-    PaginatedOutbox:
-      type: object
-      properties:
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/OutboxEntry' }
-        total: { type: integer }
-        page: { type: integer }
+    # ---- 발행 정책 ----
+    ReleasePolicy:
+      description: cadence 별 discriminated union (none/daily/weekly/monthly).
+      oneOf:
+        - type: object
+          required: [cadence]
+          properties:
+            cadence: { type: string, enum: [none] }
+            startPrice: { type: integer, nullable: true }
+        - type: object
+          required: [cadence, timeOfDay, quantity]
+          properties:
+            cadence: { type: string, enum: [daily] }
+            timeOfDay: { type: string }
+            quantity: { type: integer, minimum: 1 }
+            startPrice: { type: integer, nullable: true }
+        - type: object
+          required: [cadence, dayOfWeek, timeOfDay, quantity]
+          properties:
+            cadence: { type: string, enum: [weekly] }
+            dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+            timeOfDay: { type: string }
+            quantity: { type: integer, minimum: 1 }
+            startPrice: { type: integer, nullable: true }
+        - type: object
+          required: [cadence, dayOfMonth, timeOfDay, quantity]
+          properties:
+            cadence: { type: string, enum: [monthly] }
+            dayOfMonth: { type: integer, minimum: 1, maximum: 31 }
+            timeOfDay: { type: string }
+            quantity: { type: integer, minimum: 1 }
+            startPrice: { type: integer, nullable: true }
 
 # ============================================================================
 # 비고
 # ============================================================================
-# - 본 스펙은 v0.1 — Swagger UI 통합·codegen 검증 후 v1.0으로 승격
-# - WebSocket 채널(`/ws/auctions/{id}`)은 별도 문서로 명세 (OpenAPI는 REST 전용)
-# - HR 시스템(`POST {HR_BASE}/api/hr/*`)은 본 시스템의 *Outbound* 호출이므로 별도 문서
-# - 권한 검증은 permission-matrix.md 1:1 매핑
-# - 인수 조건은 acceptance-criteria.md FR-x.x 참조
+# - 코드 기준 동기화: 2026-06-12 (backend/src/interfaces/http/*.controller.ts).
+# - 응답 스키마는 핵심만 명시. 컨트롤러가 use-case 반환을 그대로 내보내므로
+#   실제 필드는 application 계층 DTO 가 최종 기준.
+# - 실시간: WebSocket(/ws/*)은 미구현. 경매·알림 모두 SSE(@Sse)로 대체.
+#   EventSource 인증은 ?token=<JWT> 쿼리.
+# - HR 아웃바운드(낙찰 연차 통지)는 ezpass REST(PUT .../streYryc, ADR-025)로
+#   호출 — 본 시스템이 호출하는 외부 API라 paths 목록과 별개. api-spec.md §7 참조.
+# - 과거 문서에 있었으나 코드에 없어 제거된 라우트:
+#   /auth/sso/callback, /auth/refresh, /users/me/*, /users/me/stake,
+#   /auctions/me/bids, /admin/config/*, /admin/escrow, /admin/outbox*,
+#   /internal/batch/*, /internal/leave/deduct.
+#   (배치류는 admin-leave-pool/dividend/auctions 의 settle-due·open-due·collect
+#    ·release·settle 라우트 + 자동 스케줄러로 대체됨.)

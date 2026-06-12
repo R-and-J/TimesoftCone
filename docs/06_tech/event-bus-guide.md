@@ -14,6 +14,7 @@ In-process 도메인 이벤트 버스로 **부수효과를 Use Case에서 분리
 export const AUCTION_EVENTS = {
   BID_PLACED: "auction.bid_placed",
   WON: "auction.won",
+  INVENTORY_CREATED: "auction.inventory_created",
 } as const;
 
 export class BidPlacedEvent {
@@ -80,12 +81,21 @@ providers: [ /* ... */ NotificationObserver ],          // 새 구독자 등록
 
 ## 현재 이벤트 ↔ 구독자
 
-| 이벤트 | 발행 위치 | 구독자 | 동작 |
-|---|---|---|---|
-| `auction.bid_placed` | `PlaceBidUseCase` (커밋 후) | `NotificationObserver` | 직전 최고가자에게 OUTBID 알림 |
-| `auction.won` | `SettleAuctionUseCase` (커밋 후, 수동·스케줄러 공통) | `NotificationObserver` | 낙찰자에게 AUCTION_WON 알림 |
+이벤트는 4개 그룹(`application/events/`): `auction-events.ts` · `charge-events.ts`(ADR-024) · `redemption-events.ts`(ADR-023) · `notification-events.ts`. 모든 도메인 이벤트는 `NotificationObserver`(단일 실구독자, 10개 핸들러)가 받아 `notification` 행을 적재하고, 내부적으로 `notification.created`를 재발행 → **`NotificationStream`(SSE)** 가 듣고 사용자 화면으로 실시간 push 한다.
 
-> 같은 이벤트에 **WebSocket 브로드캐스트·Slack 운영알림·메트릭** 핸들러를 더 붙이는 것이 다음 확장 지점이다(현재 미구현 — [scope-cuts](scope-cuts.md) CUT-6/CUT-2). 핸들러만 추가하면 되고 위 ②는 손대지 않는다.
+| 이벤트 | 발행 위치 | 구독자 핸들러 | 동작(알림 type) |
+|---|---|---|---|
+| `auction.bid_placed` | `PlaceBidUseCase` | `onBidPlaced` | 직전 최고가자에게 `OUTBID` |
+| `auction.won` | `SettleAuctionUseCase` (수동·스케줄러 공통) | `onAuctionWon` | 낙찰자에게 `AUCTION_WON` |
+| `auction.inventory_created` | `CollectLeavePoolUseCase` (ADR-017) | `onInventoryCreated` | 관리자들에게 `INVENTORY_CREATED` |
+| `charge.submitted` | 충전 요청 등록 (ADR-024) | `onChargeRequestSubmitted` | 관리자들에게 `CHARGE_REQUEST_SUBMITTED` |
+| `charge.approved` / `charge.rejected` | 충전 승인/반려 | `onChargeApproved` / `onChargeRejected` | 요청자에게 `CHARGE_APPROVED`/`CHARGE_REJECTED` |
+| `redemption.submitted` | 교환 신청 (ADR-023) | `onRedemptionSubmitted` | 관리자들에게 `REDEMPTION_REQUEST_SUBMITTED` |
+| `redemption.approved` / `redemption.rejected` | 교환 승인/반려 | `onRedemptionApproved` / `onRedemptionRejected` | 요청자에게 `REDEMPTION_APPROVED`/`REDEMPTION_REJECTED` |
+| `redemption.received` | 사용자 수령 컨펌 | `onRedemptionReceived` | 관리자들에게 `REDEMPTION_RECEIVED` |
+| `notification.created` | `NotificationObserver`(위 핸들러들이 재발행) | `NotificationStream` | SSE로 사용자 화면 실시간 push |
+
+> 실시간 전달은 WebSocket이 아니라 **SSE**(`@Sse`, `NotificationStream`/`AuctionStream`)로 구현됨 — CUT-6의 대체. 같은 버스에 **Slack 운영알림·메트릭** 핸들러를 더 붙이는 것이 다음 확장 지점이고, 핸들러만 추가하면 되며 위 ②는 손대지 않는다.
 
 ## 규칙 요약 (체크리스트)
 

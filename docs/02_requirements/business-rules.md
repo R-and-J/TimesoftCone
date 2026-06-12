@@ -101,15 +101,15 @@ stake_ratio(user, year) = contributed_days(user, year) / Σ contributed_days(*, 
 | OP-1 | 개별 경매 기간 (기존 매물) | 운영자 입력(`POST /api/admin/auctions`) | `CreateAuctionUseCase` |
 | OP-1 | LeavePool 생성 매물 기간 | 7일 | `LEAVEPOOL_AUCTION_DAYS=7` |
 | OP-3 | 최소 입찰 증분 | 100 P | `schema.prisma` 기본값 + `LEAVEPOOL_MIN_INCREMENT=100` |
-| OP-5 | 분산 오픈 주당 개수 | 0 (= 익년도 1/1 전량 동시) | `LEAVEPOOL_WEEKLY_QTY=0` |
-| OP-6 | 첫 해 시작가 | 5,000 P (모드② 고정 최소가) | `LEAVEPOOL_START_PRICE=5000` |
+| OP-5 | 분산 오픈 정책 | `release_policy` 테이블(기본 `cadence:none` = 즉시 전량) | `RELEASE_POLICY` 포트 + `PATCH /api/admin/release-policy`; `ReleaseInventoryScheduler`가 회차마다 supply→매물 |
+| OP-6 | 첫 해 시작가 | **30,000 P** (모드② 고정 최소가) | `LEAVEPOOL_START_PRICE=30000` (DEFAULTS.startPrice=30000n; 30,000 P 고정 정책) |
 | OP-8 | 연말 배치 시각 | 12/31 23:59 (로컬) | `DIVIDEND_CUTOFF` / `LEAVEPOOL_CUTOFF` |
 | CUT-5 | anti-snipe 창/연장 | 5/5분 | `ANTISNIPE_WINDOW_MS=300000` / `ANTISNIPE_EXTEND_MS=300000` |
 
 팀 공식 확정이 남은 항목:
 - [ ] OP-3 최소 입찰 증분의 구체 금액 (코드 기본 100 P — 운영자 동의 필요)
-- [ ] OP-5 분산 오픈 주당 개수 (코드 기본 0 = 전량 동시)
-- [ ] OP-6 첫 해 시작가 모드 및 값 (코드 기본 모드②, 5,000 P)
+- [ ] OP-5 분산 오픈 정책 (코드 기본 `release_policy.cadence=none` = 즉시 전량; 주기 배포는 관리자 `PATCH /api/admin/release-policy`로 설정. ⚠️ `.env.example`의 `LEAVEPOOL_WEEKLY_QTY`는 현재 코드가 읽지 않는 잔재 — 정리 대상)
+- [ ] OP-6 첫 해 시작가 모드 및 값 (코드 기본 모드②, **30,000 P** 고정)
 - [ ] KPI baseline 측정 방법 + 만족도 설문 문항
 - [ ] 최소 입찰 증분을 통화별로 다르게 둘지 (현재는 단일 통화라 보류)
 

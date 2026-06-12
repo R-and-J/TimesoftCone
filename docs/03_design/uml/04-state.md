@@ -6,6 +6,14 @@
 
 > **Auction 객체 생애주기** — 6 상태 · 4 복합(Composite) 상태 · `<<choice>>` 의사상태 · entry/do/exit 액션 완비
 
+> ### ⚠️ As-Built 차이 (2026-06-12 코드 기준)
+> 아래 다이어그램은 **설계 모델**이다. 실제 구현(`backend/src/domain/auction/`)과 다음이 다르다 — 발표/평가 시 이 간극을 함께 설명할 것:
+> - **상태값**: 실제 `AuctionStatus` = `DRAFT · CREATED · OPEN · AWARDED · UNSOLD` (5종). 다이어그램의 **`CLOSED`·`EXPIRED`는 별도 영속 상태로 두지 않음.** 마감 정산은 `OPEN → (AWARDED | UNSOLD)`로 직접 전이.
+> - **State 패턴 미구현**([CUT-3](../../06_tech/scope-cuts.md), [ADR-014](../../04_decisions/ADR-014-auction-state-pattern.md)): 상태=객체가 아니라 enum + guard 절.
+> - **WebSocket → SSE**([CUT-6](../../06_tech/scope-cuts.md) 대체): OPEN의 "WebSocket 브로드캐스트"는 실제 `@Sse` 스트림(`AuctionStream`).
+> - **AWARDED 내부 Outbox/HR/MQ재시도/DLQ**: 현재 기본 어댑터는 `InternalLeaveAdapter`라 연차 부여가 **같은 로컬 트랜잭션 내 INSERT**(ADR-016). Outbox 머신은 존재하나 dormant — 외부 그룹웨어 연동 시 가동.
+> - **`EXPIRED`의 `deleted_at` Soft Delete**: 실제 `leave_balance`/`auction`에 `deleted_at` 컬럼 없음. 연말 만료는 **연도-파티셔닝**(ADR-004)으로 흡수 — 행을 삭제하지 않고 연도 스코프 조회로 자연 소멸.
+
 ---
 
 ## 🎯 설계 요소 커버리지

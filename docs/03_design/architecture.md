@@ -3,6 +3,16 @@
 **상태**: 🟡 v2 — Hexagonal Architecture(ADR-012), 구조 ADR(010·013·014·015), 휴가 내부화(ADR-005·016·017) 반영
 **관련 문서**: [SRS 2.1 제품 관점](../02_requirements/SRS.md#21-제품-관점) / [tech-stack.md](../06_tech/tech-stack.md) / [ADR-012](../04_decisions/ADR-012-hexagonal-architecture.md)
 
+> ### ⚠️ As-Built 차이 (2026-06-12 코드 기준)
+> 아래 다이어그램·서술은 **설계 모델**이다. 실제 구현과 다음이 다르다(발표/평가 시 함께 설명):
+> - **실시간**: "WebSocket Gateway/브로드캐스트"는 실제 **SSE**(`@Sse`, `AuctionStream`/`NotificationStream`) — CUT-6 대체.
+> - **Escrow**: 별도 `Escrow` 테이블/`EscrowRepository`는 **없다.** 에스크로 잔액은 `ledger_entry`에서 통화별로 파생 집계(`Σ(BID+WIN)−Σ(REFUND+DIVIDEND)`).
+> - **권한(RBAC)**: 2-role(EMPLOYEE/ADMIN)이 아니라 **5-role**(`ADMIN·EZPASS_ADMIN·EXAM_ADMIN·EZPASS·EXAM`) + 멀티테넌시(`company`). 인증은 ezpass 위임/local 모드(ADR-019~022).
+> - **동시성/Redis**: Redis 분산 락 미사용 → SQLite write 락(`lockAuction` no-op UPDATE, CUT-1).
+> - **State 패턴**: 미구현(CUT-3) → `AuctionStatus` enum + guard.
+>
+> 권위 있는 as-built 레퍼런스: [erd.md](erd.md) · [openapi.yaml](openapi.yaml) · [backend/README.md](../../backend/README.md) · [tech-stack.md As-Built 표](../06_tech/tech-stack.md).
+
 ---
 
 ## 1. 논리 아키텍처 (Logical Architecture)
