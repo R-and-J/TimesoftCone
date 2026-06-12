@@ -8,6 +8,83 @@
 
 ---
 
+## 🚀 빠른 시작
+
+> **SQLite 파일 기반 DB** — Docker/DB 서버 불필요. 클론 후 바로 실행 가능합니다.
+
+### 백엔드 (NestJS · 포트 3002)
+
+```bash
+cd backend
+npm install
+cp .env.example .env        # 환경 변수 복사 (기본값으로 바로 동작)
+npm run start:dev           # Watch 모드로 실행
+```
+
+> 처음 실행 시 `backend/prisma/dev.db` 시드 DB가 이미 포함되어 있어  
+> `db:migrate` / `db:seed` 없이 바로 API 호출이 가능합니다.  
+> dev.db가 `git status`에 나타나지 않게 하려면:  
+> `git update-index --skip-worktree backend/prisma/dev.db`
+
+자주 쓰는 명령어:
+
+| 명령어 | 설명 |
+|---|---|
+| `npm run start:dev` | 개발 서버 (watch) |
+| `npm test` | 도메인 단위 테스트 (DB 불필요) |
+| `npm run test:e2e` | E2E 테스트 |
+| `npm run lint` | ESLint (ADR-012 경계 규칙 포함) |
+| `npm run db:studio` | Prisma Studio (DB 시각화) |
+| `npm run db:seed` | 시드 데이터 재적재 |
+| `npm run db:reset` | DB 초기화 (마이그레이션 재실행) |
+
+### 프론트엔드 (React + Vite · 포트 5173)
+
+```bash
+cd frontend
+npm install
+npm run dev     # /api → 127.0.0.1:3002 자동 프록시
+```
+
+| 명령어 | 설명 |
+|---|---|
+| `npm run dev` | 개발 서버 |
+| `npm run build` | 프로덕션 빌드 (`tsc -b && vite build`) |
+| `npm run lint` | ESLint |
+
+---
+
+## ✨ 주요 기능
+
+### 직원 (EMPLOYEE)
+
+| 기능 | 설명 |
+|---|---|
+| **연차 경매 목록 조회** | 현재 입찰 가능한 경매 목록 확인 |
+| **입찰** | 복지 포인트로 1일 연차 경매에 입찰 (이전 최고가 자동 환불) |
+| **낙찰 내역 조회** | 낙찰된 연차 및 포인트 차감 내역 확인 |
+| **내 포인트 잔액 조회** | 복지 포인트 잔액 및 거래 내역 |
+| **배당금 조회** | 판매자(고연차)의 연말 에스크로 배당 내역 |
+
+### 관리자 (ADMIN)
+
+| 기능 | 설명 |
+|---|---|
+| **LeavePool 수집** | 고연차 잉여 연차 → 경매 인벤토리 자동 생성 |
+| **경매 수동 정산** | `POST /api/admin/auctions/settle-due` |
+| **연말 배당 정산** | 에스크로 잔액을 Stake 비율로 판매자에게 지급 |
+| **포인트 직접 지급** | `CREDIT_ADMIN` 항목으로 관리자 임의 포인트 부여 |
+| **사용자/권한 관리** | 계정 조회, ROLE 변경 |
+
+### 핵심 정책
+
+- **에스크로 모델** — 회사 예산 선투입 없이 구매자 포인트가 에스크로에 적립되고 연말에 Stake 비율로 판매자에게 배당
+- **차감 우선순위 강제** — 휴가 사용 시 AUCTION → EVENT → REGULAR 순 자동 차감 (직원 선택 불가)
+- **원장 Insert-Only** — 모든 포인트 이동은 신규 행 추가만 가능; 수정·삭제는 DB 트리거로 차단
+- **단일 트랜잭션 정산** — 낙찰 시 지갑 차감 + 에스크로 적립 + 원장 기록 + 연차 부여가 All-or-Nothing
+
+---
+
 ## 📚 문서 네비게이션
 
 ### 01. 기획 (Planning)
